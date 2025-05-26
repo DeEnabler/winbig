@@ -1,51 +1,78 @@
-'use client'
-// Using 'use client' for the page to easily access searchParams
-// In a real app, [matchId] would be used to fetch data server-side if possible.
-
+// src/app/match/[matchId]/page.tsx
+import type { Metadata, ResolvingMetadata } from 'next';
 import MatchViewClient from '@/components/match/MatchViewClient';
 import type { Match } from '@/types';
-import { mockCurrentUser, mockOpponentUser, mockPredictions } from '@/lib/mockData';
-import { useSearchParams, useParams } from 'next/navigation';
 import { Suspense } from 'react';
+import { getMatchDetailsForOg, getMatchDisplayData } from '@/lib/matchData';
 
-function MatchPageContent() {
-  const params = useParams();
-  const searchParams = useSearchParams();
-  const matchId = typeof params.matchId === 'string' ? params.matchId : 'default-match-id';
+type MatchPageProps = {
+  params: { matchId: string };
+  searchParams: { [key: string]: string | string[] | undefined };
+};
+
+export async function generateMetadata(
+  { params, searchParams }: MatchPageProps,
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  const matchId = params.matchId;
+  const ogData = await getMatchDetailsForOg(matchId, searchParams);
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
+  const ogImageUrl = new URL(`${appUrl}/api/og`);
+
+  // Parameters for OG image
+  ogImageUrl.searchParams.set('predictionText', ogData.predictionText);
+  ogImageUrl.searchParams.set('userChoice', ogData.userChoice);
+  if(ogData.userAvatar) ogImageUrl.searchParams.set('userAvatar', ogData.userAvatar);
+  ogImageUrl.searchParams.set('username', ogData.username);
+  ogImageUrl.searchParams.set('outcome', ogData.outcome || 'PENDING');
+  ogImageUrl.searchParams.set('betAmount', ogData.betAmount.toString());
+  // Add bonus fields if getMatchDetailsForOg provides them and you want them in the image
+  // if (ogData.streak) ogImageUrl.searchParams.set('streak', ogData.streak.toString());
+  // if (ogData.rank) ogImageUrl.searchParams.set('rank', ogData.rank);
+
+
+  const title = `${ogData.username} bet ${ogData.userChoice} on: "${ogData.predictionText.substring(0, 40)}..."`;
+  const description = `Challenge ${ogData.username === 'I' ? 'my' : ogData.username + "'s"} $${ogData.betAmount} bet on ViralBet! Can you predict better?`;
   
-  const predictionId = searchParams.get('predictionId');
-  const userChoice = searchParams.get('choice'); // 'YES' or 'NO'
-  const betAmountStr = searchParams.get('amount');
+  const currentPath = `/match/${matchId}`;
+  const currentQueryParams = new URLSearchParams(searchParams as Record<string, string>).toString();
+  const canonicalUrl = `${appUrl}${currentPath}${currentQueryParams ? `?${currentQueryParams}` : ''}`;
 
-  const prediction = mockPredictions.find(p => p.id === predictionId) || mockPredictions[0];
-  const betAmount = betAmountStr ? parseFloat(betAmountStr) : 50; // Default bet amount
-  const potentialWinnings = betAmount * 1.9; // Simplified odds: 1.9x payout
 
-  // Construct mock match data based on URL params or defaults
-  const currentMatch: Match = {
-    id: matchId,
-    predictionText: prediction.text,
-    user1Username: mockCurrentUser.username,
-    user1AvatarUrl: mockCurrentUser.avatarUrl,
-    user2Username: mockOpponentUser.username, // Could be a random user or system pool
-    user2AvatarUrl: mockOpponentUser.avatarUrl,
-    betAmount: betAmount,
-    potentialWinnings: potentialWinnings,
-    // Countdown to prediction end or a fixed duration like 3 hours from now
-    countdownEnds: prediction.endsAt ? prediction.endsAt.getTime() : Date.now() + 3 * 60 * 60 * 1000,
-    shareUrl: typeof window !== 'undefined' ? `${window.location.origin}/match/${matchId}?predictionId=${prediction.id}&ref=${mockCurrentUser.username}` : `/match/${matchId}?predictionId=${prediction.id}&ref=${mockCurrentUser.username}`,
+  return {
+    title: title,
+    description: description,
+    openGraph: {
+      title: title,
+      description: description,
+      images: [{ url: ogImageUrl.toString(), width: 1200, height: 630, alt: `ViralBet Challenge: ${ogData.predictionText}` }],
+      type: 'website',
+      url: canonicalUrl,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: title,
+      description: description,
+      images: [ogImageUrl.toString()],
+    },
   };
-
-  return <MatchViewClient match={currentMatch} />;
 }
 
+// This client component wrapper ensures that MatchViewClient, 
+// which uses client-side hooks like useEffect, useState,
+// is correctly handled when the page itself is a Server Component.
+function MatchPageClientContentWrapper({ matchData }: { matchData: Match }) {
+  return <MatchViewClient match={matchData} />;
+}
 
-export default function MatchPage() {
+export default async function MatchPage({ params, searchParams }: MatchPageProps) {
+  // Fetch the full match data needed for displaying the page
+  const matchDisplayData = await getMatchDisplayData(params.matchId, searchParams);
+
   return (
-    // Suspense is good practice if searchParams causes any delayed rendering,
-    // though with this simple client-side fetch it might not be strictly necessary.
     <Suspense fallback={<div className="text-center p-10">Loading match details...</div>}>
-      <MatchPageContent/>
+      <MatchPageClientContentWrapper matchData={matchDisplayData} />
     </Suspense>
   );
 }
