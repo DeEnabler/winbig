@@ -50,10 +50,10 @@ export default function MatchViewClient({ match }: MatchViewProps) {
 
   const { toast } = useToast();
   
-  const [isClient, setIsClient] = useState(false); // << New state to track client-side mount
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    setIsClient(true); // << Set to true once component mounts on the client
+    setIsClient(true); 
   }, []);
 
 
@@ -71,7 +71,7 @@ export default function MatchViewClient({ match }: MatchViewProps) {
     url.searchParams.set('outcome', match.outcome || 'PENDING');
     url.searchParams.set('betAmount', (match.userBet?.amount || betAmountState).toString());
 
-    if (match.betSize) url.searchParams.set('betSize', match.betSize); // e.g., "5 SOL"
+    if (match.betSize) url.searchParams.set('betSize', match.betSize); 
     if (match.streak) url.searchParams.set('streak', match.streak);
     if (match.rank) url.searchParams.set('rank', match.rank);
     if (match.rankCategory) url.searchParams.set('rankCategory', match.rankCategory);
@@ -81,7 +81,7 @@ export default function MatchViewClient({ match }: MatchViewProps) {
 
   useEffect(() => {
     const initialDuration = Math.max(0, match.countdownEnds - Date.now());
-    if (initialDuration === 0) { // Handle cases where countdown already ended
+    if (initialDuration === 0) { 
         setTimeLeft("Match Ended");
         setCountdownProgress(0);
         return;
@@ -124,7 +124,7 @@ export default function MatchViewClient({ match }: MatchViewProps) {
   };
 
   const openShareDialog = () => {
-    handleGenerateShareMessage(); // Pre-generate message
+    handleGenerateShareMessage(); 
     setIsShareDialogOpen(true);
   };
   
@@ -133,12 +133,11 @@ export default function MatchViewClient({ match }: MatchViewProps) {
     ? { username: match.opponent.username, avatarUrl: match.opponent.avatarUrl || mockOpponentUser.avatarUrl, winRate: match.opponent.winRate } 
     : { username: 'System Pool', avatarUrl: 'https://placehold.co/40x40.png?text=S', winRate: undefined };
 
-  // Find corresponding mock prediction for image, or use a default
   const predictionDetails = mockPredictions.find(p => p.id === match.predictionId || p.text === match.predictionText);
   const predictionImage = predictionDetails?.imageUrl || 'https://placehold.co/600x300.png';
   const predictionAiHint = predictionDetails?.aiHint || 'abstract event';
 
-  const confidenceYes = match.confidence?.yesPercentage || 50; // Default to 50% if not provided
+  const confidenceYes = match.confidence?.yesPercentage || 50; 
 
   return (
     <>
@@ -151,7 +150,6 @@ export default function MatchViewClient({ match }: MatchViewProps) {
             <CardTitle className="text-xl font-bold text-center grow">{match.predictionText}</CardTitle>
             <div className="w-8"></div> {/* Spacer */}
           </div>
-          {/* Animated flip from card could be a parent component managing transition */}
         </CardHeader>
         <CardContent className="p-6 space-y-4">
           <div className="relative w-full h-40 md:h-48 rounded-md overflow-hidden mb-4 shadow-md">
@@ -177,7 +175,6 @@ export default function MatchViewClient({ match }: MatchViewProps) {
             </div>
           </div>
 
-          {/* Confidence Bar */}
           <div className="space-y-1">
             <div className="flex justify-between text-xs font-medium text-muted-foreground px-1">
               <span>{confidenceYes}% YES</span>
@@ -186,7 +183,6 @@ export default function MatchViewClient({ match }: MatchViewProps) {
             <Progress value={confidenceYes} className="w-full h-2" />
           </div>
 
-          {/* Badges */}
           <div className="flex flex-wrap justify-center gap-2">
             {match.streak && parseInt(match.streak) > 0 && (
               <Badge variant="secondary" className="text-sm bg-orange-100 text-orange-700 dark:bg-orange-800 dark:text-orange-300">
@@ -200,8 +196,7 @@ export default function MatchViewClient({ match }: MatchViewProps) {
             )}
           </div>
           
-          {/* Bet Slider and Payout */}
-          {match.outcome === 'PENDING' && !match.userBet && ( // Show slider only if it's a challenge being accepted, or bet can be adjusted
+          {match.outcome === 'PENDING' && !match.userBet && ( 
             <div className="space-y-3 pt-2">
               <div className="flex justify-between items-center">
                 <label htmlFor="betAmountSlider" className="text-sm font-medium">Bet Amount: ${betAmountState}</label>
@@ -220,7 +215,7 @@ export default function MatchViewClient({ match }: MatchViewProps) {
               </p>
             </div>
           )}
-          {match.userBet && ( // Display fixed bet if already placed
+          {match.userBet && ( 
              <div className="text-center text-lg pt-2">
                 <p>Your Bet: <span className="font-bold text-primary">${match.userBet.amount}</span></p>
                 <p>Potential Payout: <span className="font-bold text-green-600 dark:text-green-400">${(match.userBet.amount * 1.9).toFixed(2)}</span></p>
@@ -249,15 +244,18 @@ export default function MatchViewClient({ match }: MatchViewProps) {
                   <Share2 className="w-4 h-4 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Share</span>
               </Button>
            </div>
-           <Button size="lg" variant="outline" className="w-full" asChild={isClient}> {/* << Conditionally set asChild */}
-              {isClient ? ( // << Conditionally render Link
+           <Button size="lg" variant="outline" className="w-full" asChild={isClient}>
+              {isClient ? (
                 <Link href={appendEntryParams("/")}>
-                  <ExternalLink className="w-5 h-5 mr-2" /> Find More Bets
+                  {/* Wrap Link children in a single element like span */}
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <ExternalLink className="w-5 h-5" /> Find More Bets
+                  </span>
                 </Link>
               ) : (
                 // Fallback for SSR: Render as a non-interactive button content
-                <span> 
-                  <ExternalLink className="w-5 h-5 mr-2" /> Find More Bets
+                <span className="inline-flex items-center justify-center gap-2"> 
+                  <ExternalLink className="w-5 h-5" /> Find More Bets
                 </span>
               )}
            </Button>
@@ -268,12 +266,10 @@ export default function MatchViewClient({ match }: MatchViewProps) {
         isOpen={isShareDialogOpen}
         onOpenChange={setIsShareDialogOpen}
         matchId={match.id}
-        ogImageUrl={ogImageUrl} // Pass generated OG image URL
+        ogImageUrl={ogImageUrl}
         currentShareMessage={isLoadingShareMessage ? "Generating viral message..." : shareMessage}
         onShareMessageChange={setShareMessage}
-        shareUrl={match.shareUrl || `${appUrl}/match/${match.id}`} // Fallback share URL
-        // tweetTemplates={["Template 1", "Template 2"]} // Optional
-        // rewardIncentive="+1 Free Token for sharing!" // Optional
+        shareUrl={match.shareUrl || `${appUrl}/match/${match.id}`}
       />
     </>
   );
