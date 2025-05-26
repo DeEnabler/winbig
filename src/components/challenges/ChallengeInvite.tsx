@@ -8,72 +8,37 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useRouter } from 'next/navigation';
 import { useEntryContext } from '@/contexts/EntryContext';
 import { useToast } from '@/hooks/use-toast';
-import { mockCurrentUser } from '@/lib/mockData'; // For mock userId
+// Removed mockCurrentUser as userId will be handled by backend/auth later
 
 export default function ChallengeInvite({ matchId: originalChallengeMatchId, referrerName, predictionQuestion, predictionId }: ChallengeInviteProps) {
   const router = useRouter();
   const { toast } = useToast();
   const { appendEntryParams } = useEntryContext();
 
-  const handleAccept = async (choice: 'YES' | 'NO') => {
-    const betAmount = 5; // Default bet amount for challenges for now
-
+  const handleAccept = (choice: 'YES' | 'NO') => {
     toast({
-      title: "Placing your bet...",
-      description: `You chose ${choice} for "${predictionQuestion.substring(0,30)}...".`,
+      title: "Challenge Accepted!",
+      description: `You chose ${choice} for "${predictionQuestion.substring(0,30)}...". Please confirm your bet.`,
     });
 
-    try {
-      const response = await fetch('/api/bets', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: mockCurrentUser.id, // In a real app, get this from auth session
-          challengeMatchId: originalChallengeMatchId, // The ID from the URL, e.g., "challengeAsTest1"
-          predictionId: predictionId, // The actual ID of the prediction content
-          choice: choice,
-          amount: betAmount,
-          referrerName: referrerName, // Good to log who initiated this accepted challenge
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || 'Failed to place bet.');
-      }
-
-      toast({
-        title: "Challenge Accepted & Bet Placed!",
-        description: `Your ${choice} bet for $${betAmount} on "${predictionQuestion.substring(0,30)}..." is in!`,
-      });
-
-      // Navigate to the match view. The `originalChallengeMatchId` might be the market ID.
-      // Or, if the API returned a specific match ID for this new bet, use that.
-      // For now, assuming originalChallengeMatchId is the identifier for the general prediction market.
-      const baseUrl = `/match/${originalChallengeMatchId}?betPlaced=true&choice=${choice}&predictionId=${predictionId}&amount=${betAmount}&referrer=${referrerName}`;
-      const urlWithEntryParams = appendEntryParams(baseUrl);
-      router.push(urlWithEntryParams);
-
-    } catch (error) {
-      console.error("Error accepting challenge:", error);
-      toast({
-        variant: "destructive",
-        title: "Bet Failed",
-        description: error instanceof Error ? error.message : "Could not place your bet. Please try again.",
-      });
-    }
+    // Navigate to the match view for confirmation, passing necessary details
+    // originalChallengeMatchId is used as the base for the match page URL
+    // predictionId is the specific prediction content
+    // choice is the user's decision on the challenge
+    // confirmChallenge=true indicates this needs bet confirmation
+    // referrerName is passed along for context
+    const baseUrl = `/match/${originalChallengeMatchId}?predictionId=${predictionId}&choice=${choice}&confirmChallenge=true&referrer=${referrerName}`;
+    const urlWithEntryParams = appendEntryParams(baseUrl);
+    router.push(urlWithEntryParams);
   };
 
   const handleDecline = () => {
-    console.log(`Declined challenge ${originalChallengeMatchId} from ${referrerName}`);
+    console.log(`Declined challenge ${originalChallengeMatchId} from ${referrerName} on prediction ${predictionId}`);
     toast({
       title: "Challenge Declined",
       description: "You decided not to take on the challenge this time.",
     });
-    const baseUrl = `/`; // Navigate back to feed or show next card
+    const baseUrl = `/`; // Navigate back to feed
     const urlWithEntryParams = appendEntryParams(baseUrl);
     router.push(urlWithEntryParams);
   };

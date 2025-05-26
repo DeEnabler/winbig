@@ -28,20 +28,20 @@ export interface BetPlacement {
 }
 
 export interface Match {
-  id: string;
+  id: string; // This is the original challengeMatchId or a generated matchId
   predictionText: string;
-  predictionId?: string; // Optional, can be useful for image lookup
+  predictionId: string; // Made mandatory
   user1Username: string;
   user1AvatarUrl?: string;
   user2Username: string; // Could be 'System Pool'
   user2AvatarUrl?: string;
-  betAmount: number; // The core bet amount
+  betAmount: number; // The core bet amount, can be default for challenges
   potentialWinnings: number;
   countdownEnds: number; // Timestamp for when countdown ends
   shareUrl?: string; // URL to share this match
 
   // Fields for OG image and client display, often derived from searchParams or user context
-  userChoice?: 'YES' | 'NO'; // User 1's choice
+  userChoice?: 'YES' | 'NO'; // User 1's choice OR the choice made when accepting a challenge pre-confirmation
   outcome?: 'PENDING' | 'WON' | 'LOST';
   streak?: string; // e.g., "3"
   betSize?: string; // e.g., "5" (for 5 SOL) - can differ from betAmount if different currency/unit displayed
@@ -49,9 +49,13 @@ export interface Match {
   rankCategory?: string; // e.g., "Politics"
 
   // For MatchViewClient specific props
-  userBet?: { side: 'YES'|'NO'; amount: number; status: 'PENDING'|'WON'|'LOST' };
+  userBet?: { side: 'YES'|'NO'; amount: number; status: 'PENDING'|'WON'|'LOST' }; // Details if a bet is ALREADY placed and confirmed
   opponent?: { username: string; winRate?: number, avatarUrl?: string } | 'system'; // winRate made optional
   confidence?: { yesPercentage: number }; // For confidence bar
+
+  // New flags for challenge confirmation flow
+  isConfirmingChallenge?: boolean;
+  originalReferrer?: string; // To pass along who initiated the challenge
 }
 
 export interface LeaderboardEntry {
@@ -79,6 +83,7 @@ export interface PredictionCardProps {
   facePileCount?: number;
   category?: string;
   timeLeft?: string;
+  endsAt?: Date; // Added from previous implementation
   onBet: (bet: BetPlacement) => Promise<void>; // Made onBet async
 }
 
@@ -109,10 +114,9 @@ export interface ShareDialogProps {
 // EntryContext type
 export interface EntryContextType {
   source?: string;
-  challenge?: boolean;
+  challenge?: boolean; // For initial challenge links ?challenge=true
   referrer?: string;
   marketId?: string; // from market=12345
-  predictionId?: string; // from predictionId=abc, specifically for challenge links
+  predictionId?: string; // from initial challenge link or feed interaction
   appendEntryParams: (url: string) => string;
 }
-
