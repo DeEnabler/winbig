@@ -7,9 +7,9 @@ import NextImage from 'next/image';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Share2, MessageSquare, Repeat, ArrowLeft, TrendingUp, Crown } from 'lucide-react'; // Added icons
+import { Share2, MessageSquare, Repeat, ArrowLeft, TrendingUp, Crown, ExternalLink } from 'lucide-react'; // Added icons
 import { Progress } from '@/components/ui/progress';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react'; // << Added useState and useEffect
 import { useToast } from '@/hooks/use-toast';
 import { generateXShareMessage } from '@/ai/flows/generate-x-share-message';
 import Link from 'next/link';
@@ -50,6 +50,13 @@ export default function MatchViewClient({ match }: MatchViewProps) {
 
   const { toast } = useToast();
   
+  const [isClient, setIsClient] = useState(false); // << New state to track client-side mount
+
+  useEffect(() => {
+    setIsClient(true); // << Set to true once component mounts on the client
+  }, []);
+
+
   const appUrl = typeof window !== 'undefined' 
     ? `${window.location.protocol}//${window.location.host}` 
     : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002');
@@ -74,6 +81,11 @@ export default function MatchViewClient({ match }: MatchViewProps) {
 
   useEffect(() => {
     const initialDuration = Math.max(0, match.countdownEnds - Date.now());
+    if (initialDuration === 0) { // Handle cases where countdown already ended
+        setTimeLeft("Match Ended");
+        setCountdownProgress(0);
+        return;
+    }
     const timer = setInterval(() => {
       const newTimeLeft = match.countdownEnds - Date.now();
       if (newTimeLeft <= 0) {
@@ -237,10 +249,17 @@ export default function MatchViewClient({ match }: MatchViewProps) {
                   <Share2 className="w-4 h-4 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Share</span>
               </Button>
            </div>
-           <Button size="lg" variant="outline" className="w-full" asChild>
-              <Link href={appendEntryParams("/")}>
-                <ExternalLink className="w-5 h-5 mr-2" /> Find More Bets
-              </Link>
+           <Button size="lg" variant="outline" className="w-full" asChild={isClient}> {/* << Conditionally set asChild */}
+              {isClient ? ( // << Conditionally render Link
+                <Link href={appendEntryParams("/")}>
+                  <ExternalLink className="w-5 h-5 mr-2" /> Find More Bets
+                </Link>
+              ) : (
+                // Fallback for SSR: Render as a non-interactive button content
+                <span> 
+                  <ExternalLink className="w-5 h-5 mr-2" /> Find More Bets
+                </span>
+              )}
            </Button>
         </CardFooter>
       </Card>
