@@ -1,3 +1,4 @@
+
 // src/app/match/[matchId]/page.tsx
 import type { Metadata, ResolvingMetadata } from 'next';
 import MatchViewClient from '@/components/match/MatchViewClient';
@@ -48,7 +49,22 @@ export async function generateMetadata(
   }
   
   const currentPath = `/match/${matchId}`;
-  const currentQueryParams = new URLSearchParams(searchParams as Record<string, string>).toString();
+
+  // Safely construct query string from searchParams
+  const queryForCanonical = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (typeof value === 'string') {
+      queryForCanonical.set(key, value);
+    } else if (Array.isArray(value)) {
+      value.forEach(vItem => {
+        if (typeof vItem === 'string') {
+          queryForCanonical.append(key, vItem);
+        }
+      });
+    }
+    // undefined or Symbol values are skipped by Object.entries or type check
+  }
+  const currentQueryParams = queryForCanonical.toString();
   const canonicalUrl = `${appUrl}${currentPath}${currentQueryParams ? `?${currentQueryParams}` : ''}`;
 
   return {
