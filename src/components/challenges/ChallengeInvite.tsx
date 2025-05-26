@@ -1,3 +1,4 @@
+
 // src/components/challenges/ChallengeInvite.tsx
 'use client';
 
@@ -7,35 +8,72 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useRouter } from 'next/navigation';
 import { useEntryContext } from '@/contexts/EntryContext';
 import { useToast } from '@/hooks/use-toast';
+import { mockCurrentUser } from '@/lib/mockData'; // For mock userId
 
-export default function ChallengeInvite({ matchId, referrerName, predictionQuestion }: ChallengeInviteProps) {
+export default function ChallengeInvite({ matchId: originalChallengeMatchId, referrerName, predictionQuestion, predictionId }: ChallengeInviteProps) {
   const router = useRouter();
   const { toast } = useToast();
   const { appendEntryParams } = useEntryContext();
 
   const handleAccept = async (choice: 'YES' | 'NO') => {
-    console.log(`Accepted challenge ${matchId} from ${referrerName} with choice ${choice}`);
-    // TODO: Implement API call: POST /api/bets with { userId (from auth), matchId, side: choice }
-    // For now, simulate success and navigate
-    
+    const betAmount = 5; // Default bet amount for challenges for now
+
     toast({
-      title: "Challenge Accepted!",
-      description: `You bet ${choice} on "${predictionQuestion.substring(0,30)}...".`,
+      title: "Placing your bet...",
+      description: `You chose ${choice} for "${predictionQuestion.substring(0,30)}...".`,
     });
 
-    // Navigate to the match view, preserving source parameters
-    // The matchId here should be the one that represents the market/prediction.
-    // A new bet might generate a new specific bet ID, but the match view is for the market.
-    const baseUrl = `/match/${matchId}?betPlaced=true`; // Add param to indicate bet was just placed
-    const urlWithEntryParams = appendEntryParams(baseUrl);
-    router.push(urlWithEntryParams);
+    try {
+      const response = await fetch('/api/bets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: mockCurrentUser.id, // In a real app, get this from auth session
+          challengeMatchId: originalChallengeMatchId, // The ID from the URL, e.g., "challengeAsTest1"
+          predictionId: predictionId, // The actual ID of the prediction content
+          choice: choice,
+          amount: betAmount,
+          referrerName: referrerName, // Good to log who initiated this accepted challenge
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Failed to place bet.');
+      }
+
+      toast({
+        title: "Challenge Accepted & Bet Placed!",
+        description: `Your ${choice} bet for $${betAmount} on "${predictionQuestion.substring(0,30)}..." is in!`,
+      });
+
+      // Navigate to the match view. The `originalChallengeMatchId` might be the market ID.
+      // Or, if the API returned a specific match ID for this new bet, use that.
+      // For now, assuming originalChallengeMatchId is the identifier for the general prediction market.
+      const baseUrl = `/match/${originalChallengeMatchId}?betPlaced=true&choice=${choice}&predictionId=${predictionId}&amount=${betAmount}&referrer=${referrerName}`;
+      const urlWithEntryParams = appendEntryParams(baseUrl);
+      router.push(urlWithEntryParams);
+
+    } catch (error) {
+      console.error("Error accepting challenge:", error);
+      toast({
+        variant: "destructive",
+        title: "Bet Failed",
+        description: error instanceof Error ? error.message : "Could not place your bet. Please try again.",
+      });
+    }
   };
 
   const handleDecline = () => {
-    console.log(`Declined challenge ${matchId} from ${referrerName}`);
-    // Navigate back to feed or show next card
-    // For now, navigate to home, preserving source parameters
-    const baseUrl = `/`;
+    console.log(`Declined challenge ${originalChallengeMatchId} from ${referrerName}`);
+    toast({
+      title: "Challenge Declined",
+      description: "You decided not to take on the challenge this time.",
+    });
+    const baseUrl = `/`; // Navigate back to feed or show next card
     const urlWithEntryParams = appendEntryParams(baseUrl);
     router.push(urlWithEntryParams);
   };
@@ -53,21 +91,21 @@ export default function ChallengeInvite({ matchId, referrerName, predictionQuest
           "{predictionQuestion}"
         </p>
         <div className="grid grid-cols-2 gap-4 pt-4">
-          <Button 
-            onClick={() => handleAccept('YES')} 
+          <Button
+            onClick={() => handleAccept('YES')}
             className="w-full py-3 text-lg font-bold rounded-xl bg-green-600 hover:bg-green-700 text-white h-14"
           >
             ACCEPT (YES)
           </Button>
-          <Button 
-            onClick={() => handleAccept('NO')} 
+          <Button
+            onClick={() => handleAccept('NO')}
             className="w-full py-3 text-lg font-bold rounded-xl bg-red-600 hover:bg-red-700 text-white h-14"
           >
             ACCEPT (NO)
           </Button>
         </div>
-         <Button 
-            onClick={handleDecline} 
+         <Button
+            onClick={handleDecline}
             variant="outline"
             className="w-full py-3 text-md font-bold rounded-xl mt-2"
           >

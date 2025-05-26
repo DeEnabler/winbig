@@ -1,3 +1,4 @@
+
 export interface Prediction {
   id: string;
   text: string; // Corresponds to `question` in PredictionCardProps
@@ -78,16 +79,15 @@ export interface PredictionCardProps {
   facePileCount?: number;
   category?: string;
   timeLeft?: string;
-  onBet: (bet: BetPlacement) => void; // Re-added onBet as it's used by page.tsx
+  onBet: (bet: BetPlacement) => void;
 }
 
 // Props for ChallengeInvite from blueprint
 export interface ChallengeInviteProps {
-  matchId: string;
+  matchId: string; // The identifier for this specific challenge instance or market
   referrerName: string;
   predictionQuestion: string;
-  // onAccept: (choice: 'YES' | 'NO') => void; // Replaced with direct navigation/API call logic
-  // onDecline: () => void;
+  predictionId: string; // The specific ID of the prediction being challenged
 }
 
 // Props for MatchViewClient from blueprint (modified based on Match type)
@@ -112,5 +112,6 @@ export interface EntryContextType {
   challenge?: boolean;
   referrer?: string;
   marketId?: string; // from market=12345
+  predictionId?: string; // from predictionId=abc, specifically for challenge links
   appendEntryParams: (url: string) => string;
 }
