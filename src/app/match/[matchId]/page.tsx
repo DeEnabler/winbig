@@ -7,6 +7,7 @@ import type { Match, ChallengeInviteProps } from '@/types';
 import { Suspense } from 'react';
 import { getMatchDetailsForOg, getMatchDisplayData } from '@/lib/matchData';
 import { mockCurrentUser, mockPredictions } from '@/lib/mockData'; 
+import { redirect } from 'next/navigation'; // Import redirect
 
 type MatchPageProps = {
   params: { matchId: string };
@@ -20,8 +21,8 @@ export async function generateMetadata(
   const matchId = params.matchId;
   
   // Robust referrer extraction for metadata
-  const referrerSearchParamMeta = searchParams.referrer;
   let referrerMeta: string | undefined = undefined;
+  const referrerSearchParamMeta = searchParams.referrer;
   if (typeof referrerSearchParamMeta === 'string') {
     referrerMeta = referrerSearchParamMeta;
   } else if (Array.isArray(referrerSearchParamMeta) && referrerSearchParamMeta.length > 0 && typeof referrerSearchParamMeta[0] === 'string') {
@@ -112,27 +113,36 @@ export default async function MatchPage({ params, searchParams }: MatchPageProps
   const matchId = params.matchId;
   const isChallenge = searchParams.challenge === 'true';
   
-  const referrerSearchParam = searchParams.referrer;
   let referrer: string | undefined = undefined;
+  const referrerSearchParam = searchParams.referrer;
 
-  if (typeof referrerSearchParam === 'string') {
+  if (typeof referrerSearchParam === 'string' && referrerSearchParam.length > 0) {
     referrer = referrerSearchParam;
-  } else if (Array.isArray(referrerSearchParam) && referrerSearchParam.length > 0 && typeof referrerSearchParam[0] === 'string') {
-    // If 'referrer' is an array of strings, take the first one.
+  } else if (Array.isArray(referrerSearchParam) && referrerSearchParam.length > 0 && typeof referrerSearchParam[0] === 'string' && referrerSearchParam[0].length > 0) {
     referrer = referrerSearchParam[0];
   }
   
   const userHasBet = searchParams.betPlaced === 'true';
 
-  if (isChallenge && referrer && referrer.length > 0 && !userHasBet) {
+  if (isChallenge && referrer && !userHasBet) {
     // Phase 0: Challenge Invite
     const predictionId = searchParams.predictionId as string;
-    const prediction = mockPredictions.find(p => p.id === predictionId || p.id === matchId || p.text.toLowerCase().includes(matchId.substring(0,5))) || mockPredictions[0];
+    const prediction = mockPredictions.find(p => p.id === predictionId); // Find prediction
+    
+    let predictionQuestionText: string;
+    if (!prediction) {
+      // This is a fallback if the predictionId from the URL is invalid or not found.
+      // In a real app, you might redirect to an error page or the main feed.
+      console.warn(`Challenge invite for unknown predictionId: ${predictionId}. Using default question.`);
+      predictionQuestionText = "This prediction is no longer available. Accept the challenge?";
+    } else {
+      predictionQuestionText = prediction.text;
+    }
     
     const challengeProps: ChallengeInviteProps = {
-      matchId: matchId,
-      referrerName: referrer, // Now safely using the parsed referrer
-      predictionQuestion: prediction.text,
+      matchId: matchId, // This is "challengeAsTest1" or whatever is in the URL
+      referrerName: referrer,
+      predictionQuestion: predictionQuestionText,
     };
 
     return (

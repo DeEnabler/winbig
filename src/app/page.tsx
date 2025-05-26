@@ -1,31 +1,19 @@
 // src/app/page.tsx
-'use client';
+import { redirect } from 'next/navigation';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-// import { useEntryContext } from '@/contexts/EntryContext'; // Not used for this redirect
-
+// This page now acts as a server component to reliably redirect for testing the challenge flow.
 export default function HomePage() {
-  const router = useRouter();
+  // Simulate landing via a challenge link by redirecting immediately.
+  const challengeUrl = `/match/challengeAsTest1?challenge=true&referrer=ViralBot&predictionId=1`;
+  redirect(challengeUrl);
 
-  useEffect(() => {
-    // Simulate landing via a challenge link
-    // Using setTimeout to push the navigation to the next tick,
-    // which can help with router readiness or searchParam availability on the target page.
-    const timerId = setTimeout(() => {
-      const challengeUrl = `/match/challengeAsTest1?challenge=true&referrer=ViralBot&predictionId=1`;
-      router.push(challengeUrl);
-    }, 0);
-
-    // Cleanup the timer if the component unmounts before the timeout fires
-    return () => clearTimeout(timerId);
-    
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependency array to ensure it runs only once on mount
-
+  // This return is technically unreachable due to the redirect,
+  // but Next.js requires a valid component export.
+  // You could show a loading indicator here if the redirect was conditional
+  // or took time, but for an immediate redirect, it's not strictly necessary.
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] text-center">
-      <p className="text-muted-foreground">Loading your challenge...</p>
+      <p className="text-muted-foreground">Redirecting to your challenge...</p>
     </div>
   );
 }
