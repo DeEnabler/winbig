@@ -8,7 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useRouter } from 'next/navigation';
 import { useEntryContext } from '@/contexts/EntryContext';
 import { useToast } from '@/hooks/use-toast';
-// Removed mockCurrentUser as userId will be handled by backend/auth later
 
 export default function ChallengeInvite({ matchId: originalChallengeMatchId, referrerName, predictionQuestion, predictionId }: ChallengeInviteProps) {
   const router = useRouter();
@@ -32,16 +31,10 @@ export default function ChallengeInvite({ matchId: originalChallengeMatchId, ref
     router.push(urlWithEntryParams);
   };
 
-  const handleDecline = () => {
-    console.log(`Declined challenge ${originalChallengeMatchId} from ${referrerName} on prediction ${predictionId}`);
-    toast({
-      title: "Challenge Declined",
-      description: "You decided not to take on the challenge this time.",
-    });
-    const baseUrl = `/`; // Navigate back to feed
-    const urlWithEntryParams = appendEntryParams(baseUrl);
-    router.push(urlWithEntryParams);
-  };
+  // The handleDecline function and its corresponding button are removed as per the request.
+  // If a user doesn't accept, they would typically navigate away or close the app/tab.
+  // A "skip" or "next" functionality would be more suited for a feed of challenges,
+  // not a direct singular challenge invite screen.
 
   return (
     <Card className="w-full max-w-md mx-auto shadow-xl rounded-lg text-center">
@@ -69,13 +62,7 @@ export default function ChallengeInvite({ matchId: originalChallengeMatchId, ref
             ACCEPT (NO)
           </Button>
         </div>
-         <Button
-            onClick={handleDecline}
-            variant="outline"
-            className="w-full py-3 text-md font-bold rounded-xl mt-2"
-          >
-            DECLINE CHALLENGE
-          </Button>
+         {/* The "DECLINE CHALLENGE" button has been removed from here. */}
       </CardContent>
     </Card>
   );
