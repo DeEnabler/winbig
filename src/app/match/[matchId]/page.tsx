@@ -1,7 +1,8 @@
+
 // src/app/match/[matchId]/page.tsx
 import type { Metadata, ResolvingMetadata } from 'next';
 import MatchViewClient from '@/components/match/MatchViewClient';
-import ChallengeInvite from '@/components/challenges/ChallengeInvite'; // Added
+import ChallengeInvite from '@/components/challenges/ChallengeInvite';
 import type { Match, ChallengeInviteProps } from '@/types';
 import { Suspense } from 'react';
 import { getMatchDetailsForOg, getMatchDisplayData } from '@/lib/matchData';
@@ -17,6 +18,17 @@ export async function generateMetadata(
   parent: ResolvingMetadata
 ): Promise<Metadata> {
   const matchId = params.matchId;
+  
+  // Robust referrer extraction for metadata
+  const referrerSearchParamMeta = searchParams.referrer;
+  let referrerMeta: string | undefined = undefined;
+  if (typeof referrerSearchParamMeta === 'string') {
+    referrerMeta = referrerSearchParamMeta;
+  } else if (Array.isArray(referrerSearchParamMeta) && referrerSearchParamMeta.length > 0 && typeof referrerSearchParamMeta[0] === 'string') {
+    referrerMeta = referrerSearchParamMeta[0];
+  }
+
+  const isChallengeMeta = searchParams.challenge === 'true';
   const ogData = await getMatchDetailsForOg(matchId, searchParams);
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
@@ -35,15 +47,12 @@ export async function generateMetadata(
   if (ogData.rank) ogImageUrl.searchParams.set('rank', ogData.rank);
   if (ogData.rankCategory) ogImageUrl.searchParams.set('rankCategory', ogData.rankCategory);
 
-  const isChallenge = searchParams.challenge === 'true';
-  const referrer = searchParams.referrer as string;
-
   let title = `${ogData.username} bet ${ogData.userChoice} on: "${ogData.predictionText.substring(0, 40)}..."`;
   let description = `Challenge ${ogData.username === 'I' ? 'my' : ogData.username + "'s"} ${ogData.betSize ? ogData.betSize + " SOL bet" : "$" + ogData.betAmount + " bet"} on ViralBet!`;
 
-  if (isChallenge && referrer) {
-    title = `@${referrer} challenged you on ViralBet: "${ogData.predictionText.substring(0, 40)}..."`;
-    description = `Accept the challenge from @${referrer} and bet on "${ogData.predictionText.substring(0,50)}..."!`;
+  if (isChallengeMeta && referrerMeta) {
+    title = `@${referrerMeta} challenged you on ViralBet: "${ogData.predictionText.substring(0, 40)}..."`;
+    description = `Accept the challenge from @${referrerMeta} and bet on "${ogData.predictionText.substring(0,50)}..."!`;
   } else {
     if (ogData.outcome === 'WON') description += ` I called it! Can you?`;
     else if (ogData.outcome === 'LOST') description += ` Think you’re smarter?`;
@@ -102,23 +111,27 @@ function ChallengeInviteWrapper({ challengeProps }: { challengeProps: ChallengeI
 export default async function MatchPage({ params, searchParams }: MatchPageProps) {
   const matchId = params.matchId;
   const isChallenge = searchParams.challenge === 'true';
-  const referrer = searchParams.referrer as string | undefined;
-  // const marketId = searchParams.market as string | undefined; // from market=12345
   
-  // TODO: Add logic to check if user has already bet on this matchId (marketId)
-  // For now, if challenge=true, assume it's Phase 0 (Challenge Invite)
-  // Otherwise, it's Phase 2 (Match View)
-  const userHasBet = searchParams.betPlaced === 'true'; // Simple check if user just placed a bet via ChallengeInvite
+  const referrerSearchParam = searchParams.referrer;
+  let referrer: string | undefined = undefined;
 
-  if (isChallenge && referrer && !userHasBet) {
+  if (typeof referrerSearchParam === 'string') {
+    referrer = referrerSearchParam;
+  } else if (Array.isArray(referrerSearchParam) && referrerSearchParam.length > 0 && typeof referrerSearchParam[0] === 'string') {
+    // If 'referrer' is an array of strings, take the first one.
+    referrer = referrerSearchParam[0];
+  }
+  
+  const userHasBet = searchParams.betPlaced === 'true';
+
+  if (isChallenge && referrer && referrer.length > 0 && !userHasBet) {
     // Phase 0: Challenge Invite
-    // Fetch minimal prediction details based on matchId (which might be a marketId)
-    // For now, using mock data, assuming matchId can find a prediction.
-    const prediction = mockPredictions.find(p => p.id === (searchParams.predictionId as string) || p.id === matchId || p.text.toLowerCase().includes(matchId.substring(0,5))) || mockPredictions[0];
+    const predictionId = searchParams.predictionId as string;
+    const prediction = mockPredictions.find(p => p.id === predictionId || p.id === matchId || p.text.toLowerCase().includes(matchId.substring(0,5))) || mockPredictions[0];
     
     const challengeProps: ChallengeInviteProps = {
-      matchId: matchId, // This is the market or original bet ID being challenged
-      referrerName: referrer,
+      matchId: matchId,
+      referrerName: referrer, // Now safely using the parsed referrer
       predictionQuestion: prediction.text,
     };
 
@@ -129,7 +142,6 @@ export default async function MatchPage({ params, searchParams }: MatchPageProps
     );
   } else {
     // Phase 2: Match View
-    // This means either it's not a challenge link, or the user has already accepted the challenge.
     const matchDisplayData = await getMatchDisplayData(matchId, searchParams);
     return (
       <Suspense fallback={<div className="text-center p-10">Loading match details...</div>}>
