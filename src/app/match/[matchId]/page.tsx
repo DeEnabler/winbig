@@ -6,7 +6,7 @@ import ChallengeInvite from '@/components/challenges/ChallengeInvite';
 import type { Match, ChallengeInviteProps } from '@/types';
 import { Suspense } from 'react';
 import { getMatchDetailsForOg, getMatchDisplayData } from '@/lib/matchData';
-import { mockCurrentUser, mockPredictions } from '@/lib/mockData'; // Keep for fallbacks
+import { mockCurrentUser, mockPredictions } from '@/lib/mockData'; 
 import { redirect } from 'next/navigation';
 
 type MatchPageProps = {
@@ -20,7 +20,6 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const matchId = params.matchId;
 
-  // Try to get predictionId from searchParams, critical for OG
   let predictionIdForOg: string | undefined;
   const predictionIdSearchParam = searchParams.predictionId;
   if (typeof predictionIdSearchParam === 'string') {
@@ -30,11 +29,15 @@ export async function generateMetadata(
   }
 
   if (!predictionIdForOg) {
-    // If no predictionId, generate a very generic OG card or default title/desc
     console.warn(`OG Metadata: predictionId missing for matchId: ${matchId}. Using generic OG.`);
     return {
       title: "ViralBet Match",
       description: "View the match details on ViralBet.",
+      twitter: {
+        card: 'summary_large_image',
+        title: "ViralBet Match",
+        description: "View the match details on ViralBet.",
+      }
     };
   }
   
@@ -42,7 +45,7 @@ export async function generateMetadata(
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
   const ogImageUrl = new URL(`${appUrl}/api/og`);
-  ogImageUrl.searchParams.set('v', Date.now().toString()); // Cache buster
+  ogImageUrl.searchParams.set('v', Date.now().toString()); 
 
   ogImageUrl.searchParams.set('predictionText', ogData.predictionText);
   ogImageUrl.searchParams.set('userChoice', ogData.userChoice);
@@ -56,10 +59,14 @@ export async function generateMetadata(
   if (ogData.rank) ogImageUrl.searchParams.set('rank', ogData.rank);
   if (ogData.rankCategory) ogImageUrl.searchParams.set('rankCategory', ogData.rankCategory);
 
-  // Determine if this is an initial challenge link for OG title/desc purposes
   const isInitialChallengeLink = searchParams.challenge === 'true' && searchParams.referrer && !searchParams.confirmChallenge;
   let referrerForOg: string | undefined;
-  if (typeof searchParams.referrer === 'string') referrerForOg = searchParams.referrer;
+  const referrerSearchParamForOg = searchParams.referrer;
+  if (typeof referrerSearchParamForOg === 'string') {
+    referrerForOg = referrerSearchParamForOg;
+  } else if (Array.isArray(referrerSearchParamForOg) && referrerSearchParamForOg.length > 0) {
+    referrerForOg = referrerSearchParamForOg[0];
+  }
 
 
   let title = `${ogData.username} bet ${ogData.userChoice} on: "${ogData.predictionText.substring(0, 40)}..."`;
@@ -72,7 +79,7 @@ export async function generateMetadata(
     title = `Confirm your bet against @${referrerForOg} on: "${ogData.predictionText.substring(0, 40)}..."`;
     description = `You've accepted @${referrerForOg}'s challenge. Confirm your ${ogData.userChoice} bet on "${ogData.predictionText.substring(0,50)}..."!`;
   }
-  else { // Standard match view or after bet placed
+  else { 
     if (ogData.outcome === 'WON') description += ` I called it! Can you?`;
     else if (ogData.outcome === 'LOST') description += ` Think you’re smarter?`;
     else description += ` Can you predict better?`;
@@ -80,13 +87,13 @@ export async function generateMetadata(
   
   const currentPath = `/match/${matchId}`;
   const queryForCanonical = new URLSearchParams();
-  for (const [key, value] of Object.entries(searchParams)) {
+    for (const [key, value] of Object.entries(searchParams)) {
     if (value === undefined) continue;
     if (typeof value === 'string') {
       queryForCanonical.set(key, value);
     } else if (Array.isArray(value)) {
       value.forEach(vItem => {
-        if (typeof vItem === 'string') {
+        if(typeof vItem === 'string'){
           queryForCanonical.append(key, vItem);
         }
       });
@@ -127,9 +134,8 @@ function ChallengeInviteWrapper({ challengeProps }: { challengeProps: ChallengeI
 }
 
 export default async function MatchPage({ params, searchParams }: MatchPageProps) {
-  const matchId = params.matchId; // This is the ID from the URL path, e.g., "challengeAsTest1"
+  const matchId = params.matchId; 
 
-  // Determine referrer from searchParams
   let referrer: string | undefined = undefined;
   const referrerSearchParam = searchParams.referrer;
   if (typeof referrerSearchParam === 'string' && referrerSearchParam.length > 0) {
@@ -140,36 +146,43 @@ export default async function MatchPage({ params, searchParams }: MatchPageProps
 
   const isInitialChallenge = searchParams.challenge === 'true' && !!referrer;
   const isConfirmingChallenge = searchParams.confirmChallenge === 'true' && !!searchParams.choice && !!searchParams.predictionId;
-  // const betIsAlreadyPlaced = searchParams.betPlaced === 'true'; // For bets from feed
+  
+  let predictionIdFromSearch: string | undefined;
+  const predIdSearchParam = searchParams.predictionId;
+  if (typeof predIdSearchParam === 'string') {
+    predictionIdFromSearch = predIdSearchParam;
+  } else if (Array.isArray(predIdSearchParam) && predIdSearchParam.length > 0 && typeof predIdSearchParam[0] === 'string') {
+    predictionIdFromSearch = predIdSearchParam[0];
+  }
 
-  const predictionIdFromSearch = searchParams.predictionId as string | undefined;
 
-  if (isInitialChallenge && !isConfirmingChallenge) { // Phase 0: Show Challenge Invite
+  if (isInitialChallenge && !isConfirmingChallenge) { 
     if (!predictionIdFromSearch) {
-      // This should ideally not happen if links are constructed correctly
       console.error("Challenge invite missing predictionId for matchId:", matchId);
       return <div className="text-center p-10 text-destructive">Error: Invalid challenge link. Prediction details missing.</div>;
     }
     const prediction = mockPredictions.find(p => p.id === predictionIdFromSearch);
     if (!prediction) {
-      console.warn(`Challenge invite for unknown predictionId: ${predictionIdFromSearch}. Using default question.`);
-      // Potentially redirect or show a more specific error
+       console.warn(`Challenge invite for unknown predictionId: ${predictionIdFromSearch}. Using default question.`);
        return <div className="text-center p-10 text-destructive">Error: Prediction not found for this challenge.</div>;
     }
 
+    // MOCK: In a real system, the referrer's original choice would come from the backend or be part of the challenge link.
+    const referrerOriginalChoice: 'YES' | 'NO' = 'YES'; // Assuming referrer bet YES for mock purposes
+
     const challengeProps: ChallengeInviteProps = {
       matchId: matchId,
-      referrerName: referrer as string, // Known to be defined due to isInitialChallenge check
+      referrerName: referrer as string, 
       predictionQuestion: prediction.text,
       predictionId: predictionIdFromSearch,
+      referrerOriginalChoice: referrerOriginalChoice,
     };
     return (
       <Suspense fallback={<div className="text-center p-10">Loading challenge...</div>}>
         <ChallengeInviteWrapper challengeProps={challengeProps} />
       </Suspense>
     );
-  } else { // Phase 2: Show MatchView (either for challenge confirmation or standard view)
-    // `getMatchDisplayData` will internally check for `confirmChallenge` to set `isConfirmingChallenge` on Match object
+  } else { 
     try {
       const matchDisplayData = await getMatchDisplayData(matchId, searchParams);
       return (

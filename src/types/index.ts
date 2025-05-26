@@ -25,6 +25,9 @@ export interface BetPlacement {
   predictionId: string;
   choice: 'YES' | 'NO';
   amount: number;
+  // For challenge acceptance, these might be relevant
+  challengeMatchId?: string; 
+  referrerName?: string;
 }
 
 export interface Match {
@@ -49,11 +52,11 @@ export interface Match {
   rankCategory?: string; // e.g., "Politics"
 
   // For MatchViewClient specific props
-  userBet?: { side: 'YES'|'NO'; amount: number; status: 'PENDING'|'WON'|'LOST' }; // Details if a bet is ALREADY placed and confirmed
-  opponent?: { username: string; winRate?: number, avatarUrl?: string } | 'system'; // winRate made optional
-  confidence?: { yesPercentage: number }; // For confidence bar
+  userBet?: { side: 'YES'|'NO'; amount: number; status: 'PENDING'|'WON'|'LOST' }; 
+  opponent?: { username: string; winRate?: number, avatarUrl?: string } | 'system'; 
+  confidence?: { yesPercentage: number }; 
 
-  // New flags for challenge confirmation flow
+  // Flags for challenge confirmation flow
   isConfirmingChallenge?: boolean;
   originalReferrer?: string; // To pass along who initiated the challenge
 }
@@ -73,7 +76,7 @@ export type ShareMessageDetails = {
   opponentUsername: string;
 };
 
-// Props for PredictionCard from blueprint
+// Props for PredictionCard
 export interface PredictionCardProps {
   id: string;
   question: string;
@@ -83,29 +86,30 @@ export interface PredictionCardProps {
   facePileCount?: number;
   category?: string;
   timeLeft?: string;
-  endsAt?: Date; // Added from previous implementation
-  onBet: (bet: BetPlacement) => Promise<void>; // Made onBet async
+  endsAt?: Date; 
+  onBet: (bet: Omit<BetPlacement, 'challengeMatchId' | 'referrerName'>) => Promise<void>;
 }
 
-// Props for ChallengeInvite from blueprint
+// Props for ChallengeInvite
 export interface ChallengeInviteProps {
-  matchId: string; // The identifier for this specific challenge instance or market
+  matchId: string; 
   referrerName: string;
   predictionQuestion: string;
-  predictionId: string; // The specific ID of the prediction being challenged
+  predictionId: string; 
+  referrerOriginalChoice: 'YES' | 'NO'; // Added this
 }
 
-// Props for MatchViewClient from blueprint (modified based on Match type)
+// Props for MatchViewClient
 export interface MatchViewProps {
-  match: Match; // Consolidating props into a single match object
+  match: Match; 
 }
 
-// Props for ShareDialog from blueprint
+// Props for ShareDialog
 export interface ShareDialogProps {
   matchId: string;
   ogImageUrl: string;
-  tweetTemplates?: string[]; // Made optional
-  rewardIncentive?: string; // Made optional
+  tweetTemplates?: string[]; 
+  rewardIncentive?: string; 
   currentShareMessage: string;
   onShareMessageChange: (message: string) => void;
   shareUrl: string;
@@ -114,9 +118,9 @@ export interface ShareDialogProps {
 // EntryContext type
 export interface EntryContextType {
   source?: string;
-  challenge?: boolean; // For initial challenge links ?challenge=true
+  challenge?: boolean; 
   referrer?: string;
-  marketId?: string; // from market=12345
-  predictionId?: string; // from initial challenge link or feed interaction
+  marketId?: string; 
+  predictionId?: string; 
   appendEntryParams: (url: string) => string;
 }
