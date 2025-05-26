@@ -48,12 +48,8 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   const [isLoadingShareMessage, setIsLoadingShareMessage] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   
-  // Bet amount state is now crucial.
-  // If it's a confirmed bet, use match.userBet.amount.
-  // If confirming a challenge, use match.betAmount (default for challenge) or allow slider.
-  // If a new bet from feed (not yet modeled this way, bet is made before nav), use match.userBet.amount.
   const [betAmountState, setBetAmountState] = useState(match.userBet?.amount || match.betAmount || 10);
-  const [isBetting, setIsBetting] = useState(false); // For loading state on confirm bet
+  const [isBetting, setIsBetting] = useState(false); 
 
   const potentialPayout = useMemo(() => (betAmountState * 1.9).toFixed(2), [betAmountState]);
 
@@ -68,13 +64,13 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     const url = new URL(`${appUrl}/api/og`);
     url.searchParams.set('v', Date.now().toString());
     url.searchParams.set('predictionText', match.predictionText);
-    url.searchParams.set('userChoice', match.userChoice || 'YES'); // Use match.userChoice
+    url.searchParams.set('userChoice', match.userChoice || 'YES'); 
     url.searchParams.set('userAvatar', match.user1AvatarUrl || mockCurrentUser.avatarUrl || 'https://placehold.co/128x128.png?text=VB');
     url.searchParams.set('username', match.user1Username === 'You' ? 'I' : match.user1Username);
     url.searchParams.set('outcome', match.outcome || 'PENDING');
-    // Use betAmountState if confirming, or existing userBet amount, or general match betAmount
+    
     const displayBetAmount = match.userBet?.amount || (match.isConfirmingChallenge ? betAmountState : match.betAmount);
-    url.searchParams.set('betAmount', (displayBetAmount).toString());
+    url.searchParams.set('betAmount', (displayBetAmount || 0).toString());
 
     if (match.betSize) url.searchParams.set('betSize', match.betSize); 
     if (match.streak) url.searchParams.set('streak', match.streak);
@@ -107,7 +103,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
 
   const handleGenerateShareMessage = async () => {
     if (shareMessage && !isLoadingShareMessage) return;
-    if (match.isConfirmingChallenge) { // Don't generate for unconfirmed bets
+    if (match.isConfirmingChallenge) { 
         setShareMessage("Confirm your bet to generate a share message!");
         return;
     }
@@ -116,7 +112,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     try {
       const details: ShareMessageDetails = {
         prediction: match.predictionText,
-        betAmount: match.userBet?.amount || betAmountState, // Use confirmed bet amount
+        betAmount: match.userBet?.amount || betAmountState, 
         potentialWinnings: parseFloat(( (match.userBet?.amount || betAmountState) * 1.9).toFixed(2)),
         opponentUsername: typeof match.opponent === 'string' ? match.opponent : match.opponent?.username || 'a Rival',
       };
@@ -165,12 +161,12 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                userId: mockCurrentUser.id, // Replace with actual authenticated user ID
-                challengeMatchId: match.id, // The original challenge ID
+                userId: mockCurrentUser.id, 
+                challengeMatchId: match.id, 
                 predictionId: match.predictionId,
                 choice: match.userChoice,
                 amount: betAmountState,
-                referrerName: match.originalReferrer, // Pass along the referrer
+                referrerName: match.originalReferrer, 
             }),
         });
         const result = await response.json();
@@ -183,23 +179,17 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
             description: `Your ${match.userChoice} bet for $${betAmountState} is in! Good luck!`,
         });
 
-        // Update local match state to reflect bet confirmation
         setMatch(prevMatch => ({
             ...prevMatch,
-            isConfirmingChallenge: false, // No longer confirming
-            userBet: { // Set the userBet details
+            isConfirmingChallenge: false, 
+            userBet: { 
                 side: prevMatch.userChoice!,
                 amount: betAmountState,
                 status: 'PENDING',
             },
-            betAmount: betAmountState, // Update the main betAmount for the match view
-            // Potentially, the API could return updated match details to set here
+            betAmount: betAmountState, 
         }));
         
-        // Optionally, refresh router to clear confirmChallenge param, or just update state
-        // router.replace(appendEntryParams(`/match/${match.id}?betPlaced=true&predictionId=${match.predictionId}&choice=${match.userChoice}&amount=${betAmountState}`), { scroll: false });
-
-
     } catch (error) {
         console.error("Error confirming bet:", error);
         toast({
@@ -280,9 +270,6 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
             )}
           </div>
           
-          {/* Bet Amount Slider and Payout */}
-          {/* Show slider if confirming challenge OR if it's a new bet scenario (not yet fully distinct) */}
-          {/* For now, slider is active if isConfirmingChallenge OR if no userBet is set (implies new bet) */}
           {(match.isConfirmingChallenge || !match.userBet) && ( 
             <div className="space-y-3 pt-2">
               <div className="flex justify-between items-center">
@@ -298,17 +285,17 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                 step={1}
                 defaultValue={[betAmountState]}
                 onValueChange={(value) => setBetAmountState(value[0])}
-                disabled={isBetting || (!!match.userBet && !match.isConfirmingChallenge)} // Disable if bet already placed and not in confirm mode
+                disabled={isBetting || (!!match.userBet && !match.isConfirmingChallenge)}
               />
               <p className="text-center text-lg">
                 Potential Payout: <span className="font-bold text-green-600 dark:text-green-400">${potentialPayout}</span>
               </p>
             </div>
           )}
-          {match.userBet && !match.isConfirmingChallenge && ( // Show placed bet details if not confirming
+          {match.userBet && !match.isConfirmingChallenge && ( 
              <div className="text-center text-lg pt-2">
                 <p>Your Bet: <span className="font-bold text-primary">${match.userBet.amount} on {match.userBet.side}</span></p>
-                <p>Status: <Badge variant={match.userBet.status === 'WON' ? 'default' : match.userBet.status === 'LOST' ? 'destructive' : 'secondary'}>{match.userBet.status}</Badge></p>
+                <div>Status: <Badge variant={match.userBet.status === 'WON' ? 'default' : match.userBet.status === 'LOST' ? 'destructive' : 'secondary'}>{match.userBet.status}</Badge></div>
                 <p>Potential Payout: <span className="font-bold text-green-600 dark:text-green-400">${(match.userBet.amount * 1.9).toFixed(2)}</span></p>
              </div>
           )}
@@ -349,6 +336,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                   </span>
                 </Link>
               ) : (
+                 // Fallback for server-side rendering or when not yet client
                 <span className="inline-flex items-center justify-center gap-2"> 
                   <ExternalLink className="w-5 h-5" /> Find More Bets
                 </span>
