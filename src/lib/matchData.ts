@@ -8,47 +8,51 @@ export interface OgData {
   userAvatar?: string;
   username: string;
   outcome: 'PENDING' | 'WON' | 'LOST';
-  betAmount: number;
-  // Optional bonus fields for future enhancement
-  streak?: number;
-  rank?: string; 
+  betAmount: number; // This is the original bet amount, used for display if betSize is not present
+  betSize?: string; // Specific for "X SOL Bet" badge
+  streak?: string;
+  rank?: string;
+  rankCategory?: string;
 }
 
 export async function getMatchDetailsForOg(
-  matchId: string, // Currently unused with mock data but important for real data
+  matchId: string,
   searchParams: { [key: string]: string | string[] | undefined }
 ): Promise<OgData> {
   const predictionId = searchParams.predictionId as string || mockPredictions[0].id;
   const userChoice = (searchParams.choice as 'YES' | 'NO') || 'YES';
-  const betAmountStr = searchParams.amount as string;
+  const betAmountStr = searchParams.amount as string; // Original bet amount
+  
+  // New dynamic badge params
+  const betSize = searchParams.betSize as string | undefined;
+  const streak = searchParams.streak as string | undefined;
+  const rank = searchParams.rank as string | undefined;
+  const rankCategory = searchParams.rankCategory as string | undefined;
+
 
   const prediction = mockPredictions.find(p => p.id === predictionId) || mockPredictions[0];
-  const betAmount = betAmountStr ? parseFloat(betAmountStr) : 50;
+  const betAmountNum = betAmountStr ? parseFloat(betAmountStr) : 50;
 
-  // Simulate fetching user details (the one sharing)
-  // In a real app, this would be the logged-in user or derived from matchData.user1
-  const sharingUser: User = mockCurrentUser; // Assuming mockCurrentUser is the one sharing
-
+  const sharingUser: User = mockCurrentUser; 
   let displayName = sharingUser.username;
-  if (sharingUser.username === 'You') { // Adjust for first-person phrasing in OG title
+  if (sharingUser.username === 'You') {
     displayName = 'I';
   }
-
 
   return {
     predictionText: prediction.text,
     userChoice: userChoice,
-    userAvatar: sharingUser.avatarUrl || 'https://placehold.co/80x80.png?text=VA', // VA for ViralBet Anonymous
+    userAvatar: sharingUser.avatarUrl || 'https://placehold.co/80x80.png?text=VA',
     username: displayName,
-    outcome: 'PENDING', // Default for a new share. This could be enhanced if match is resolved.
-    betAmount: betAmount,
-    // Example bonus fields (can be populated if data is available)
-    // streak: sharingUser.betStreak,
-    // rank: "#5 Overall" 
+    outcome: (searchParams.outcome as 'PENDING' | 'WON' | 'LOST') || 'PENDING',
+    betAmount: betAmountNum,
+    betSize: betSize ?? (betAmountStr ? `${betAmountNum}` : undefined), // Use betAmount if betSize not explicitly given
+    streak: streak,
+    rank: rank,
+    rankCategory: rankCategory || (prediction.category), // Default to prediction category for rank
   };
 }
 
-// Function to get full match data for the page display
 export async function getMatchDisplayData(
   matchId: string,
   searchParams: { [key: string]: string | string[] | undefined }
@@ -59,28 +63,41 @@ export async function getMatchDisplayData(
 
   const prediction = mockPredictions.find(p => p.id === predictionId) || mockPredictions[0];
   const betAmount = betAmountStr ? parseFloat(betAmountStr) : 50;
-  const potentialWinnings = betAmount * 1.9;
+  const potentialWinnings = betAmount * 1.9; // Example calculation
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
   
   const shareParams = new URLSearchParams();
   if (predictionId) shareParams.set('predictionId', predictionId);
-  if (betAmountStr) shareParams.set('amount', betAmountStr);
+  if (betAmountStr) shareParams.set('amount', betAmountStr); // The core bet amount
   if (userChoiceQuery) shareParams.set('choice', userChoiceQuery);
-  // Add other relevant params for reconstructing the view, like opponent if dynamic
-  // if (mockCurrentUser.username) shareParams.set('ref', mockCurrentUser.username); // Optional referral
+  
+  // Pass through new params for OG image if they exist in original URL
+  if (searchParams.betSize) shareParams.set('betSize', searchParams.betSize as string);
+  if (searchParams.streak) shareParams.set('streak', searchParams.streak as string);
+  if (searchParams.rank) shareParams.set('rank', searchParams.rank as string);
+  if (searchParams.rankCategory) shareParams.set('rankCategory', searchParams.rankCategory as string);
+  if (searchParams.outcome) shareParams.set('outcome', searchParams.outcome as string);
+
 
   const match: Match = {
     id: matchId,
     predictionText: prediction.text,
-    user1Username: mockCurrentUser.username, // User who made the bet being viewed/shared
+    user1Username: mockCurrentUser.username,
     user1AvatarUrl: mockCurrentUser.avatarUrl,
-    user2Username: mockOpponentUser.username, // Opponent; could be dynamic or 'System Pool'
+    user2Username: mockOpponentUser.username,
     user2AvatarUrl: mockOpponentUser.avatarUrl,
     betAmount: betAmount,
     potentialWinnings: potentialWinnings,
-    countdownEnds: prediction.endsAt ? prediction.endsAt.getTime() : Date.now() + 3 * 60 * 60 * 1000, // Use prediction end or default
-    shareUrl: `${appUrl}/match/${matchId}?${shareParams.toString()}`, // Canonical URL for this view
+    countdownEnds: prediction.endsAt ? prediction.endsAt.getTime() : Date.now() + 3 * 60 * 60 * 1000,
+    shareUrl: `${appUrl}/match/${matchId}?${shareParams.toString()}`,
+    // For client-side preview, include these if available
+    streak: searchParams.streak as string | undefined,
+    betSize: searchParams.betSize as string | undefined ?? `${betAmount}`,
+    rank: searchParams.rank as string | undefined,
+    rankCategory: searchParams.rankCategory as string | undefined ?? prediction.category,
+    outcome: searchParams.outcome as 'PENDING' | 'WON' | 'LOST' | undefined ?? 'PENDING',
+    userChoice: userChoiceQuery,
   };
   return match;
 }

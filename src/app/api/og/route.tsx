@@ -17,32 +17,42 @@ export async function GET(req: NextRequest) {
 
   const predictionText = searchParams.get('predictionText') || 'A Viral Prediction';
   const userChoice = searchParams.get('userChoice') as 'YES' | 'NO' || 'YES';
-  const userAvatar = searchParams.get('userAvatar') || 'https://placehold.co/128x128.png?text=VB'; // VB for ViralBet
+  const userAvatar = searchParams.get('userAvatar') || 'https://placehold.co/128x128.png?text=VB';
   const username = searchParams.get('username') || 'A Bettor';
   const outcome = searchParams.get('outcome')?.toUpperCase() || 'PENDING'; // WON, LOST, PENDING
   const betAmount = searchParams.get('betAmount') || '0';
-  
-  // const appLogoUrl = searchParams.get('appLogoUrl') || `https://placehold.co/200x60.png?text=ViralBet`; // Or use text
-  const tagline = 'Bet Like a Legend!'; // Hardcoded or passed via params
+  const betSize = searchParams.get('betSize'); // e.g., 5 (for 5 SOL)
+  const streak = searchParams.get('streak'); // e.g., 3
+  const rank = searchParams.get('rank'); // e.g., 2 (for #2 in Politics)
+  const rankCategory = searchParams.get('rankCategory') || 'Predictions'; // e.g. Politics
 
-  // Bonus fields (examples, pass them if available)
-  // const streak = searchParams.get('streak');
-  // const rank = searchParams.get('rank');
+  const tagline = 'Bet Like a Legend!';
 
-  let choiceColor = 'text-gray-300'; // Default for pending or unknown
+  let choiceColor = 'text-gray-300';
   if (userChoice === 'YES') choiceColor = 'text-green-400';
   if (userChoice === 'NO') choiceColor = 'text-red-400';
 
-  let outcomeBgColor = 'bg-gray-500'; // Default for PENDING
-  if (outcome === 'WON') outcomeBgColor = 'bg-yellow-500'; // Gold for WON
-  if (outcome === 'LOST') outcomeBgColor = 'bg-slate-700';
+  let outcomeBgColor = 'bg-gray-500';
+  let outcomeTextColor = 'text-white';
+  if (outcome === 'WON') {
+    outcomeBgColor = 'bg-yellow-500'; // Gold for WON
+  } else if (outcome === 'LOST') {
+    outcomeBgColor = 'bg-slate-700';
+  }
 
+
+  let ctaText = "Bet against me?";
+  if (outcome === 'WON') {
+    ctaText = "I called it. Can you?";
+  } else if (outcome === 'LOST') {
+    ctaText = "Think you’re smarter?";
+  }
 
   // const geistFontData = await getGeistFont();
 
   return new ImageResponse(
     (
-      <div tw="flex flex-col w-full h-full items-center justify-between bg-purple-800 text-white p-10" style={{ fontFamily: 'sans-serif' /* fallback */ }}>
+      <div tw="flex flex-col w-full h-full items-center justify-between bg-purple-800 text-white p-10 pb-6" style={{ fontFamily: 'sans-serif' }}>
         {/* Header: App Logo + User Avatar + Username */}
         <div tw="flex w-full justify-between items-center">
           <div tw="text-5xl font-bold" style={{color: '#D8B4FE'}}>ViralBet</div>
@@ -63,35 +73,44 @@ export async function GET(req: NextRequest) {
           </div>
         </div>
 
-        {/* Footer: Outcome, Bet Amount, Tagline/CTA */}
+        {/* Dynamic Badges Area */}
+        <div tw="flex flex-wrap justify-center items-center gap-3 mb-3 text-xl">
+          {streak && (
+            <div tw="flex items-center bg-orange-500 text-white px-4 py-1.5 rounded-full shadow-md">
+              <span tw="mr-1.5">🔥</span> {streak}-Win Streak
+            </div>
+          )}
+          {betSize && (
+            <div tw="flex items-center bg-green-500 text-white px-4 py-1.5 rounded-full shadow-md">
+              <span tw="mr-1.5">💰</span> {betSize} SOL Bet
+            </div>
+          )}
+          {rank && (
+            <div tw="flex items-center bg-teal-500 text-white px-4 py-1.5 rounded-full shadow-md">
+              <span tw="mr-1.5">👑</span> Rank #{rank} <span tw="ml-1">in {rankCategory}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Footer: Outcome, CTA */}
         <div tw="flex w-full justify-between items-center text-2xl">
-          <div tw="flex items-center space-x-6">
-            <div tw={`px-5 py-2 rounded-lg ${outcomeBgColor} text-white font-bold shadow-md`}>
+          <div tw="flex items-center">
+            <div tw={`px-5 py-2 rounded-lg ${outcomeBgColor} ${outcomeTextColor} font-bold shadow-md`}>
               {outcome}
             </div>
-            <div tw="px-5 py-2 rounded-lg bg-blue-600 text-white font-bold shadow-md">
-              Bet: ${betAmount}
-            </div>
           </div>
-          <div tw="italic" style={{color: '#D8B4FE'}}>{tagline}</div>
+          <div tw="italic" style={{color: '#D8B4FE'}}>{ctaText}</div>
         </div>
         
-        {/* Optional Bonus: Streak / Rank 
-        {(streak || rank) && (
-          <div tw="flex mt-4 space-x-3 text-lg absolute bottom-24 right-10">
-            {streak && <div tw="bg-orange-500 text-white px-3 py-1 rounded-full">🔥 Streak: {streak}</div>}
-            {rank && <div tw="bg-teal-500 text-white px-3 py-1 rounded-full">👑 Rank: {rank}</div>}
-          </div>
-        )}
-        */}
+        <div tw="w-full text-center text-lg mt-3" style={{color: '#C084FC'}}>{tagline}</div>
+
       </div>
     ),
     {
       width: 1200,
       height: 630,
       // fonts: [{ name: 'Geist', data: geistFontData, style: 'normal' }],
-      // To use emojis, you might need to configure a font that supports them, or ensure system fallback.
-      // emoji: 'fluent', // Example if using Twemoji Fluent
+      // emoji: 'fluent', // Example for emojis
     }
   );
 }

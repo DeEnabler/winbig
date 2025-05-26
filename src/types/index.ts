@@ -24,14 +24,23 @@ export interface BetPlacement {
 export interface Match {
   id: string;
   predictionText: string;
+  predictionId?: string; // Optional, can be useful for image lookup
   user1Username: string;
   user1AvatarUrl?: string;
   user2Username: string; // Could be 'System Pool'
   user2AvatarUrl?: string;
-  betAmount: number;
+  betAmount: number; // The core bet amount
   potentialWinnings: number;
   countdownEnds: number; // Timestamp for when countdown ends
   shareUrl?: string; // URL to share this match
+
+  // Fields for OG image and client display, often derived from searchParams or user context
+  userChoice?: 'YES' | 'NO';
+  outcome?: 'PENDING' | 'WON' | 'LOST';
+  streak?: string; // e.g., "3"
+  betSize?: string; // e.g., "5" (for 5 SOL) - can differ from betAmount if different currency/unit displayed
+  rank?: string; // e.g., "2"
+  rankCategory?: string; // e.g., "Politics"
 }
 
 export interface LeaderboardEntry {

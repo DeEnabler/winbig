@@ -1,19 +1,21 @@
+// src/components/match/MatchViewClient.tsx
 'use client';
 
 import type { Match, ShareMessageDetails } from '@/types';
 import { mockCurrentUser, mockOpponentUser, mockPredictions } from '@/lib/mockData';
-import Image from 'next/image';
+import NextImage from 'next/image'; // Renamed to avoid conflict with local Image component
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Share2, Copy, ExternalLink, Twitter } from 'lucide-react';
+import { Share2, Copy, ExternalLink, Twitter, Info } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { useEffect, useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { useEffect, useState, useMemo } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { generateXShareMessage } from '@/ai/flows/generate-x-share-message';
 import Link from 'next/link';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface MatchViewClientProps {
   match: Match;
@@ -36,9 +38,33 @@ function formatTimeLeft(endDate: number) {
 export default function MatchViewClient({ match }: MatchViewClientProps) {
   const [timeLeft, setTimeLeft] = useState(formatTimeLeft(match.countdownEnds));
   const [progress, setProgress] = useState(100);
-  const [shareMessage, setShareMessage] = useState<string | null>(null);
+  const [shareMessage, setShareMessage] = useState<string>('');
   const [isLoadingShareMessage, setIsLoadingShareMessage] = useState(false);
+  const [isPreviewOgImageLoading, setIsPreviewOgImageLoading] = useState(true);
   const { toast } = useToast();
+  
+  const appUrl = typeof window !== 'undefined' 
+    ? `${window.location.protocol}//${window.location.host}` 
+    : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002');
+
+
+  const ogPreviewImageUrl = useMemo(() => {
+    const url = new URL(`${appUrl}/api/og`);
+    url.searchParams.set('v', Date.now().toString()); // Cache busting
+    url.searchParams.set('predictionText', match.predictionText);
+    url.searchParams.set('userChoice', match.userChoice || 'YES'); // Fallback for userChoice
+    url.searchParams.set('userAvatar', match.user1AvatarUrl || mockCurrentUser.avatarUrl || 'https://placehold.co/128x128.png?text=VB');
+    url.searchParams.set('username', match.user1Username === 'You' ? 'I' : match.user1Username);
+    url.searchParams.set('outcome', match.outcome || 'PENDING');
+    url.searchParams.set('betAmount', match.betAmount.toString());
+
+    if (match.betSize) url.searchParams.set('betSize', match.betSize);
+    if (match.streak) url.searchParams.set('streak', match.streak);
+    if (match.rank) url.searchParams.set('rank', match.rank);
+    if (match.rankCategory) url.searchParams.set('rankCategory', match.rankCategory);
+    
+    return url.toString();
+  }, [match, appUrl]);
 
   useEffect(() => {
     const initialDuration = Math.max(0, match.countdownEnds - Date.now());
@@ -57,11 +83,14 @@ export default function MatchViewClient({ match }: MatchViewClientProps) {
   }, [match.countdownEnds]);
 
   const handleGenerateShareMessage = async () => {
+    if (shareMessage && !isLoadingShareMessage) return; // Don't regenerate if already exists unless forced
+
     setIsLoadingShareMessage(true);
+    setIsPreviewOgImageLoading(true); // Reset preview loading state
     try {
       const details: ShareMessageDetails = {
         prediction: match.predictionText,
-        betAmount: match.betAmount,
+        betAmount: match.betAmount, // Using core bet amount for AI
         potentialWinnings: match.potentialWinnings,
         opponentUsername: match.user2Username,
       };
@@ -72,14 +101,20 @@ export default function MatchViewClient({ match }: MatchViewClientProps) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Could not generate share message. Please try again.",
+        description: "Could not generate AI share message. Using a default.",
       });
-      setShareMessage(`I just bet ${match.betAmount} that "${match.predictionText}" against @${match.user2Username}! Potential winnings: ${match.potentialWinnings}! Who's with me? #ViralBet #PredictionChallenge`);
+      // Fallback message
+      let defaultMsg = `I just bet ${match.betSize || match.betAmount} SOL that "${match.predictionText}" against @${match.user2Username}! Potential winnings: ${match.potentialWinnings} SOL!`;
+      if (match.outcome === 'WON') defaultMsg += ` I totally nailed it!`;
+      else if (match.outcome === 'LOST') defaultMsg += ` So close! Think you can do better?`;
+      else defaultMsg += ` Who's with me?`;
+      defaultMsg += ` #ViralBet #PredictionChallenge`;
+      setShareMessage(defaultMsg);
     } finally {
       setIsLoadingShareMessage(false);
     }
   };
-
+  
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {
       toast({ title: "Copied!", description: "Share message copied to clipboard." });
@@ -92,9 +127,8 @@ export default function MatchViewClient({ match }: MatchViewClientProps) {
   const user1 = { username: match.user1Username, avatarUrl: match.user1AvatarUrl || mockCurrentUser.avatarUrl };
   const user2 = { username: match.user2Username, avatarUrl: match.user2AvatarUrl || mockOpponentUser.avatarUrl };
   
-  const predictionImage = mockPredictions.find(p => p.text === match.predictionText)?.imageUrl || 'https://placehold.co/600x300.png';
-  const predictionAiHint = mockPredictions.find(p => p.text === match.predictionText)?.aiHint || 'abstract random';
-
+  const predictionImage = mockPredictions.find(p => p.id === match.predictionId || p.text === match.predictionText)?.imageUrl || 'https://placehold.co/600x300.png';
+  const predictionAiHint = mockPredictions.find(p => p.id === match.predictionId || p.text === match.predictionText)?.aiHint || 'abstract random';
 
   return (
     <Card className="w-full max-w-lg mx-auto shadow-xl rounded-lg">
@@ -104,7 +138,7 @@ export default function MatchViewClient({ match }: MatchViewClientProps) {
       </CardHeader>
       <CardContent className="p-6 space-y-6">
         <div className="relative w-full h-40 md:h-48 rounded-md overflow-hidden mb-4">
-            <Image src={predictionImage} alt={match.predictionText} layout="fill" objectFit="cover" data-ai-hint={predictionAiHint}/>
+            <NextImage src={predictionImage} alt={match.predictionText} layout="fill" objectFit="cover" data-ai-hint={predictionAiHint}/>
         </div>
         <div className="flex justify-around items-center text-center">
           <div className="flex flex-col items-center space-y-2">
@@ -127,11 +161,11 @@ export default function MatchViewClient({ match }: MatchViewClientProps) {
         <div className="space-y-3 text-center">
           <div className="text-lg">
             <span className="font-medium">Your Bet: </span>
-            <span className="text-primary font-bold">${match.betAmount}</span>
+            <span className="text-primary font-bold">{match.betSize || match.betAmount} SOL</span>
           </div>
           <div className="text-lg">
             <span className="font-medium">Potential Winnings: </span>
-            <span className="text-green-600 dark:text-green-400 font-bold">${match.potentialWinnings}</span>
+            <span className="text-green-600 dark:text-green-400 font-bold">{match.potentialWinnings} SOL</span>
           </div>
         </div>
 
@@ -144,45 +178,62 @@ export default function MatchViewClient({ match }: MatchViewClientProps) {
         </div>
       </CardContent>
       <CardFooter className="p-6 flex flex-col sm:flex-row gap-2 justify-center">
-        <Dialog>
+        <Dialog onOpenChange={(open) => { if (open) handleGenerateShareMessage(); else setIsPreviewOgImageLoading(true); }}>
           <DialogTrigger asChild>
-            <Button size="lg" className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground" onClick={handleGenerateShareMessage}>
+            <Button size="lg" className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground">
               <Share2 className="w-5 h-5 mr-2" /> Share Challenge
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Share on X (Twitter)</DialogTitle>
               <DialogDescription>
-                Copy the message below and share it to challenge your friends!
+                Your challenge will look like this on X. Edit the message if you like!
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              {isLoadingShareMessage ? (
+              <div className="border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
+                {isPreviewOgImageLoading && <Skeleton className="w-full aspect-[1200/630]" />}
+                <NextImage
+                  src={ogPreviewImageUrl}
+                  alt="Share Preview"
+                  width={1200}
+                  height={630}
+                  className={`w-full h-auto ${isPreviewOgImageLoading ? 'hidden' : 'block'}`}
+                  onLoad={() => setIsPreviewOgImageLoading(false)}
+                  onError={() => {
+                    setIsPreviewOgImageLoading(false); // Stop loading on error too
+                    toast({variant: "destructive", title:"Preview Error", description: "Could not load share image preview."})
+                  }}
+                  unoptimized // Useful for dynamic images that change often based on params
+                />
+              </div>
+              {isLoadingShareMessage && !shareMessage ? (
                 <div className="flex items-center justify-center h-24">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                   <p className="ml-2 text-muted-foreground">Generating viral message...</p>
                 </div>
               ) : (
                 <Textarea
-                  value={shareMessage || 'Loading...'}
-                  readOnly
-                  rows={5}
+                  value={shareMessage}
+                  onChange={(e) => setShareMessage(e.target.value)}
+                  rows={4}
                   className="bg-muted/50"
+                  placeholder="Your viral tweet..."
                 />
               )}
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
-                <Button variant="outline" onClick={() => shareMessage && copyToClipboard(shareMessage)} disabled={isLoadingShareMessage || !shareMessage}>
-                    <Copy className="w-4 h-4 mr-2" /> Copy
+                <Button variant="outline" onClick={() => shareMessage && copyToClipboard(shareMessage)} disabled={isLoadingShareMessage && !shareMessage}>
+                    <Copy className="w-4 h-4 mr-2" /> Copy Text
                 </Button>
-                <Button asChild disabled={isLoadingShareMessage || !shareMessage} className="bg-blue-500 hover:bg-blue-600 text-white">
+                <Button asChild disabled={isLoadingShareMessage && !shareMessage} className="bg-blue-500 hover:bg-blue-600 text-white">
                   <a 
                     href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMessage || '')}${match.shareUrl ? `&url=${encodeURIComponent(match.shareUrl)}` : ''}`} 
                     target="_blank" 
                     rel="noopener noreferrer"
                   >
-                    <Twitter className="w-4 h-4 mr-2" /> Tweet
+                    <Twitter className="w-4 h-4 mr-2" /> Share to X
                   </a>
                 </Button>
             </DialogFooter>
