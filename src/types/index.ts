@@ -79,7 +79,7 @@ export interface PredictionCardProps {
   facePileCount?: number;
   category?: string;
   timeLeft?: string;
-  onBet: (bet: BetPlacement) => void;
+  onBet: (bet: BetPlacement) => Promise<void>; // Made onBet async
 }
 
 // Props for ChallengeInvite from blueprint
@@ -115,3 +115,4 @@ export interface EntryContextType {
   predictionId?: string; // from predictionId=abc, specifically for challenge links
   appendEntryParams: (url: string) => string;
 }
+
