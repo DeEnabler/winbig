@@ -1,77 +1,76 @@
+// src/app/page.tsx
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } // Removed useSearchParams here as it's in EntryContext
+from 'next/navigation';
 import PredictionCard from '@/components/predictions/PredictionCard';
-import type { Prediction, BetPlacement } from '@/types';
+import type { Prediction, BetPlacement, PredictionCardProps as PredictionCardDisplayProps } from '@/types'; // Use PredictionCardProps
 import { mockPredictions } from '@/lib/mockData';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ArrowRight, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useEntryContext } from '@/contexts/EntryContext'; // Added
+import { formatDistanceToNowStrict, differenceInHours } from 'date-fns';
+
 
 function ReferralHandler() {
-  const searchParams = useSearchParams();
+  const { referrer } = useEntryContext(); // Use context
   const { toast } = useToast();
 
   useEffect(() => {
-    const ref = searchParams.get('ref');
-    if (ref) {
+    if (referrer) {
       toast({
         title: "Welcome to ViralBet!",
         description: (
           <div className="flex items-center">
             <Zap className="w-4 h-4 mr-2 text-yellow-500" />
-            You were referred by {ref}. Enjoy a bonus bet!
+            You were referred by {referrer}. Enjoy a bonus bet!
           </div>
         ),
         duration: 5000,
       });
       // Here you might actually grant a bonus, e.g. update user state
     }
-  }, [searchParams, toast]);
+  }, [referrer, toast]);
 
-  return null; // This component doesn't render anything itself
+  return null;
 }
 
 
 export default function HomePage() {
   const [currentPredictionIndex, setCurrentPredictionIndex] = useState(0);
-  const [predictions, setPredictions] = useState<Prediction[]>(mockPredictions);
+  const [predictionsData, setPredictionsData] = useState<Prediction[]>(mockPredictions); // Keep original Prediction type for data
   const router = useRouter();
   const { toast } = useToast();
+  const { appendEntryParams } = useEntryContext();
 
-  // TODO: Fetch predictions from an API in a real app
-  // useEffect(() => {
-  //   // fetch('/api/predictions').then(res => res.json()).then(data => setPredictions(data));
-  // }, []);
 
   const handleBet = (bet: BetPlacement) => {
     console.log('Bet placed:', bet);
-    // Simulate P2P matching or pool allocation
-    // For MVP, navigate to a generic match page with details
     const matchId = `match-${bet.predictionId}-${Date.now()}`;
     
     toast({
       title: "Bet Placed!",
-      description: `You bet ${bet.choice} on "${predictions[currentPredictionIndex].text.substring(0,30)}...". Taking you to the match...`,
+      description: `You bet ${bet.choice} on "${predictionsData[currentPredictionIndex].text.substring(0,30)}...". Taking you to the match...`,
       duration: 3000,
     });
     
-    // Pass match details through query params or use a state management solution
-    // For simplicity in MVP, we'll pass some basic info. A real app would use a match ID to fetch details.
-    router.push(`/match/${matchId}?predictionId=${bet.predictionId}&choice=${bet.choice}&amount=${bet.amount}`);
+    const baseUrl = `/match/${matchId}?predictionId=${bet.predictionId}&choice=${bet.choice}&amount=${bet.amount}`;
+    const urlWithEntryParams = appendEntryParams(baseUrl); // Append context params
+    router.push(urlWithEntryParams);
   };
 
   const nextPrediction = () => {
-    setCurrentPredictionIndex((prevIndex) => (prevIndex + 1) % predictions.length);
+    setCurrentPredictionIndex((prevIndex) => (prevIndex + 1) % predictionsData.length);
   };
 
   const prevPrediction = () => {
-    setCurrentPredictionIndex((prevIndex) => (prevIndex - 1 + predictions.length) % predictions.length);
+    setCurrentPredictionIndex((prevIndex) => (prevIndex - 1 + predictionsData.length) % predictionsData.length);
   };
 
-  if (predictions.length === 0) {
+  if (predictionsData.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] text-center">
         <Zap className="w-16 h-16 text-primary mb-4" />
@@ -81,20 +80,37 @@ export default function HomePage() {
     );
   }
 
+  const currentPrediction = predictionsData[currentPredictionIndex];
+  // Adapt Prediction to PredictionCardProps for display
+  const predictionCardProps: PredictionCardDisplayProps = {
+    id: currentPrediction.id,
+    question: currentPrediction.text,
+    thumbnailUrl: currentPrediction.imageUrl || 'https://placehold.co/600x300.png?text=ViralBet',
+    payoutTeaser: currentPrediction.payoutTeaser || 'Bet $5 → Win $9.50 (example)', // Default or dynamic
+    streakCount: currentPrediction.streakCount || undefined, // From current user context potentially
+    facePileCount: currentPrediction.facePileCount || Math.floor(Math.random() * 50) + 3, // Example
+    category: currentPrediction.category,
+    timeLeft: currentPrediction.endsAt 
+              ? differenceInHours(currentPrediction.endsAt, new Date()) < 72 
+                ? formatDistanceToNowStrict(currentPrediction.endsAt)
+                : undefined
+              : undefined,
+    onBet: handleBet,
+  };
+
+
   return (
-    <Suspense fallback={<div>Loading referral info...</div>}>
+    // Suspense for EntryContext is in layout.tsx
+    <> 
       <ReferralHandler />
       <div className="flex flex-col items-center justify-center space-y-8 py-8 min-h-[calc(100vh-15rem)]">
-        <PredictionCard
-          prediction={predictions[currentPredictionIndex]}
-          onBet={handleBet}
-        />
-        {predictions.length > 1 && (
+        <PredictionCard {...predictionCardProps} />
+        {predictionsData.length > 1 && (
           <div className="flex space-x-4">
-            <Button variant="outline" onClick={prevPrediction} disabled={predictions.length <= 1}>
+            <Button variant="outline" onClick={prevPrediction} disabled={predictionsData.length <= 1}>
               <ArrowLeft className="w-4 h-4 mr-2" /> Previous
             </Button>
-            <Button variant="outline" onClick={nextPrediction} disabled={predictions.length <= 1}>
+            <Button variant="outline" onClick={nextPrediction} disabled={predictionsData.length <= 1}>
               Next <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </div>
@@ -110,6 +126,6 @@ export default function HomePage() {
           </CardContent>
         </Card>
       </div>
-    </Suspense>
+    </>
   );
 }

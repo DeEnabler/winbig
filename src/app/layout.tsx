@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import AppLayout from '@/components/layout/AppLayout';
+import { EntryContextProvider } from '@/contexts/EntryContext'; // Added
+import { Suspense } from 'react'; // Added for useSearchParams in context
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -27,9 +29,14 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}>
-        <AppLayout>
-          {children}
-        </AppLayout>
+        {/* Suspense boundary for EntryContextProvider which uses useSearchParams */}
+        <Suspense fallback={<div>Loading context...</div>}>
+          <EntryContextProvider>
+            <AppLayout>
+              {children}
+            </AppLayout>
+          </EntryContextProvider>
+        </Suspense>
         <Toaster />
       </body>
     </html>
