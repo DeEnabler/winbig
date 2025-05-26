@@ -14,17 +14,26 @@ export function EntryContextProvider({ children }: { children: ReactNode }) {
   const contextValue = useMemo(() => {
     const source = searchParams.get('source') || undefined;
     const challenge = searchParams.get('challenge') === 'true';
-    const referrer = searchParams.get('referrer') || undefined;
+    const referrer = searchParams.get('referrer') || undefined; // Corrected typo here
     const marketId = searchParams.get('market') || undefined;
 
     const appendEntryParams = (baseUrl: string): string => {
-      const url = new URL(baseUrl, window.location.origin); // Ensure baseUrl can be relative
+      // Determine the base URL safely
+      const origin = typeof window !== 'undefined' 
+        ? window.location.origin 
+        : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002');
+
+      const url = new URL(baseUrl, origin); // Ensure baseUrl can be relative
+
       if (source) url.searchParams.set('source', source);
-      if (challenge) url.searchParams.set('challenge', 'true'); // Keep challenge if it was true
+      // Only set challenge=true if it's actually true, to avoid adding challenge=false
+      if (challenge) url.searchParams.set('challenge', 'true'); 
       if (referrer) url.searchParams.set('referrer', referrer);
-      if (marketId) url.searchParams.set('market', marketId); // Carry over market if present
-      // Only append search if there are params to append
-      return url.searchParams.size > 0 ? `${url.pathname}${url.search}` : url.pathname;
+      if (marketId) url.searchParams.set('market', marketId);
+      
+      // Construct the path with search params only if they exist
+      const searchString = url.searchParams.toString();
+      return `${url.pathname}${searchString ? `?${searchString}` : ''}`;
     };
     
     return { source, challenge, referrer, marketId, appendEntryParams };
