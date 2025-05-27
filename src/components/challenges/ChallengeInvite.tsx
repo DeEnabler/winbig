@@ -3,7 +3,7 @@
 'use client';
 
 import type { ChallengeInviteProps } from '@/types';
-import { Button } from '@/components/ui/button'; // Keeping for potential future use, but buttons are custom now
+// import { Button } from '@/components/ui/button'; // Not used directly due to custom styling
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { useEntryContext } from '@/contexts/EntryContext';
@@ -15,26 +15,26 @@ export default function ChallengeInvite({
   referrerName, 
   predictionQuestion, 
   predictionId,
-  referrerOriginalChoice // e.g., 'YES' or 'NO'
+  referrerOriginalChoice 
 }: ChallengeInviteProps) {
   const router = useRouter();
   const { toast } = useToast();
   const { appendEntryParams } = useEntryContext();
 
-  const handleChallengeResponse = (userAction: 'agree' | 'disagree') => {
+  const handleChallengeResponse = (userAction: 'with' | 'against') => {
     let actualUserChoice: 'YES' | 'NO';
 
-    if (userAction === 'agree') {
+    if (userAction === 'with') {
       actualUserChoice = referrerOriginalChoice;
-    } else { // 'disagree'
+    } else { // 'against'
       actualUserChoice = referrerOriginalChoice === 'YES' ? 'NO' : 'YES';
     }
 
     // Placeholder for analytics
     console.log('Analytics: challenge_responded', {
       matchId: originalChallengeMatchId,
-      userAction: userAction, // 'agree' or 'disagree'
-      actualUserChoice: actualUserChoice, // 'YES' or 'NO'
+      userAction: userAction, 
+      actualUserChoice: actualUserChoice,
       referrer: referrerName,
       predictionId: predictionId,
     });
@@ -44,19 +44,19 @@ export default function ChallengeInvite({
       description: `You chose to bet ${actualUserChoice}. Let's confirm your bet!`,
     });
 
-    // Pass the actual choice and predictionId to the match confirmation page
     const baseUrl = `/match/${originalChallengeMatchId}?predictionId=${predictionId}&choice=${actualUserChoice}&confirmChallenge=true&referrer=${referrerName}`;
     const urlWithEntryParams = appendEntryParams(baseUrl);
     router.push(urlWithEntryParams);
   };
 
+  // Determine the text for the "against" button based on referrer's choice
   const opponentActionText = referrerOriginalChoice === 'YES' ? 'NO' : 'YES';
 
   return (
     <Card className="w-full max-w-md mx-auto shadow-xl rounded-lg text-center">
       <CardHeader>
         <CardTitle className="text-2xl">
-          @{referrerName} is betting <span className={referrerOriginalChoice === 'YES' ? 'text-green-500' : 'text-red-500'}>{referrerOriginalChoice}</span>:
+          @{referrerName} is betting <span className={referrerOriginalChoice === 'YES' ? 'text-green-500 font-bold' : 'text-red-500 font-bold'}>{referrerOriginalChoice}</span>:
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -67,16 +67,16 @@ export default function ChallengeInvite({
           <motion.button
             whileTap={{ scale: 0.95 }}
             className="flex-1 py-3 bg-green-500 text-white font-bold rounded-xl hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
-            onClick={() => handleChallengeResponse('agree')}
+            onClick={() => handleChallengeResponse('with')}
           >
-            I agree with the {referrerOriginalChoice} call
+            100% agree
           </motion.button>
           <motion.button
             whileTap={{ scale: 0.95 }}
             className="flex-1 py-3 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75"
-            onClick={() => handleChallengeResponse('disagree')}
+            onClick={() => handleChallengeResponse('against')}
           >
-            I'll take the {opponentActionText} side — prove them wrong
+            I'm taking their money
           </motion.button>
         </div>
       </CardContent>
