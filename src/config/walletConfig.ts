@@ -1,7 +1,7 @@
 
 // src/config/walletConfig.ts
 import { defaultWagmiConfig } from '@web3modal/wagmi/react/config';
-import { cookieStorage, createStorage } from 'wagmi';
+import { cookieStorage, createStorage, noopStorage } from 'wagmi'; // Added noopStorage
 import { mainnet, sepolia } from 'wagmi/chains';
 
 export const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
@@ -23,7 +23,9 @@ export const wagmiConfig = defaultWagmiConfig({
   metadata,
   ssr: true, // Important for Next.js
   storage: createStorage({
-    storage: cookieStorage
+    storage: typeof window !== 'undefined' ? cookieStorage : noopStorage, // Use noopStorage on server
+    // key: 'wagmi', // Optional: you can add a custom key
   }),
   // ...wallets, // Optional: Add custom wallet connectors
 });
+

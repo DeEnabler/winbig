@@ -7,7 +7,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import { EntryContextProvider } from '@/contexts/EntryContext';
 import { Suspense } from 'react';
 import PageTransitionWrapper from '@/components/layout/PageTransitionWrapper';
-import { Web3ModalProvider } from '@/components/providers/Web3ModalProvider'; // Added
+import dynamic from 'next/dynamic';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -23,6 +23,19 @@ export const metadata: Metadata = {
   title: 'ViralBet - Swipe, Bet, Share!',
   description: 'Instantly challenge others on high-emotion predictions. Swipe, bet, and share virally on X!',
 };
+
+const Web3ModalProvider = dynamic(
+  () => import('@/components/providers/Web3ModalProvider').then((mod) => mod.Web3ModalProvider),
+  { 
+    ssr: false,
+    // Optional: a simple loading component while Web3ModalProvider is being loaded on the client
+    loading: () => (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <p>Loading Wallet Services...</p>
+      </div>
+    ),
+  }
+);
 
 export default function RootLayout({
   children,
