@@ -2,7 +2,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { WagmiProvider, reconnect } from 'wagmi';
+import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 // createWeb3Modal will be dynamically imported within useEffect
 import { wagmiConfig, projectId, chains } from '@/config/walletConfig';
@@ -36,9 +36,10 @@ export function Web3ModalProvider({ children }: { children: ReactNode }) {
         });
       }).catch(error => console.error('Failed to load Web3Modal', error));
       
-      // Attempt to reconnect if wallet was previously connected
-      // This should also only run on the client after wagmiConfig is ready
-      reconnect(wagmiConfig);
+      // Wagmi and Web3Modal generally handle reconnection attempts.
+      // An explicit reconnect call here can sometimes cause issues if not handled carefully with SSR.
+      // If specific reconnection logic is needed, it's often better tied to specific UI events or hooks.
+      // Wagmi's WagmiProvider might also attempt reconnection based on its configuration.
     }
   }, [isClientMounted]); // Depends on isClientMounted
 
