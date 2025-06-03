@@ -7,7 +7,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import { EntryContextProvider } from '@/contexts/EntryContext';
 import { Suspense } from 'react';
 import PageTransitionWrapper from '@/components/layout/PageTransitionWrapper';
-import dynamic from 'next/dynamic';
+import ClientSideWeb3ProviderLoader from '@/components/providers/ClientSideWeb3ProviderLoader'; // Import the new loader
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -24,18 +24,7 @@ export const metadata: Metadata = {
   description: 'Instantly challenge others on high-emotion predictions. Swipe, bet, and share virally on X!',
 };
 
-const Web3ModalProvider = dynamic(
-  () => import('@/components/providers/Web3ModalProvider').then((mod) => mod.Web3ModalProvider),
-  { 
-    ssr: false,
-    // Optional: a simple loading component while Web3ModalProvider is being loaded on the client
-    loading: () => (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-        <p>Loading Wallet Services...</p>
-      </div>
-    ),
-  }
-);
+// Removed the direct dynamic import of Web3ModalProvider from here
 
 export default function RootLayout({
   children,
@@ -45,7 +34,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}>
-        <Web3ModalProvider>
+        <ClientSideWeb3ProviderLoader> {/* Use the new client-side loader */}
           <Suspense fallback={<div>Loading context...</div>}>
             <EntryContextProvider>
                 <AppLayout>
@@ -55,7 +44,7 @@ export default function RootLayout({
                 </AppLayout>
             </EntryContextProvider>
           </Suspense>
-        </Web3ModalProvider>
+        </ClientSideWeb3ProviderLoader>
         <Toaster />
       </body>
     </html>
