@@ -1,3 +1,4 @@
+
 // src/components/providers/Web3ModalProvider.tsx
 'use client';
 
@@ -14,41 +15,34 @@ if (!projectId) throw new Error('NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is not set
 const queryClient = new QueryClient();
 
 export function Web3ModalProvider({ children }: { children: ReactNode }) {
-  // State to ensure client-side only execution for modal creation
-  const [isClientMounted, setIsClientMounted] = useState(false);
+  // State to ensure modal is initialized before children (and hooks like useWeb3Modal) are rendered
+  const [isModalInitialized, setIsModalInitialized] = useState(false);
 
   useEffect(() => {
     // This effect runs once after the component mounts on the client.
-    setIsClientMounted(true);
-  }, []);
+    // Dynamically import createWeb3Modal and initialize it.
+    import('@web3modal/wagmi/react').then(({ createWeb3Modal }) => {
+      createWeb3Modal({
+        wagmiConfig,
+        projectId,
+        chains,
+        enableAnalytics: true, // Optional: add analytics
+        // Add other Web3Modal configurations here if needed
+      });
+      setIsModalInitialized(true); // Signal that modal is ready
+    }).catch(error => {
+      console.error('Failed to load or create Web3Modal', error);
+      // Optionally, set an error state here to render an error message to the user
+    });
+    
+    // Wagmi and Web3Modal generally handle reconnection attempts.
+    // Wagmi's WagmiProvider might also attempt reconnection based on its configuration.
+  }, []); // Empty dependency array ensures this runs once on mount
 
-  useEffect(() => {
-    // This effect runs when isClientMounted becomes true.
-    if (isClientMounted) {
-      // Dynamically import createWeb3Modal only on the client side after mount
-      import('@web3modal/wagmi/react').then(({ createWeb3Modal }) => {
-        createWeb3Modal({
-          wagmiConfig,
-          projectId,
-          chains,
-          enableAnalytics: true, // Optional: add analytics
-          // Add other Web3Modal configurations here if needed
-        });
-      }).catch(error => console.error('Failed to load Web3Modal', error));
-      
-      // Wagmi and Web3Modal generally handle reconnection attempts.
-      // An explicit reconnect call here can sometimes cause issues if not handled carefully with SSR.
-      // If specific reconnection logic is needed, it's often better tied to specific UI events or hooks.
-      // Wagmi's WagmiProvider might also attempt reconnection based on its configuration.
-    }
-  }, [isClientMounted]); // Depends on isClientMounted
-
-  // Conditional rendering based on client mount status
-  // This ensures children are only rendered once we're on the client and ready.
-  // The outer dynamic import in ClientSideWeb3ProviderLoader handles the initial loading UI.
-  if (!isClientMounted) {
-    // While isClientMounted is false, this component (and its children) won't render.
-    // The loading UI is handled by the `loading` prop of the `dynamic` import in ClientSideWeb3ProviderLoader.
+  // Render children only after the modal is initialized.
+  // The loading state for the initial load of this provider component is handled by ClientSideWeb3ProviderLoader.
+  // If !isModalInitialized, this component renders null, effectively waiting for the modal setup.
+  if (!isModalInitialized) {
     return null; 
   }
 
