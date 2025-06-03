@@ -3,12 +3,14 @@
 'use client';
 
 import type { ChallengeInviteProps } from '@/types';
-// import { Button } from '@/components/ui/button'; // Not used directly due to custom styling
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'; // Added Avatar components
 import { useRouter } from 'next/navigation';
 import { useEntryContext } from '@/contexts/EntryContext';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
+import { CheckCircle, Swords } from 'lucide-react'; // Added icons
+import { mockOpponentUser } from '@/lib/mockData'; // For a mock avatar if needed
 
 export default function ChallengeInvite({ 
   matchId: originalChallengeMatchId, 
@@ -21,6 +23,12 @@ export default function ChallengeInvite({
   const { toast } = useToast();
   const { appendEntryParams } = useEntryContext();
 
+  // A simple way to get a mock avatar based on referrerName for demo.
+  // In a real app, you'd fetch user details.
+  const referrerAvatar = referrerName === mockOpponentUser.username 
+    ? mockOpponentUser.avatarUrl 
+    : `https://placehold.co/40x40.png?text=${referrerName.substring(0,2).toUpperCase()}`;
+
   const handleChallengeResponse = (userAction: 'with' | 'against') => {
     let actualUserChoice: 'YES' | 'NO';
 
@@ -30,7 +38,6 @@ export default function ChallengeInvite({
       actualUserChoice = referrerOriginalChoice === 'YES' ? 'NO' : 'YES';
     }
 
-    // Placeholder for analytics
     console.log('Analytics: challenge_responded', {
       matchId: originalChallengeMatchId,
       userAction: userAction, 
@@ -49,34 +56,43 @@ export default function ChallengeInvite({
     router.push(urlWithEntryParams);
   };
 
-  // Determine the text for the "against" button based on referrer's choice
-  const opponentActionText = referrerOriginalChoice === 'YES' ? 'NO' : 'YES';
-
   return (
-    <Card className="w-full max-w-md mx-auto shadow-xl rounded-lg text-center">
-      <CardHeader>
-        <CardTitle className="text-2xl">
-          @{referrerName} is betting <span className={referrerOriginalChoice === 'YES' ? 'text-green-500 font-bold' : 'text-red-500 font-bold'}>{referrerOriginalChoice}</span>:
-        </CardTitle>
+    <Card className="w-full max-w-md mx-auto shadow-xl rounded-lg text-center overflow-hidden">
+      <CardHeader className="bg-muted/50 p-6">
+        <div className="flex flex-col items-center space-y-2">
+          <Avatar className="w-16 h-16 border-2 border-primary">
+            <AvatarImage src={referrerAvatar} alt={referrerName} data-ai-hint="person avatar" />
+            <AvatarFallback>{referrerName.substring(0, 2).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          <CardTitle className="text-xl">
+            @{referrerName} is betting <span className={referrerOriginalChoice === 'YES' ? 'text-green-500 font-bold' : 'text-red-500 font-bold'}>{referrerOriginalChoice}</span>
+          </CardTitle>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <p className="italic text-lg font-semibold text-foreground">
+      <CardContent className="space-y-6 p-6">
+        <p className="italic text-xl font-semibold text-foreground leading-tight">
           “{predictionQuestion}”
         </p>
         <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 mt-6">
           <motion.button
-            whileTap={{ scale: 0.95 }}
-            className="flex-1 py-3 bg-green-500 text-white font-bold rounded-xl hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75"
+            whileHover={{ scale: 1.03, y: -2 }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ type: "spring", stiffness: 400, damping: 17 }}
+            className="flex-1 py-4 px-4 bg-gradient-to-br from-green-500 to-green-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 flex items-center justify-center space-x-2"
             onClick={() => handleChallengeResponse('with')}
           >
-            100% agree
+            <CheckCircle className="w-5 h-5" />
+            <span>Agree & Bet {referrerOriginalChoice}</span>
           </motion.button>
           <motion.button
-            whileTap={{ scale: 0.95 }}
-            className="flex-1 py-3 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75"
+            whileHover={{ scale: 1.03, y: -2 }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ type: "spring", stiffness: 400, damping: 17 }}
+            className="flex-1 py-4 px-4 bg-gradient-to-br from-red-500 to-red-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 flex items-center justify-center space-x-2"
             onClick={() => handleChallengeResponse('against')}
           >
-            I'm taking their money
+            <Swords className="w-5 h-5" />
+            <span>Bet {referrerOriginalChoice === 'YES' ? 'NO' : 'YES'} & Challenge</span>
           </motion.button>
         </div>
       </CardContent>

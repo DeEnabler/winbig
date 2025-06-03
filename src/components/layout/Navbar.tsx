@@ -1,12 +1,14 @@
+
 'use client';
 
 import Link from 'next/link';
-import { Home, BarChart3, Menu, X } from 'lucide-react';
+import { Home, BarChart3, Menu, X, Coins } from 'lucide-react'; // Added Coins
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/common/Logo';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { mockCurrentUser } from '@/lib/mockData'; // Added mockCurrentUser
 
 const navItems = [
   { href: '/', label: 'Bet', icon: Home },
@@ -25,33 +27,41 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <Logo />
-        <nav className="hidden md:flex items-center space-x-2 lg:space-x-4">
-          {navItems.map((item) => (
-            <Button
-              key={item.href}
-              variant={pathname === item.href ? 'secondary' : 'ghost'}
-              asChild
-              className={cn(
-                "text-sm font-medium",
-                pathname === item.href ? "text-primary-foreground bg-primary hover:bg-primary/90" : "hover:bg-accent hover:text-accent-foreground"
-              )}
-            >
-              <Link href={item.href}>
-                <item.icon className="mr-2 h-4 w-4" />
-                {item.label}
-              </Link>
-            </Button>
-          ))}
-        </nav>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="md:hidden"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          aria-label="Toggle mobile menu"
-        >
-          {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </Button>
+        <div className="flex items-center space-x-2 lg:space-x-4">
+          <nav className="hidden md:flex items-center space-x-2 lg:space-x-4">
+            {navItems.map((item) => (
+              <Button
+                key={item.href}
+                variant={pathname === item.href ? 'secondary' : 'ghost'}
+                asChild
+                className={cn(
+                  "text-sm font-medium",
+                  pathname === item.href ? "text-primary-foreground bg-primary hover:bg-primary/90" : "hover:bg-accent hover:text-accent-foreground"
+                )}
+              >
+                <Link href={item.href}>
+                  <item.icon className="mr-2 h-4 w-4" />
+                  {item.label}
+                </Link>
+              </Button>
+            ))}
+          </nav>
+          <div className="hidden md:flex items-center space-x-2 border-l pl-4 ml-4">
+            <Coins className="h-5 w-5 text-yellow-500" />
+            <span className="text-sm font-semibold text-foreground">
+              {mockCurrentUser.xp.toLocaleString()} XP
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label="Toggle mobile menu"
+          >
+            {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </Button>
+        </div>
       </div>
       {isMobileMenuOpen && (
         <div className="md:hidden border-t">
@@ -72,6 +82,12 @@ export default function Navbar() {
                 </Link>
               </Button>
             ))}
+            <div className="flex items-center space-x-2 p-2 mt-2 border-t pt-3">
+                <Coins className="h-5 w-5 text-yellow-500" />
+                <span className="text-sm font-semibold text-foreground">
+                  {mockCurrentUser.xp.toLocaleString()} XP
+                </span>
+            </div>
           </nav>
         </div>
       )}
