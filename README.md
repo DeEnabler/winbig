@@ -1,3 +1,4 @@
+md
 # ViralBet - A Next.js Prediction Betting App
 
 This is a Next.js starter app for ViralBet, built in Firebase Studio.
@@ -24,8 +25,8 @@ To get started locally, take a look at `src/app/page.tsx`.
     Replace `your_wallet_connect_project_id_here` with your actual WalletConnect Project ID from [WalletConnect Cloud](https://cloud.walletconnect.com/).
     
     **Note on `NEXT_PUBLIC_APP_URL`**:
-    *   For local development, use your local server URL (e.g., `http://localhost:9002`).
-    *   For Vercel deployment, this should be the **canonical, full URL of your application**. If you have a custom domain, use that (e.g., `https://www.yourviralbetapp.com`). If you are using the Vercel-provided domain, use that (e.g., `https://your-project-name.vercel.app`). This variable is crucial for generating absolute URLs for OG images, SEO metadata, and WalletConnect dApp metadata.
+    *   **For local development (as shown above with `http://localhost:9002`)**: This allows your application to correctly generate absolute URLs for features like Open Graph (OG) image previews and WalletConnect dApp metadata, even when running on your local machine. Your code can consistently use this variable to refer to the app's root URL.
+    *   **For Vercel deployment**: This should be the **canonical, full URL of your application**. If you have a custom domain (e.g., `https://www.yourviralbetapp.com`), use that. If you are using the Vercel-provided domain (e.g., `https://your-project-name.vercel.app`), use that. This variable is crucial for generating absolute URLs for OG images, SEO metadata, and WalletConnect dApp metadata in your live application.
 
 3.  Run the development server:
     ```bash
