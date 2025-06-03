@@ -1,3 +1,4 @@
+
 # ViralBet - A Next.js Prediction Betting App
 
 This is a Next.js starter app for ViralBet, built in Firebase Studio.
@@ -15,7 +16,15 @@ To get started locally, take a look at `src/app/page.tsx`.
     pnpm install
     ```
 
-2.  Run the development server:
+2.  **Environment Variables:**
+    Create a `.env` file in the root of your project and add the following variables:
+    ```env
+    NEXT_PUBLIC_APP_URL=http://localhost:9002
+    NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_wallet_connect_project_id_here
+    ```
+    Replace `your_wallet_connect_project_id_here` with your actual WalletConnect Project ID from [WalletConnect Cloud](https://cloud.walletconnect.com/).
+
+3.  Run the development server:
     ```bash
     npm run dev
     # or
@@ -37,13 +46,15 @@ This project is optimized for deployment on [Vercel](https://vercel.com), the cr
     *   Click "Add New..." -> "Project".
     *   Import your ViralBet GitHub repository.
 
-3.  **Configure Project Settings:**
+3.  **Configure Project Settings (Crucial):**
     *   Vercel should automatically detect that this is a Next.js project and configure the build settings appropriately.
-    *   **Environment Variables (Crucial):**
+    *   **Environment Variables:**
         *   In your Vercel project settings, navigate to "Settings" -> "Environment Variables".
-        *   Add the following variable:
+        *   Add the following variables:
             *   **Name:** `NEXT_PUBLIC_APP_URL`
-            *   **Value:** The full URL of your Vercel deployment (e.g., `https://your-project-name.vercel.app`). You will get this URL after the first deployment, or you can use a custom domain if you set one up. This URL is used for generating absolute links, especially for Open Graph image previews.
+            *   **Value:** The full URL of your Vercel deployment (e.g., `https://your-project-name.vercel.app`). You will get this URL after the first deployment.
+            *   **Name:** `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`
+            *   **Value:** Your WalletConnect Project ID.
 
 4.  **Deploy:**
     *   Click the "Deploy" button. Vercel will build and deploy your application.
@@ -64,3 +75,5 @@ Your application should now be live!
 *   Framer Motion (for animations)
 *   Genkit (for AI features)
 *   Vercel OG (for dynamic Open Graph image generation)
+*   Wagmi & Web3Modal (for WalletConnect integration)
+

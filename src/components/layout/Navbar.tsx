@@ -2,13 +2,14 @@
 'use client';
 
 import Link from 'next/link';
-import { Home, BarChart3, Menu, X, Coins } from 'lucide-react'; // Added Coins
+import { Home, BarChart3, Menu, X, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/common/Logo';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { mockCurrentUser } from '@/lib/mockData'; // Added mockCurrentUser
+import { mockCurrentUser } from '@/lib/mockData';
+import ConnectWalletButton from '@/components/wallet/ConnectWallet'; // Added
 
 const navItems = [
   { href: '/', label: 'Bet', icon: Home },
@@ -28,6 +29,7 @@ export default function Navbar() {
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <Logo />
         <div className="flex items-center space-x-2 lg:space-x-4">
+          {/* Desktop Navigation & XP */}
           <nav className="hidden md:flex items-center space-x-2 lg:space-x-4">
             {navItems.map((item) => (
               <Button
@@ -46,12 +48,17 @@ export default function Navbar() {
               </Button>
             ))}
           </nav>
-          <div className="hidden md:flex items-center space-x-2 border-l pl-4 ml-4">
+          <div className="hidden md:flex items-center space-x-2 border-l pl-4 ml-2"> {/* Reduced ml-4 to ml-2 */}
             <Coins className="h-5 w-5 text-yellow-500" />
             <span className="text-sm font-semibold text-foreground">
               {mockCurrentUser.xp.toLocaleString()} XP
             </span>
           </div>
+          <div className="hidden md:block ml-2"> {/* Reduced ml-4 to ml-2 */}
+            <ConnectWalletButton />
+          </div>
+
+          {/* Mobile Menu Button */}
           <Button
             variant="ghost"
             size="icon"
@@ -63,6 +70,8 @@ export default function Navbar() {
           </Button>
         </div>
       </div>
+
+      {/* Mobile Menu */}
       {isMobileMenuOpen && (
         <div className="md:hidden border-t">
           <nav className="flex flex-col space-y-1 p-4">
@@ -87,6 +96,9 @@ export default function Navbar() {
                 <span className="text-sm font-semibold text-foreground">
                   {mockCurrentUser.xp.toLocaleString()} XP
                 </span>
+            </div>
+            <div className="p-2 border-t pt-3">
+              <ConnectWalletButton />
             </div>
           </nav>
         </div>
