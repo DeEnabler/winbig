@@ -1,4 +1,3 @@
-
 # ViralBet - A Next.js Prediction Betting App
 
 This is a Next.js starter app for ViralBet, built in Firebase Studio.
@@ -23,6 +22,10 @@ To get started locally, take a look at `src/app/page.tsx`.
     NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_wallet_connect_project_id_here
     ```
     Replace `your_wallet_connect_project_id_here` with your actual WalletConnect Project ID from [WalletConnect Cloud](https://cloud.walletconnect.com/).
+    
+    **Note on `NEXT_PUBLIC_APP_URL`**:
+    *   For local development, use your local server URL (e.g., `http://localhost:9002`).
+    *   For Vercel deployment, this should be the **canonical, full URL of your application**. If you have a custom domain, use that (e.g., `https://www.yourviralbetapp.com`). If you are using the Vercel-provided domain, use that (e.g., `https://your-project-name.vercel.app`). This variable is crucial for generating absolute URLs for OG images, SEO metadata, and WalletConnect dApp metadata.
 
 3.  Run the development server:
     ```bash
@@ -50,9 +53,9 @@ This project is optimized for deployment on [Vercel](https://vercel.com), the cr
     *   Vercel should automatically detect that this is a Next.js project and configure the build settings appropriately.
     *   **Environment Variables:**
         *   In your Vercel project settings, navigate to "Settings" -> "Environment Variables".
-        *   Add the following variables:
+        *   Add the following variables for the **Production** environment (and Preview/Development as needed):
             *   **Name:** `NEXT_PUBLIC_APP_URL`
-            *   **Value:** The full URL of your Vercel deployment (e.g., `https://your-project-name.vercel.app`). You will get this URL after the first deployment.
+            *   **Value:** The full canonical URL of your Vercel deployment. If you have a custom domain (e.g., `https://www.yourviralbetapp.com`), use that. Otherwise, use the Vercel-provided URL (e.g., `https://your-project-name.vercel.app`).
             *   **Name:** `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`
             *   **Value:** Your WalletConnect Project ID.
 
@@ -61,7 +64,7 @@ This project is optimized for deployment on [Vercel](https://vercel.com), the cr
     *   Monitor the build logs for any errors.
 
 5.  **Assign Domain (Optional):**
-    *   After deployment, Vercel will provide a default `.vercel.app` domain. You can assign a custom domain in the project settings under "Domains".
+    *   After deployment, Vercel will provide a default `.vercel.app` domain. You can assign a custom domain in the project settings under "Domains". If you do, ensure your `NEXT_PUBLIC_APP_URL` environment variable (for Production) reflects your custom domain.
 
 Your application should now be live!
 
@@ -76,4 +79,4 @@ Your application should now be live!
 *   Genkit (for AI features)
 *   Vercel OG (for dynamic Open Graph image generation)
 *   Wagmi & Web3Modal (for WalletConnect integration)
-
+```
