@@ -5,8 +5,7 @@
 import { Button } from '@/components/ui/button';
 import { useWeb3Modal, useWeb3ModalState } from '@web3modal/wagmi/react';
 import { useAccount, useDisconnect } from 'wagmi';
-import { LogIn, LogOut, UserCircle } from 'lucide-react'; // Added UserCircle
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { LogIn, LogOut, UserCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +25,12 @@ export default function ConnectWalletButton() {
   const { address, isConnected, chain } = useAccount();
   const { disconnect } = useDisconnect();
   const { open: modalOpen } = useWeb3ModalState();
+
+  console.log('[ConnectWalletButton] Render. Hook values:');
+  console.log('[ConnectWalletButton] - useWeb3Modal open fn:', typeof open);
+  console.log('[ConnectWalletButton] - useWeb3ModalState modalOpen:', modalOpen);
+  console.log('[ConnectWalletButton] - useAccount isConnected:', isConnected);
+  console.log('[ConnectWalletButton] - useAccount address:', address);
 
 
   if (isConnected && address) {
@@ -48,7 +53,7 @@ export default function ConnectWalletButton() {
             <span>Account Details</span>
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => open({ view: 'Networks' })}>
-            <LogIn className="mr-2 h-4 w-4" /> {/* Using LogIn for switch network */}
+            <LogIn className="mr-2 h-4 w-4" />
             <span>Switch Network</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
@@ -62,9 +67,23 @@ export default function ConnectWalletButton() {
   }
 
   return (
-    <Button onClick={() => open()} disabled={modalOpen} variant="default" className="bg-primary hover:bg-primary/90">
+    <Button 
+      onClick={() => {
+        console.log('[ConnectWalletButton] "Connect Wallet" button clicked.');
+        if (typeof open === 'function') {
+          console.log('[ConnectWalletButton] Calling open() function.');
+          open();
+        } else {
+          console.error('[ConnectWalletButton] open function is not available or not a function. Type:', typeof open);
+        }
+      }} 
+      disabled={modalOpen} 
+      variant="default" 
+      className="bg-primary hover:bg-primary/90"
+    >
       <LogIn className="mr-2 h-5 w-5" />
       Connect Wallet
     </Button>
   );
 }
+
