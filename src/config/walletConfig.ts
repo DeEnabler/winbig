@@ -40,7 +40,9 @@ export const metadata = {
   icons: ['https://placehold.co/128x128.png?text=VB'] // Generic placeholder icon
 };
 
-export const appKitNetworks = [wagmiMainnet, wagmiSepolia].filter(Boolean);
+// Temporarily configure for Mainnet only to diagnose Trust Wallet issue
+export const appKitNetworks = [wagmiMainnet].filter(Boolean); 
+console.log('[walletConfig] Initializing AppKit with networks:', appKitNetworks.map(n => n.name));
 
 export const wagmiAdapter = new WagmiAdapter({
   storage: createStorage({ storage: typeof window !== 'undefined' ? cookieStorage : noopStorage }),
@@ -51,5 +53,6 @@ export const wagmiAdapter = new WagmiAdapter({
 
 export const wagmiConfig = wagmiAdapter.wagmiConfig;
 
+// This list can remain more comprehensive for general use, 
+// but appKitNetworks above dictates WalletConnect's initial request.
 export const chains = [wagmiMainnet, wagmiSepolia] as const;
-
