@@ -1,42 +1,55 @@
+
 // src/config/walletConfig.ts
 'use client';
 
 import { cookieStorage, createStorage, noopStorage } from 'wagmi';
 import { mainnet as wagmiMainnet, sepolia as wagmiSepolia } from 'wagmi/chains';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
-// Removed potentially problematic import: import { mainnet as reownMainnet, sepolia as reownSepolia } from '@reown/appkit/networks';
 
 export const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 
+const PLACEHOLDER_PROJECT_ID = 'your_wallet_connect_project_id_here';
+
 if (!projectId) {
-  // This log is important for debugging.
-  console.error("[walletConfig] CRITICAL: NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is not set!");
+  console.error(
+    `\n\n[walletConfig] CRITICAL ERROR:\n` +
+    `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is NOT SET in your .env file!\n` +
+    `Wallet functionality will be SEVERELY IMPAIRED or NON-FUNCTIONAL.\n` +
+    `Please add it to your .env file and RESTART the development server.\n\n`
+  );
+} else if (projectId === PLACEHOLDER_PROJECT_ID) {
+  console.error(
+    `\n\n[walletConfig] CRITICAL CONFIGURATION ISSUE:\n` +
+    `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is still set to the placeholder value: '${PLACEHOLDER_PROJECT_ID}'.\n` +
+    `You MUST replace this with your ACTUAL WalletConnect Project ID in the .env file.\n` +
+    `After updating, RESTART your development server.\n` +
+    `Wallet functionality WILL FAIL until this is corrected.\n\n`
+  );
 }
 
+
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://viralbet.example.com';
-const cleanedAppUrl = appUrl.endsWith('/') ? appUrl.slice(0, -1) : appUrl;
+// Ensure the URL does not end with a slash for WalletConnect metadata consistency
+const cleanedAppUrl = appUrl.replace(/\/$/, '');
+
 
 export const metadata = {
   name: 'ViralBet',
   description: 'ViralBet - Swipe, Bet, Share!',
-  url: cleanedAppUrl,
-  icons: ['https://avatars.githubusercontent.com/u/37784886'] // Replace with actual app icon
+  url: cleanedAppUrl, 
+  icons: ['https://placehold.co/128x128.png?text=VB'] // Generic placeholder icon
 };
 
-// Define networks for Reown AppKit using standard wagmi chain objects
-// Filter out undefined in case one chain is conditionally excluded in the future.
 export const appKitNetworks = [wagmiMainnet, wagmiSepolia].filter(Boolean);
 
 export const wagmiAdapter = new WagmiAdapter({
   storage: createStorage({ storage: typeof window !== 'undefined' ? cookieStorage : noopStorage }),
   ssr: true,
-  projectId: projectId!, // Non-null assertion, as projectId presence is checked above
-  networks: appKitNetworks, // Use the simplified and robust appKitNetworks list
-  // WagmiAdapter internally creates the wagmiConfig
+  projectId: projectId || '', // Use empty string if projectId is somehow undefined to prevent crash, though errors above should highlight this.
+  networks: appKitNetworks, 
 });
 
-// Export the WagmiConfig instance from the adapter
 export const wagmiConfig = wagmiAdapter.wagmiConfig;
 
-// Original Wagmi chains for reference or direct use if ever needed outside Reown AppKit
 export const chains = [wagmiMainnet, wagmiSepolia] as const;
+

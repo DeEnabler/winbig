@@ -12,7 +12,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { generatePredictionsFromTrends, type PredictionCard as ApiPredictionCard } from '@/ai/flows/generate-predictions-from-trends-flow'; // Import AI flow
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
 
 export default function HomePage() {
   const router = useRouter();
@@ -21,10 +21,12 @@ export default function HomePage() {
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoadingPredictions, setIsLoadingPredictions] = useState(true);
+  const [predictionError, setPredictionError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPredictions = async () => {
       setIsLoadingPredictions(true);
+      setPredictionError(null);
       try {
         // Example trending topics
         const trendingTopics = ['AI breakthroughs', 'Next major sporting event', 'Upcoming movie releases', 'Global economic shifts', 'New tech gadgets'];
@@ -44,28 +46,30 @@ export default function HomePage() {
           }));
           setPredictions(formattedPredictions);
         } else {
-          setPredictions([]); // Set to empty or handle error (e.g. load mock data as fallback)
+          setPredictions([]); 
            toast({
-            variant: "destructive",
-            title: "No Predictions",
-            description: "Could not fetch new predictions from AI. Showing empty list.",
+            variant: "default",
+            title: "No Predictions Generated",
+            description: "The AI didn't return any predictions. This might be temporary.",
           });
         }
       } catch (error) {
         console.error("Failed to fetch predictions from AI:", error);
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        setPredictionError(`Failed to load dynamic predictions. The AI service might be unavailable or misconfigured (e.g., missing API key). Please check console logs for details. Error: ${errorMessage}`);
         toast({
           variant: "destructive",
           title: "Prediction Fetch Error",
-          description: "Failed to load dynamic predictions. Please try again later.",
+          description: "Could not load predictions. See page for details.",
         });
-        setPredictions([]); // Or load mock data as fallback
+        setPredictions([]); 
       } finally {
         setIsLoadingPredictions(false);
       }
     };
 
     fetchPredictions();
-  }, [toast]); // Added toast to dependency array
+  }, [toast]); 
 
   const handleBetPlacement = async (bet: Omit<BetPlacement, 'challengeMatchId' | 'referrerName'>) => {
     toast({
@@ -122,6 +126,25 @@ export default function HomePage() {
     );
   }
 
+  if (predictionError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] text-center container mx-auto">
+        <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
+        <h2 className="text-2xl font-semibold text-destructive mb-2">Error Loading Predictions</h2>
+        <p className="text-muted-foreground mb-4 max-w-md">{predictionError}</p>
+        <p className="text-sm text-muted-foreground mb-2">
+          <strong>Troubleshooting:</strong>
+        </p>
+        <ul className="text-xs text-muted-foreground list-disc list-inside text-left max-w-md space-y-1">
+          <li>Ensure the <code className="bg-muted px-1 py-0.5 rounded">GEMINI_API_KEY</code> is correctly set in your <code className="bg-muted px-1 py-0.5 rounded">.env</code> file.</li>
+          <li>Make sure you have restarted the development server after updating the <code className="bg-muted px-1 py-0.5 rounded">.env</code> file.</li>
+          <li>Check your internet connection and if the AI service (e.g., Google Gemini) is operational.</li>
+        </ul>
+        <Button onClick={() => window.location.reload()} variant="outline" className="mt-6">Try Again</Button>
+      </div>
+    );
+  }
+
   if (predictions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] text-center">
@@ -146,7 +169,7 @@ export default function HomePage() {
       <PredictionCardComponent
         key={currentPrediction.id}
         id={currentPrediction.id}
-        question={currentPrediction.text} // Mapped from apiPred.text
+        question={currentPrediction.text} 
         thumbnailUrl={currentPrediction.imageUrl || 'https://placehold.co/600x400.png'}
         aiHint={currentPrediction.aiHint}
         payoutTeaser={currentPrediction.payoutTeaser || `Bet $5 → Win $${(5 * 1.9).toFixed(2)}`}
@@ -177,3 +200,4 @@ export default function HomePage() {
     </div>
   );
 }
+
