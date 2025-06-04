@@ -4,13 +4,15 @@
 
 import type { ChallengeInviteProps } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'; // Added Avatar components
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { useEntryContext } from '@/contexts/EntryContext';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
-import { CheckCircle, Swords } from 'lucide-react'; // Added icons
-import { mockOpponentUser } from '@/lib/mockData'; // For a mock avatar if needed
+import { CheckCircle, Swords } from 'lucide-react';
+import { mockOpponentUser } from '@/lib/mockData';
+import { useAccount } from 'wagmi'; // Added
+import { appKitModal } from '@/components/providers/WalletKitProvider'; // Added
 
 export default function ChallengeInvite({ 
   matchId: originalChallengeMatchId, 
@@ -22,14 +24,30 @@ export default function ChallengeInvite({
   const router = useRouter();
   const { toast } = useToast();
   const { appendEntryParams } = useEntryContext();
+  const { isConnected } = useAccount(); // Get wallet connection status
 
-  // A simple way to get a mock avatar based on referrerName for demo.
-  // In a real app, you'd fetch user details.
   const referrerAvatar = referrerName === mockOpponentUser.username 
     ? mockOpponentUser.avatarUrl 
     : `https://placehold.co/40x40.png?text=${referrerName.substring(0,2).toUpperCase()}`;
 
-  const handleChallengeResponse = (userAction: 'with' | 'against') => {
+  const handleBetAction = (userAction: 'with' | 'against') => {
+    if (!isConnected) {
+      // If wallet is not connected, open the wallet connection modal
+      if (appKitModal && typeof appKitModal.open === 'function') {
+        console.log('ChallengeInvite: Wallet not connected, opening appKitModal.');
+        appKitModal.open();
+      } else {
+        console.error('ChallengeInvite: appKitModal.open is not available. Wallet connection cannot be initiated.');
+        toast({
+          variant: "destructive",
+          title: "Wallet Error",
+          description: "Could not initiate wallet connection. Please try the 'Connect Wallet' button in the header.",
+        });
+      }
+      return; // Stop further processing until wallet is connected
+    }
+
+    // Wallet is connected, proceed with bet logic
     let actualUserChoice: 'YES' | 'NO';
 
     if (userAction === 'with') {
@@ -79,7 +97,7 @@ export default function ChallengeInvite({
             whileTap={{ scale: 0.97 }}
             transition={{ type: "spring", stiffness: 400, damping: 17 }}
             className="flex-1 py-4 px-4 bg-gradient-to-br from-green-500 to-green-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 flex items-center justify-center space-x-2"
-            onClick={() => handleChallengeResponse('with')}
+            onClick={() => handleBetAction('with')}
           >
             <CheckCircle className="w-5 h-5" />
             <span>Agree & Bet {referrerOriginalChoice}</span>
@@ -89,7 +107,7 @@ export default function ChallengeInvite({
             whileTap={{ scale: 0.97 }}
             transition={{ type: "spring", stiffness: 400, damping: 17 }}
             className="flex-1 py-4 px-4 bg-gradient-to-br from-red-500 to-red-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 flex items-center justify-center space-x-2"
-            onClick={() => handleChallengeResponse('against')}
+            onClick={() => handleBetAction('against')}
           >
             <Swords className="w-5 h-5" />
             <span>Bet {referrerOriginalChoice === 'YES' ? 'NO' : 'YES'} & Challenge</span>
