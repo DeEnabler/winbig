@@ -1,31 +1,32 @@
+
 // src/components/predictions/PredictionCard.tsx
 'use client';
 
-import type { PredictionCardProps, BetPlacement } from '@/types';
+import type { PredictionCardProps } from '@/types'; // BetPlacement removed as it's not used here directly
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ThumbsUp, ThumbsDown, Users, Zap, CalendarDays, Tag } from 'lucide-react'; // Added Tag
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { ThumbsUp, ThumbsDown, Users, Zap, CalendarDays, Tag } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 
-interface InternalPredictionCardProps extends PredictionCardProps {}
-
+// InternalPredictionCardProps is identical to PredictionCardProps here as per types/index.ts
+// So we can directly use PredictionCardProps
 export default function PredictionCard({
   id,
   question,
   thumbnailUrl,
+  aiHint, // Added aiHint to destructuring
   payoutTeaser,
   streakCount,
   facePileCount,
   category,
-  timeLeft, // This will be a date string or number from mockData/API
-  endsAt, // Added to pass the actual end date for formatting
+  timeLeft, 
+  endsAt, 
   onBet,
-}: InternalPredictionCardProps & { endsAt?: Date }) { // Added endsAt to internal props
+}: PredictionCardProps) {
   
   const handleBet = async (choice: 'YES' | 'NO') => {
-    // Call the onBet prop passed from the page, which will handle API call and navigation
     await onBet({ predictionId: id, choice, amount: 5 }); // Default bet amount
   };
 
@@ -33,7 +34,6 @@ export default function PredictionCard({
     ? `${formatDistanceToNow(endsAt, { addSuffix: true })}`
     : timeLeft || 'N/A';
 
-  // Make "Ends" part more dynamic based on whether it's past or future
   const endsOrEnded = endsAt && endsAt.getTime() < Date.now() ? 'Ended' : 'Ends';
 
   return (
@@ -45,7 +45,7 @@ export default function PredictionCard({
             alt={question}
             layout="fill"
             objectFit="cover"
-            data-ai-hint={category || "general event"}
+            data-ai-hint={aiHint || category || "general event"} // Use aiHint first, then category
             className="rounded-t-2xl"
           />
         </div>
@@ -101,3 +101,4 @@ export default function PredictionCard({
     </Card>
   );
 }
+

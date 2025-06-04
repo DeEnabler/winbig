@@ -1,3 +1,4 @@
+
 // src/ai/flows/generate-predictions-from-trends-flow.ts
 'use server';
 
@@ -17,9 +18,12 @@ const PredictionCardSchema = z.object({
   id: z.string().describe("A unique ID for the prediction (e.g., generated UUID or hash)."),
   text: z.string().describe("The engaging question for the prediction. Must be a 'Yes' or 'No' question."),
   category: z.string().describe("A relevant category (e.g., Politics, Crypto, Sports, Technology, Entertainment)."),
-  // endsAt: z.string().datetime().optional().describe("Optional ISO 8601 datetime string for when the prediction outcome is known."),
-  // imageUrl: z.string().url().optional().describe("Optional URL for an image related to the prediction."),
-  // aiHint: z.string().optional().describe("Optional 1-2 keywords for image search if imageUrl is not provided."),
+  endsAt: z.string().datetime().describe("ISO 8601 datetime string for when the prediction outcome is known (e.g., within 1 to 7 days from now)."),
+  imageUrl: z.string().url().describe("URL for an image related to the prediction. Use 'https://placehold.co/600x400.png'."),
+  aiHint: z.string().min(1).describe("1-2 relevant keywords for an image related to the prediction (e.g., 'election debate', 'crypto chart'). This will be used for image search later."),
+  payoutTeaser: z.string().describe("A catchy teaser for potential payout, e.g., 'Bet $5 → Win $9.50'."),
+  streakCount: z.number().min(0).default(0).optional().describe("Optional: A small number (0-5) for a mock 'streak count'. Default to 0."),
+  facePileCount: z.number().min(0).default(0).optional().describe("Optional: A small number (0-50) for mock 'bettors already in'. Default to 0."),
   sourceTrend: z.string().describe("The original trending topic that inspired this prediction."),
 });
 export type PredictionCard = z.infer<typeof PredictionCardSchema>;
@@ -57,6 +61,11 @@ Each prediction MUST:
 6. Be interesting and likely to spark debate or betting interest.
 7. Avoid overly niche or obscure topics unless they are widely trending.
 8. Generate a unique ID for each prediction (e.g. a short random alphanumeric string like "pred_abc123").
+9. Assign a plausible future ISO 8601 datetime string for 'endsAt' for when the prediction outcome will be known (e.g., generally within 1 to 7 days from the current date).
+10. For 'imageUrl', provide the placeholder URL: 'https://placehold.co/600x400.png'.
+11. For 'aiHint', provide 1-2 relevant keywords based on the prediction text for a future image search (e.g., 'election debate', 'crypto chart', 'football match'). This is mandatory.
+12. Generate a 'payoutTeaser', e.g., 'Bet $5 → Win $9.50' or 'Bet 10 SOL → Potential 19 SOL'.
+13. Optionally, provide a small 'streakCount' (0-5, default 0) and 'facePileCount' (0-50, default 0) if it makes sense for the topic.
 
 Trending Topics:
 {{#each trendingTopics}}
@@ -74,21 +83,20 @@ const generatePredictionsFlow = ai.defineFlow(
     outputSchema: GeneratePredictionsOutputSchema,
   },
   async (input) => {
-    // In a real scenario, you might add logic here to fetch live trending topics
-    // if input.trendingTopics is empty or needs supplementing.
-    // For now, we directly use the provided topics.
-
     const {output} = await prompt(input);
     
-    // Ensure generated IDs are somewhat unique if the model doesn't do it well enough.
-    // This is a simple client-side addition; a robust solution might involve checking against a DB.
     if (output?.predictions) {
       output.predictions = output.predictions.map((p, index) => ({
         ...p,
-        id: p.id && p.id.length > 3 ? p.id : `genPred_${Date.now()}_${index}`
+        id: p.id && p.id.length > 3 ? p.id : `genPred_${Date.now()}_${index}`,
+        // Ensure defaults if model omits optional fields
+        streakCount: p.streakCount ?? 0,
+        facePileCount: p.facePileCount ?? 0,
+        imageUrl: p.imageUrl || 'https://placehold.co/600x400.png', // Ensure placeholder
       }));
     }
     
     return output!;
   }
 );
+
