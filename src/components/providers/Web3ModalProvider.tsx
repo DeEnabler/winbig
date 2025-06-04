@@ -15,39 +15,45 @@ if (!projectId) throw new Error('NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is not set
 const queryClient = new QueryClient();
 
 export function Web3ModalProvider({ children }: { children: ReactNode }) {
+  const [isMounted, setIsMounted] = useState(false);
   const [isModalInitialized, setIsModalInitialized] = useState(false);
 
   useEffect(() => {
-    console.log('[Web3ModalProvider] Effect started. Attempting to import createWeb3Modal.');
-    import('@web3modal/wagmi/react').then(({ createWeb3Modal }) => {
-      console.log('[Web3ModalProvider] createWeb3Modal imported. Attempting to initialize with projectId:', projectId);
-      if (!projectId) {
-        console.error("[Web3ModalProvider] CRITICAL: projectId is undefined before createWeb3Modal call!");
-        return;
-      }
-      createWeb3Modal({
-        wagmiConfig,
-        projectId,
-        chains,
-        enableAnalytics: true, // Optional: add analytics
-        // Add other Web3Modal configurations here if needed
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isMounted) {
+      console.log('[Web3ModalProvider] Client mounted. Attempting to import createWeb3Modal.');
+      import('@web3modal/wagmi/react').then(({ createWeb3Modal }) => {
+        console.log('[Web3ModalProvider] createWeb3Modal imported. Attempting to initialize with projectId:', projectId);
+        if (!projectId) {
+          console.error("[Web3ModalProvider] CRITICAL: projectId is undefined before createWeb3Modal call!");
+          return;
+        }
+        createWeb3Modal({
+          wagmiConfig,
+          projectId,
+          chains,
+          enableAnalytics: false, // Explicitly disable analytics
+        });
+        console.log('[Web3ModalProvider] Web3Modal created and configured. Setting isModalInitialized to true.');
+        setIsModalInitialized(true);
+      }).catch(error => {
+        console.error('[Web3ModalProvider] Failed to load or create Web3Modal dynamically:', error);
       });
-      console.log('[Web3ModalProvider] Web3Modal created. Setting isModalInitialized to true.');
-      setIsModalInitialized(true); // Signal that modal is ready
-    }).catch(error => {
-      console.error('[Web3ModalProvider] Failed to load or create Web3Modal dynamically:', error);
-    });
-    
-  }, []); // Empty dependency array ensures this runs once on mount
+    }
+  }, [isMounted]);
 
   if (!isModalInitialized) {
-    console.log('[Web3ModalProvider] Modal not yet initialized, rendering null.');
+    // console.log('[Web3ModalProvider] Modal not yet initialized (or component not mounted), rendering null.');
+    // This console log can be very noisy during initial renders, so optionally comment out if startup is clean.
     return null; 
   }
 
   console.log('[Web3ModalProvider] Modal initialized, rendering children with WagmiProvider.');
   return (
-    <WagmiProvider config={wagmiConfig} reconnectOnMount={false}> {/* reconnectOnMount={false} is often good for SSR/dynamic setups */}
+    <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>
       <QueryClientProvider client={queryClient}>
         {children}
       </QueryClientProvider>
