@@ -22,7 +22,7 @@ if (!isProjectIdMissing && !isProjectIdPlaceholder && !isWagmiAdapterInvalid) {
     networks: appKitNetworks,
     defaultNetwork: appKitNetworks[0] || undefined,
     metadata,
-    features: { analytics: true }
+    features: { analytics: false } // Changed from true to false
   });
   console.log('[WalletKitProvider] Reown AppKit modal instance (appKitModal) created with projectId:', ImportedProjectId);
 } else {
@@ -45,20 +45,25 @@ export function WalletKitProvider({ children }: { children: ReactNode }) {
     let errorMessageTitle = "Wallet Services Offline";
     let errorMessageLine1 = "The application encountered a critical issue initializing wallet connection services, which prevents the app from loading.";
     let errorMessageLine2 = "Please ensure the <code>NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID</code> variable is correctly set in your <code>.env</code> file at the root of your project (it should NOT be '<code>your_wallet_connect_project_id_here</code>'), and then <strong>thoroughly restart your development server</strong>.";
+    let technicalDetails = `Project ID Missing: ${isProjectIdMissing}, Project ID Placeholder: ${isProjectIdPlaceholder}, Wagmi Adapter Invalid: ${isWagmiAdapterInvalid}`;
 
-    if (isWagmiAdapterInvalid && !isProjectIdMissing && !isProjectIdPlaceholder) {
+    if (isProjectIdMissing) {
+      errorMessageLine2 = "The <code>NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID</code> environment variable is missing. Please add it to your <code>.env</code> file and restart your development server.";
+    } else if (isProjectIdPlaceholder) {
+      errorMessageLine2 = "The <code>NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID</code> is still set to the placeholder '<code>your_wallet_connect_project_id_here</code>'. Please replace it with your actual Project ID in your <code>.env</code> file and restart your development server.";
+    } else if (isWagmiAdapterInvalid) {
         errorMessageLine1 = "Wallet Provider Internal Error: Wagmi adapter or config failed to initialize. This might be an internal application issue.";
         errorMessageLine2 = "Please check the console for more specific errors from wagmiAdapter initialization in walletConfig.ts."
     }
     
-    // Render ONLY the error message, not children, to make the problem unmissable
     return (
-      <div style={{ padding: '40px', margin: '20px auto', maxWidth: '800px', textAlign: 'center', color: '#FFFFFF', backgroundColor: '#F06543', border: '2px solid #A04020', borderRadius: '8px', fontFamily: 'sans-serif' }}>
-        <h1 style={{ fontSize: '2em', marginBottom: '20px', color: '#A04020' }}>🚧 Application Error 🚧</h1>
-        <h2 style={{ fontSize: '1.5em', marginBottom: '10px' }}>{errorMessageTitle}</h2>
-        <p dangerouslySetInnerHTML={{ __html: errorMessageLine1 }} style={{ marginBottom: '15px', fontSize: '1.1em' }} />
-        <p dangerouslySetInnerHTML={{ __html: errorMessageLine2 }} style={{ marginBottom: '20px', fontSize: '1.1em' }} />
-        <p style={{ fontSize: '0.9em', color: '#FFE0D0' }}>The rest of the application cannot load until this configuration issue is resolved.</p>
+      <div style={{ padding: '20px', margin: '20px auto', maxWidth: '700px', border: '2px solid #FF4747', borderRadius: '8px', backgroundColor: '#FFF0F0', color: '#D20000', fontFamily: 'monospace', textAlign: 'left' }}>
+        <h1 style={{ fontSize: '1.5em', marginBottom: '15px', color: '#A70000', borderBottom: '1px solid #FFBDBD', paddingBottom: '10px' }}>🚧 Application Error: Wallet Services Misconfigured 🚧</h1>
+        <h2 style={{ fontSize: '1.2em', marginBottom: '10px', color: '#A70000' }}>{errorMessageTitle}</h2>
+        <p dangerouslySetInnerHTML={{ __html: errorMessageLine1 }} style={{ marginBottom: '10px', fontSize: '0.9em', lineHeight: '1.4' }} />
+        <p dangerouslySetInnerHTML={{ __html: errorMessageLine2 }} style={{ marginBottom: '15px', fontSize: '0.9em', lineHeight: '1.4' }} />
+        <p style={{ fontSize: '0.8em', color: '#7F0000', marginTop:'10px', paddingTop:'10px', borderTop:'1px dashed #FFBDBD' }}><strong>Technical Details:</strong> {technicalDetails}</p>
+        <p style={{ fontSize: '0.9em', marginTop: '20px', fontWeight: 'bold' }}>The rest of the application cannot load until this configuration issue is resolved.</p>
       </div>
     );
   }
