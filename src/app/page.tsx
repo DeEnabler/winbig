@@ -8,6 +8,9 @@ import { mockPredictions, mockCurrentUser } from '@/lib/mockData'; // For mock u
 import { useEntryContext } from '@/contexts/EntryContext';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react'; // For handling client-side effects
+import { Button } from '@/components/ui/button'; // Added Button import
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'; // Added Card imports
+
 
 // This page now acts as a client component to handle bet placement from PredictionCards
 export default function HomePage() {
@@ -58,7 +61,7 @@ export default function HomePage() {
       // Construct the match URL. For now, using predictionId as part of matchId
       // and passing relevant details as query params for the match page.
       const matchIdForUrl = `pred-${bet.predictionId}`; // Example match ID structure
-      const baseUrl = `/match/${matchIdForUrl}?predictionId=${bet.predictionId}&choice=${bet.choice}&amount=${bet.amount}`;
+      const baseUrl = `/match/${matchIdForUrl}?predictionId=${bet.predictionId}&choice=${bet.choice}&amount=${bet.amount}&betPlaced=true`;
       const urlWithEntryParams = appendEntryParams(baseUrl);
       router.push(urlWithEntryParams);
 
@@ -73,23 +76,20 @@ export default function HomePage() {
   };
   
   // --- TEMPORARY REDIRECT FOR TESTING CHALLENGE FLOW ---
-  // Comment this out to see the normal prediction feed
+  const shouldRedirectToChallenge = false; // Set to true to enable redirect for testing
+  
   useEffect(() => {
-    const shouldRedirectToChallenge = true; // Set to false to disable redirect
     if (shouldRedirectToChallenge) {
       const challengeUrl = `/match/challengeAsTest1?challenge=true&referrer=ViralBot&predictionId=1`;
-      // Using setTimeout to ensure router is ready, useful for client-side components
       const timer = setTimeout(() => router.push(challengeUrl), 0);
-      return () => clearTimeout(timer); // Cleanup timer on unmount
+      return () => clearTimeout(timer);
     }
-  }, [router]);
+  }, [router, shouldRedirectToChallenge]);
 
-  if (true) { // Replace `true` with `!shouldRedirectToChallenge` when ready to disable redirect
-     // This is a temporary state while redirecting
+  if (shouldRedirectToChallenge) {
      return (
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] text-center">
-          <p className="text-lg text-muted-foreground">Loading ViralBet...</p>
-          {/* You could add a spinner here */}
+          <p className="text-lg text-muted-foreground">Redirecting to challenge...</p>
         </div>
       );
   }
@@ -123,6 +123,7 @@ export default function HomePage() {
         id={currentPrediction.id}
         question={currentPrediction.text}
         thumbnailUrl={currentPrediction.imageUrl || 'https://placehold.co/600x400.png'}
+        aiHint={currentPrediction.aiHint || currentPrediction.category}
         payoutTeaser={currentPrediction.payoutTeaser || `Bet $5 → Win $${(5 * 1.9).toFixed(2)}`}
         streakCount={currentPrediction.streakCount}
         facePileCount={currentPrediction.facePileCount}

@@ -1,9 +1,7 @@
-
 // src/components/wallet/ConnectWallet.tsx
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { useWeb3Modal, useWeb3ModalState } from '@web3modal/wagmi/react';
 import { useAccount, useDisconnect } from 'wagmi';
 import { LogIn, LogOut, UserCircle } from 'lucide-react';
 import {
@@ -14,6 +12,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+// Import the appKitModal instance from the new provider
+import { appKitModal } from '@/components/providers/WalletKitProvider';
 
 function truncateAddress(address: string) {
   if (!address) return '';
@@ -21,17 +21,21 @@ function truncateAddress(address: string) {
 }
 
 export default function ConnectWalletButton() {
-  const { open } = useWeb3Modal();
   const { address, isConnected, chain } = useAccount();
   const { disconnect } = useDisconnect();
-  const { open: modalOpen } = useWeb3ModalState();
 
-  console.log('[ConnectWalletButton] Render. Hook values:');
-  console.log('[ConnectWalletButton] - useWeb3Modal open fn:', typeof open);
-  console.log('[ConnectWalletButton] - useWeb3ModalState modalOpen:', modalOpen);
-  console.log('[ConnectWalletButton] - useAccount isConnected:', isConnected);
-  console.log('[ConnectWalletButton] - useAccount address:', address);
+  // console.log('[ConnectWalletButton] Render (Reown AppKit). Account State:');
+  // console.log('[ConnectWalletButton] - isConnected:', isConnected);
+  // console.log('[ConnectWalletButton] - address:', address);
 
+  const handleOpenModal = () => {
+    console.log('[ConnectWalletButton] "Connect Wallet" button clicked. Attempting to call appKitModal.open().');
+    if (appKitModal && typeof appKitModal.open === 'function') {
+      appKitModal.open(); // Call Reown AppKit's open method
+    } else {
+      console.error('[ConnectWalletButton] appKitModal.open is not available or not a function. appKitModal:', appKitModal);
+    }
+  };
 
   if (isConnected && address) {
     return (
@@ -48,11 +52,12 @@ export default function ConnectWalletButton() {
             {chain?.name || 'Unknown Network'}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => open({ view: 'Account' })}>
+          {/* Reown AppKit might have different view parameters or might open default views */}
+          <DropdownMenuItem onClick={() => appKitModal?.open?.({ view: 'Account' })}>
             <UserCircle className="mr-2 h-4 w-4" />
             <span>Account Details</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => open({ view: 'Networks' })}>
+          <DropdownMenuItem onClick={() => appKitModal?.open?.({ view: 'Networks' })}>
             <LogIn className="mr-2 h-4 w-4" />
             <span>Switch Network</span>
           </DropdownMenuItem>
@@ -67,18 +72,11 @@ export default function ConnectWalletButton() {
   }
 
   return (
-    <Button 
-      onClick={() => {
-        console.log('[ConnectWalletButton] "Connect Wallet" button clicked.');
-        if (typeof open === 'function') {
-          console.log('[ConnectWalletButton] Calling open() function.');
-          open();
-        } else {
-          console.error('[ConnectWalletButton] open function is not available or not a function. Type:', typeof open);
-        }
-      }} 
-      disabled={modalOpen} 
-      variant="default" 
+    <Button
+      onClick={handleOpenModal}
+      // Reown AppKit typically manages its own modal state, so an explicit disabled prop
+      // based on modalOpen state from a hook is usually not needed here.
+      variant="default"
       className="bg-primary hover:bg-primary/90"
     >
       <LogIn className="mr-2 h-5 w-5" />
@@ -86,4 +84,3 @@ export default function ConnectWalletButton() {
     </Button>
   );
 }
-
