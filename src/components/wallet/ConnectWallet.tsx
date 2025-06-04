@@ -1,9 +1,10 @@
+
 // src/components/wallet/ConnectWallet.tsx
 'use client';
 
 import { Button } from '@/components/ui/button';
 import { useAccount, useDisconnect } from 'wagmi';
-import { LogIn, LogOut, UserCircle } from 'lucide-react';
+import { LogIn, LogOut, UserCircle, AlertTriangle } from 'lucide-react'; // Added AlertTriangle
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,18 +25,24 @@ export default function ConnectWalletButton() {
   const { address, isConnected, chain } = useAccount();
   const { disconnect } = useDisconnect();
 
-  // console.log('[ConnectWalletButton] Render (Reown AppKit). Account State:');
-  // console.log('[ConnectWalletButton] - isConnected:', isConnected);
-  // console.log('[ConnectWalletButton] - address:', address);
-
   const handleOpenModal = () => {
-    console.log('[ConnectWalletButton] "Connect Wallet" button clicked. Attempting to call appKitModal.open().');
     if (appKitModal && typeof appKitModal.open === 'function') {
-      appKitModal.open(); // Call Reown AppKit's open method
+      console.log('[ConnectWalletButton] "Connect Wallet" button clicked. Attempting to call appKitModal.open().');
+      appKitModal.open();
     } else {
       console.error('[ConnectWalletButton] appKitModal.open is not available or not a function. appKitModal:', appKitModal);
+      alert("Wallet connect service is not available. Please check configuration (Project ID) and restart the server if you recently updated .env.");
     }
   };
+
+  if (!appKitModal) {
+    return (
+      <Button variant="outline" disabled className="flex items-center space-x-2 border-destructive text-destructive">
+        <AlertTriangle className="h-5 w-5" />
+        <span>Wallet Disabled</span>
+      </Button>
+    );
+  }
 
   if (isConnected && address) {
     return (
@@ -52,7 +59,6 @@ export default function ConnectWalletButton() {
             {chain?.name || 'Unknown Network'}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          {/* Reown AppKit might have different view parameters or might open default views */}
           <DropdownMenuItem onClick={() => appKitModal?.open?.({ view: 'Account' })}>
             <UserCircle className="mr-2 h-4 w-4" />
             <span>Account Details</span>
@@ -74,8 +80,6 @@ export default function ConnectWalletButton() {
   return (
     <Button
       onClick={handleOpenModal}
-      // Reown AppKit typically manages its own modal state, so an explicit disabled prop
-      // based on modalOpen state from a hook is usually not needed here.
       variant="default"
       className="bg-primary hover:bg-primary/90"
     >
