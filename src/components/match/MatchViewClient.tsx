@@ -222,7 +222,14 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
         </CardHeader>
         <CardContent className="p-6 space-y-4">
           <div className="relative w-full h-40 md:h-48 rounded-md overflow-hidden mb-4 shadow-md">
-              <NextImage src={predictionImage} alt={match.predictionText} layout="fill" objectFit="cover" data-ai-hint={predictionAiHint}/>
+              <NextImage 
+                src={predictionImage} 
+                alt={match.predictionText} 
+                fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // Example sizes
+                style={{ objectFit: 'cover' }}
+                data-ai-hint={predictionAiHint}
+              />
           </div>
 
           <div className="flex justify-around items-center text-center">

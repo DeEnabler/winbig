@@ -39,12 +39,13 @@ export default function PredictionCard({
   return (
     <Card className="bg-card text-card-foreground rounded-2xl shadow-lg p-0 mb-4 w-full max-w-md mx-auto transform transition-all hover:scale-[1.02] duration-300 ease-out overflow-hidden">
       {thumbnailUrl && (
-        <div className="relative w-full h-48 object-cover">
+        <div className="relative w-full h-48"> {/* Removed object-cover from here */}
           <NextImage
             src={thumbnailUrl}
             alt={question}
-            layout="fill"
-            objectFit="cover"
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // Example sizes, adjust as needed
+            style={{ objectFit: 'cover' }} // Added objectFit via style prop
             data-ai-hint={aiHint || category || "general event"} // Use aiHint first, then category
             className="rounded-t-2xl"
           />
@@ -101,4 +102,3 @@ export default function PredictionCard({
     </Card>
   );
 }
-
