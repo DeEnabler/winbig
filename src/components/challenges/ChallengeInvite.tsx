@@ -11,8 +11,13 @@ import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import { CheckCircle, Swords } from 'lucide-react';
 import { mockOpponentUser } from '@/lib/mockData';
-import { useAccount } from 'wagmi'; // Added
-import { appKitModal } from '@/components/providers/WalletKitProvider'; // Added
+import { useAccount } from 'wagmi';
+import { appKitModal } from '@/components/providers/WalletKitProvider';
+import { useState, useEffect, useCallback } from 'react';
+
+const REWARD_AMOUNT = 100;
+const REWARD_CURRENCY = "ViralPoints";
+const REWARD_GIVEN_STORAGE_KEY = 'viralBetWalletConnectRewardGiven_v1';
 
 export default function ChallengeInvite({ 
   matchId: originalChallengeMatchId, 
@@ -24,17 +29,82 @@ export default function ChallengeInvite({
   const router = useRouter();
   const { toast } = useToast();
   const { appendEntryParams } = useEntryContext();
-  const { isConnected } = useAccount(); // Get wallet connection status
+  const { isConnected, address } = useAccount();
+
+  const [pendingActionData, setPendingActionData] = useState<{
+    userAction: 'with' | 'against';
+    actualUserChoice: 'YES' | 'NO';
+  } | null>(null);
 
   const referrerAvatar = referrerName === mockOpponentUser.username 
     ? mockOpponentUser.avatarUrl 
     : `https://placehold.co/40x40.png?text=${referrerName.substring(0,2).toUpperCase()}`;
 
+  const proceedWithNavigation = useCallback((userAction: 'with' | 'against', actualUserChoice: 'YES' | 'NO') => {
+    console.log('Analytics: challenge_responded', {
+      matchId: originalChallengeMatchId,
+      userAction: userAction, 
+      actualUserChoice: actualUserChoice,
+      referrer: referrerName,
+      predictionId: predictionId,
+    });
+
+    // This toast can be shown if desired, or removed if the reward toast is sufficient
+    // toast({
+    //   title: "Great Choice!",
+    //   description: `You chose to bet ${actualUserChoice}. Let's confirm your bet!`,
+    // });
+
+    const baseUrl = `/match/${originalChallengeMatchId}?predictionId=${predictionId}&choice=${actualUserChoice}&confirmChallenge=true&referrer=${referrerName}`;
+    const urlWithEntryParams = appendEntryParams(baseUrl);
+    router.push(urlWithEntryParams);
+  }, [originalChallengeMatchId, predictionId, referrerName, appendEntryParams, router]);
+
+
+  useEffect(() => {
+    if (isConnected && pendingActionData && address) {
+      const rewardAlreadyGiven = localStorage.getItem(REWARD_GIVEN_STORAGE_KEY) === address;
+
+      if (!rewardAlreadyGiven) {
+        localStorage.setItem(REWARD_GIVEN_STORAGE_KEY, address); // Store address to tie reward to specific wallet
+        toast({
+          title: "Wallet Connected! 🎉",
+          description: `You've earned ${REWARD_AMOUNT} ${REWARD_CURRENCY}! (XP in header updates on next full load due to mock data).`,
+          duration: 5000,
+        });
+      }
+      
+      proceedWithNavigation(pendingActionData.userAction, pendingActionData.actualUserChoice);
+      setPendingActionData(null);
+    }
+  }, [isConnected, pendingActionData, address, toast, proceedWithNavigation]);
+
+
   const handleBetAction = (userAction: 'with' | 'against') => {
+    let actualUserChoice: 'YES' | 'NO';
+    if (userAction === 'with') {
+      actualUserChoice = referrerOriginalChoice;
+    } else { // 'against'
+      actualUserChoice = referrerOriginalChoice === 'YES' ? 'NO' : 'YES';
+    }
+
     if (!isConnected) {
-      // If wallet is not connected, open the wallet connection modal
+      setPendingActionData({ userAction, actualUserChoice });
+      const rewardAlreadyGiven = !!address && localStorage.getItem(REWARD_GIVEN_STORAGE_KEY) === address; // Check if reward given to *this specific address* if it somehow exists before connection
+
+      if (!rewardAlreadyGiven) { // We assume if no address, reward not given. If address exists but no reward, also offer.
+        toast({
+          title: "Connect Wallet & Earn!",
+          description: `Connect your wallet to proceed and earn ${REWARD_AMOUNT} ${REWARD_CURRENCY} instantly!`,
+        });
+      } else {
+         toast({
+          title: "Connect Wallet",
+          description: "Please connect your wallet to continue.",
+        });
+      }
+
       if (appKitModal && typeof appKitModal.open === 'function') {
-        console.log('ChallengeInvite: Wallet not connected, opening appKitModal.');
         appKitModal.open();
       } else {
         console.error('ChallengeInvite: appKitModal.open is not available. Wallet connection cannot be initiated.');
@@ -44,34 +114,11 @@ export default function ChallengeInvite({
           description: "Could not initiate wallet connection. Please try the 'Connect Wallet' button in the header.",
         });
       }
-      return; // Stop further processing until wallet is connected
+      return;
     }
 
-    // Wallet is connected, proceed with bet logic
-    let actualUserChoice: 'YES' | 'NO';
-
-    if (userAction === 'with') {
-      actualUserChoice = referrerOriginalChoice;
-    } else { // 'against'
-      actualUserChoice = referrerOriginalChoice === 'YES' ? 'NO' : 'YES';
-    }
-
-    console.log('Analytics: challenge_responded', {
-      matchId: originalChallengeMatchId,
-      userAction: userAction, 
-      actualUserChoice: actualUserChoice,
-      referrer: referrerName,
-      predictionId: predictionId,
-    });
-
-    toast({
-      title: "Great Choice!",
-      description: `You chose to bet ${actualUserChoice}. Let's confirm your bet!`,
-    });
-
-    const baseUrl = `/match/${originalChallengeMatchId}?predictionId=${predictionId}&choice=${actualUserChoice}&confirmChallenge=true&referrer=${referrerName}`;
-    const urlWithEntryParams = appendEntryParams(baseUrl);
-    router.push(urlWithEntryParams);
+    // Wallet is already connected, proceed directly
+    proceedWithNavigation(userAction, actualUserChoice);
   };
 
   return (
