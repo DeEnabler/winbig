@@ -6,8 +6,8 @@ import { Toaster } from '@/components/ui/toaster';
 import AppLayout from '@/components/layout/AppLayout';
 import { EntryContextProvider } from '@/contexts/EntryContext';
 import { Suspense } from 'react';
-import PageTransitionWrapper from '@/components/layout/PageTransitionWrapper';
-import ClientSideWeb3ProviderLoader from '@/components/providers/ClientSideWeb3ProviderLoader'; // Import the new loader
+// import PageTransitionWrapper from '@/components/layout/PageTransitionWrapper'; // Temporarily removed
+import ClientSideWeb3ProviderLoader from '@/components/providers/ClientSideWeb3ProviderLoader';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -24,8 +24,6 @@ export const metadata: Metadata = {
   description: 'Instantly challenge others on high-emotion predictions. Swipe, bet, and share virally on X!',
 };
 
-// Removed the direct dynamic import of Web3ModalProvider from here
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -34,13 +32,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}>
-        <ClientSideWeb3ProviderLoader> {/* Use the new client-side loader */}
+        <ClientSideWeb3ProviderLoader>
           <Suspense fallback={<div>Loading context...</div>}>
             <EntryContextProvider>
                 <AppLayout>
-                  <PageTransitionWrapper>
+                  {/* <PageTransitionWrapper> */}
                     {children}
-                  </PageTransitionWrapper>
+                  {/* </PageTransitionWrapper> */}
                 </AppLayout>
             </EntryContextProvider>
           </Suspense>
