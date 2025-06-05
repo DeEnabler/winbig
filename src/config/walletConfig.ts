@@ -4,8 +4,8 @@
 
 import { cookieStorage, createStorage, noopStorage } from 'wagmi';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
-// Import chains from @reown/appkit/networks
-import { mainnet, sepolia, polygonAmoy } from '@reown/appkit/networks'; // Assuming sepolia & polygonAmoy are available, or adjust as needed
+// Import chains from @reown/appkit/networks, matching CryptoIndexFund
+import { mainnet, arbitrum, polygonAmoy } from '@reown/appkit/networks';
 
 export const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 
@@ -35,25 +35,28 @@ export const metadata = {
   name: 'ViralBet',
   description: 'ViralBet - Swipe, Bet, Share!',
   url: cleanedAppUrl,
-  icons: ['https://placehold.co/128x128.png?text=VB']
+  icons: ['https://placehold.co/128x128.png?text=VB'] // Replace with your actual icon URL
 };
 
-// Configure appKitNetworks: Start with mainnet from @reown/appkit/networks
-// If mainnet works, you can try adding sepolia or polygonAmoy from @reown/appkit/networks
-export const appKitNetworks = [mainnet].filter(Boolean); 
-// export const appKitNetworks = [mainnet, sepolia].filter(Boolean); // Example if using sepolia from reown
-// export const appKitNetworks = [mainnet, polygonAmoy].filter(Boolean); // Example if using polygonAmoy from reown
+// Configure appKitNetworks to match CryptoIndexFund
+// Ensure these chains (mainnet, arbitrum, polygonAmoy) are indeed exported by @reown/appkit/networks
+export const appKitNetworks = [mainnet, arbitrum, polygonAmoy].filter(Boolean);
 
-console.log('[walletConfig] Initializing AppKit with Reown networks:', appKitNetworks.map(n => n.name));
+console.log('[walletConfig] Initializing AppKit with Reown networks:', appKitNetworks.map(n => n?.name || 'Unknown Network'));
 
 export const wagmiAdapter = new WagmiAdapter({
   storage: createStorage({ storage: typeof window !== 'undefined' ? cookieStorage : noopStorage }),
   ssr: true,
-  projectId: projectId || '',
+  projectId: projectId || '', // Fallback to empty string if projectId is somehow undefined (should be caught above)
   networks: appKitNetworks,
 });
 
 export const wagmiConfig = wagmiAdapter.wagmiConfig;
 
 // General list of chains for reference, if needed elsewhere, but appKitNetworks drives AppKit.
-export const chains = [mainnet, sepolia, polygonAmoy] as const;
+// This 'chains' export is not directly used by AppKit initialization but can be for other wagmi features.
+export const chains = [mainnet, arbitrum, polygonAmoy].filter(Boolean) as unknown as readonly [import('viem').Chain, ...import('viem').Chain[]];
+// The 'as unknown as ...' is a type assertion to satisfy wagmi's expected type if needed elsewhere,
+// assuming the Reown network objects are compatible with viem's Chain type.
+// For AppKit, the direct `appKitNetworks` array is what matters for `WagmiAdapter` and `createAppKit`.
+
