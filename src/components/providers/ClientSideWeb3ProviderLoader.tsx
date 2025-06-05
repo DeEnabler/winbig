@@ -1,3 +1,4 @@
+
 // src/components/providers/ClientSideWeb3ProviderLoader.tsx
 'use client';
 
@@ -39,8 +40,12 @@ const DevBypassWeb3Notice = () => (
   </div>
 );
 
+interface ClientSideWeb3ProviderLoaderProps {
+  children: ReactNode;
+  cookies: string | null; // Accept cookies prop
+}
 
-export default function ClientSideWeb3ProviderLoader({ children }: { children: ReactNode }) {
+export default function ClientSideWeb3ProviderLoader({ children, cookies }: ClientSideWeb3ProviderLoaderProps) {
   const disableWeb3Providers = process.env.NEXT_PUBLIC_DISABLE_WEB3_PROVIDERS_DEV_ONLY === 'true';
 
   if (disableWeb3Providers) {
@@ -55,5 +60,5 @@ export default function ClientSideWeb3ProviderLoader({ children }: { children: R
     );
   }
 
-  return <ActualWalletKitProvider>{children}</ActualWalletKitProvider>;
+  return <ActualWalletKitProvider cookies={cookies}>{children}</ActualWalletKitProvider>; // Pass cookies
 }

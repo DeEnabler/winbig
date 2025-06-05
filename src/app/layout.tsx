@@ -6,8 +6,8 @@ import { Toaster } from '@/components/ui/toaster';
 import AppLayout from '@/components/layout/AppLayout';
 import { EntryContextProvider } from '@/contexts/EntryContext';
 import { Suspense } from 'react';
-// import PageTransitionWrapper from '@/components/layout/PageTransitionWrapper'; // Temporarily removed
 import ClientSideWeb3ProviderLoader from '@/components/providers/ClientSideWeb3ProviderLoader';
+import { headers } from 'next/headers'; // Import headers
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -29,16 +29,16 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookie = headers().get('cookie'); // Get cookies
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}>
-        <ClientSideWeb3ProviderLoader>
+        <ClientSideWeb3ProviderLoader cookies={cookie}> {/* Pass cookies */}
           <Suspense fallback={<div>Loading context...</div>}>
             <EntryContextProvider>
                 <AppLayout>
-                  {/* <PageTransitionWrapper> */}
-                    {children}
-                  {/* </PageTransitionWrapper> */}
+                  {children}
                 </AppLayout>
             </EntryContextProvider>
           </Suspense>

@@ -3,8 +3,9 @@
 'use client';
 
 import { cookieStorage, createStorage, noopStorage } from 'wagmi';
-import { mainnet as wagmiMainnet, sepolia as wagmiSepolia } from 'wagmi/chains';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
+// Import chains from @reown/appkit/networks
+import { mainnet, sepolia, polygonAmoy } from '@reown/appkit/networks'; // Assuming sepolia & polygonAmoy are available, or adjust as needed
 
 export const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 
@@ -27,32 +28,32 @@ if (!projectId) {
   );
 }
 
-
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://viralbet.example.com';
-// Ensure the URL does not end with a slash for WalletConnect metadata consistency
 const cleanedAppUrl = appUrl.replace(/\/$/, '');
-
 
 export const metadata = {
   name: 'ViralBet',
   description: 'ViralBet - Swipe, Bet, Share!',
-  url: cleanedAppUrl, 
-  icons: ['https://placehold.co/128x128.png?text=VB'] // Generic placeholder icon
+  url: cleanedAppUrl,
+  icons: ['https://placehold.co/128x128.png?text=VB']
 };
 
-// Temporarily configure for Mainnet only to diagnose Trust Wallet issue
-export const appKitNetworks = [wagmiMainnet].filter(Boolean); 
-console.log('[walletConfig] Initializing AppKit with networks:', appKitNetworks.map(n => n.name));
+// Configure appKitNetworks: Start with mainnet from @reown/appkit/networks
+// If mainnet works, you can try adding sepolia or polygonAmoy from @reown/appkit/networks
+export const appKitNetworks = [mainnet].filter(Boolean); 
+// export const appKitNetworks = [mainnet, sepolia].filter(Boolean); // Example if using sepolia from reown
+// export const appKitNetworks = [mainnet, polygonAmoy].filter(Boolean); // Example if using polygonAmoy from reown
+
+console.log('[walletConfig] Initializing AppKit with Reown networks:', appKitNetworks.map(n => n.name));
 
 export const wagmiAdapter = new WagmiAdapter({
   storage: createStorage({ storage: typeof window !== 'undefined' ? cookieStorage : noopStorage }),
   ssr: true,
-  projectId: projectId || '', // Use empty string if projectId is somehow undefined to prevent crash, though errors above should highlight this.
-  networks: appKitNetworks, 
+  projectId: projectId || '',
+  networks: appKitNetworks,
 });
 
 export const wagmiConfig = wagmiAdapter.wagmiConfig;
 
-// This list can remain more comprehensive for general use, 
-// but appKitNetworks above dictates WalletConnect's initial request.
-export const chains = [wagmiMainnet, wagmiSepolia] as const;
+// General list of chains for reference, if needed elsewhere, but appKitNetworks drives AppKit.
+export const chains = [mainnet, sepolia, polygonAmoy] as const;

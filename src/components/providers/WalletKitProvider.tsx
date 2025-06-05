@@ -1,8 +1,9 @@
+
 // src/components/providers/WalletKitProvider.tsx
 'use client';
 
 import type { ReactNode } from 'react';
-import { WagmiProvider } from 'wagmi';
+import { WagmiProvider, cookieToInitialState, type Config } from 'wagmi'; // Import cookieToInitialState and Config
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createAppKit, type AppKitModal } from '@reown/appkit/react';
 import { wagmiAdapter, projectId as ImportedProjectId, appKitNetworks, metadata } from '@/config/walletConfig';
@@ -14,22 +15,19 @@ const isProjectIdMissing = !ImportedProjectId;
 const isProjectIdPlaceholder = ImportedProjectId === PLACEHOLDER_PROJECT_ID;
 const isWagmiAdapterInvalid = !wagmiAdapter || !wagmiAdapter.wagmiConfig;
 
-// This block attempts to create the AppKit modal instance only if project ID is valid
-// It's crucial that ImportedProjectId is correctly populated from .env for this to work
 if (!isProjectIdMissing && !isProjectIdPlaceholder && !isWagmiAdapterInvalid) {
   try {
     appKitModalInstance = createAppKit({
-      adapters: [wagmiAdapter!], // Safe to assert non-null due to checks
-      projectId: ImportedProjectId!, // Safe to assert non-null
+      adapters: [wagmiAdapter!],
+      projectId: ImportedProjectId!,
       networks: appKitNetworks,
       defaultNetwork: appKitNetworks[0] || undefined,
       metadata,
-      features: { analytics: false } // Analytics disabled
+      features: { analytics: false } 
     });
     console.log('[WalletKitProvider] Reown AppKit modal instance (appKitModal) created with projectId:', ImportedProjectId);
   } catch (e) {
-    console.error("[WalletKitProvider] CRITICAL: Error during createAppKit initialization. This may be due to network issues or problems with the adapter/project ID even if it passed initial checks.", e);
-    // appKitModalInstance will remain null, which might affect wagmiAdapter.wagmiConfig if it depends on a live AppKit instance
+    console.error("[WalletKitProvider] CRITICAL: Error during createAppKit initialization.", e);
   }
 } else {
   if (isProjectIdMissing) {
@@ -37,8 +35,8 @@ if (!isProjectIdMissing && !isProjectIdPlaceholder && !isWagmiAdapterInvalid) {
   } else if (isProjectIdPlaceholder) {
     console.error(`[WalletKitProvider] CRITICAL: projectId is the placeholder '${PLACEHOLDER_PROJECT_ID}'. Wallet functionality will be disabled. Update .env and RESTART server.`);
   }
-  if (isWagmiAdapterInvalid) { // This check might be redundant if appKit creation itself is the main point of failure for wagmiConfig
-    console.error("[WalletKitProvider] CRITICAL: wagmiAdapter or wagmiAdapter.wagmiConfig is not available, possibly due to AppKit/projectId issues. Cannot create AppKit modal.");
+  if (isWagmiAdapterInvalid) { 
+    console.error("[WalletKitProvider] CRITICAL: wagmiAdapter or wagmiAdapter.wagmiConfig is not available. Cannot create AppKit modal.");
   }
 }
 
@@ -46,9 +44,12 @@ export const appKitModal = appKitModalInstance;
 
 const queryClient = new QueryClient();
 
-export function WalletKitProvider({ children }: { children: ReactNode }) {
-  // This is the primary guard against misconfiguration.
-  // If this message shows, the .env file or server restart is the problem.
+interface WalletKitProviderProps {
+  children: ReactNode;
+  cookies: string | null; // Accept cookies prop
+}
+
+export function WalletKitProvider({ children, cookies }: WalletKitProviderProps) {
   if (isProjectIdMissing || isProjectIdPlaceholder) {
     let errorMessageLine1 = "The application encountered a critical issue initializing wallet connection services due to a misconfigured WalletConnect Project ID, which prevents the app from loading core Web3 features.";
     let errorMessageLine2 = "Please ensure the <code>NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID</code> variable is correctly set in your <code>.env</code> file at the root of your project (it should NOT be '<code>your_wallet_connect_project_id_here</code>' and must not be empty), and then <strong>thoroughly restart your development server</strong>.";
@@ -73,29 +74,31 @@ export function WalletKitProvider({ children }: { children: ReactNode }) {
     );
   }
 
-  // If wagmiAdapter or its config is still invalid even with a seemingly valid ProjectID,
-  // it could indicate deeper issues (e.g., AppKit failed to initialize internally).
   if (isWagmiAdapterInvalid || !wagmiAdapter.wagmiConfig) {
-     console.error("[WalletKitProvider] CRITICAL: wagmiAdapter.wagmiConfig is not available even though Project ID seems okay. AppKit might have failed to initialize properly. Check console for earlier errors from `createAppKit` or `WagmiAdapter` constructor.");
+     console.error("[WalletKitProvider] CRITICAL: wagmiAdapter.wagmiConfig is not available even though Project ID seems okay. AppKit might have failed to initialize properly.");
      return (
       <div style={{ padding: '20px', margin: '20px auto', maxWidth: '800px', border: '3px solid #FF1744', borderRadius: '10px', backgroundColor: '#FFEBEE', color: '#B71C1C', fontFamily: 'monospace', textAlign: 'left', lineHeight: '1.6' }}>
         <h1 style={{ fontSize: '1.8em', marginBottom: '20px', color: '#D32F2F', borderBottom: '2px solid #FFCDD2', paddingBottom: '15px' }}>🚧 Application Error: Wallet Provider Initialization Failed 🚧</h1>
         <p style={{ marginBottom: '15px', fontSize: '1em' }}>
-            The Wagmi wallet provider could not be initialized. This might be due to an internal error within the AppKit setup, possibly related to network connectivity to WalletConnect services or an issue with the Wagmi adapter configuration itself.
+            The Wagmi wallet provider could not be initialized. This might be due to an internal error within the AppKit setup.
         </p>
         <p style={{ marginBottom: '20px', fontSize: '1em' }}>
             Please check the browser console for more specific errors originating from <code>createAppKit</code> or the <code>WagmiAdapter</code> in <code>walletConfig.ts</code>.
-            Ensure your network allows connections to WalletConnect services. The "Origin not found on Allowlist" error, if present for your Project ID, can also cause such failures.
         </p>
         <p style={{ fontSize: '1em', marginTop: '25px', fontWeight: 'bold' }}>Web3 features will be unavailable.</p>
       </div>
      );
   }
+  
+  // Use cookieToInitialState for SSR and better connection persistence
+  const initialState = cookieToInitialState(
+    wagmiAdapter.wagmiConfig as Config, // Cast to Config as WagmiAdapter might not have perfect type alignment
+    cookies 
+  );
 
-  console.log('[WalletKitProvider] Rendering with WagmiProvider (using config from wagmiAdapter).');
-  // This is the normal operational path
+  console.log('[WalletKitProvider] Rendering with WagmiProvider (using config from wagmiAdapter and initialState from cookies).');
   return (
-    <WagmiProvider config={wagmiAdapter.wagmiConfig} reconnectOnMount={true}>
+    <WagmiProvider config={wagmiAdapter.wagmiConfig as Config} initialState={initialState}> {/* Use initialState, remove reconnectOnMount */}
       <QueryClientProvider client={queryClient}>
         {children}
       </QueryClientProvider>
