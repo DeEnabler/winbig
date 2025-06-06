@@ -2,10 +2,11 @@
 // src/config/walletConfig.ts
 'use client';
 
-import { cookieStorage, createStorage, noopStorage } from 'wagmi'; // Corrected import for createStorage
+import { cookieStorage, createStorage, noopStorage } from 'wagmi';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 // Import desired chains from @reown/appkit/networks
-import { mainnet, arbitrum, polygonAmoy } from '@reown/appkit/networks'; // Using the multi-chain config that works for CryptoIndexFund
+// For debugging Trust Wallet, starting with mainnet only, then will try the set from CryptoIndexFund
+import { mainnet, arbitrum, polygonAmoy } from '@reown/appkit/networks';
 import type { Chain } from 'viem';
 
 export const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
@@ -18,36 +19,30 @@ if (!projectId || projectId === PLACEHOLDER_PROJECT_ID || projectId === 'undefin
     `Wallet functionality will be SEVERELY IMPAIRED or NON-FUNCTIONAL.\n` +
     `Please set it correctly in your .env file and RESTART the development server.\n\n`;
   console.error(errorMessage);
-  // Throwing an error here ensures this is caught early if projectId is bad.
-  // WalletKitProvider will also show a UI error.
-  throw new Error(errorMessage.replace(/\n/g, ' '));
+  throw new Error(errorMessage.replace(/\n/g, ' ')); // Throw error to stop initialization if ID is clearly bad
 }
 
-// --- IMPORTANT ---
-// For Trust Wallet and other mobile wallets, metadata.url often needs to be:
-// 1. An HTTPS URL.
-// 2. A non-localhost URL (e.g., your Vercel preview/production URL).
-// 3. EXACTLY matching a domain whitelisted in your WalletConnect Cloud dashboard for the projectId.
-//
-// Replace the placeholder below with your actual deployed app's HTTPS URL.
-const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://your-viralbet-app.vercel.app'; // Updated placeholder
-const cleanedAppUrl = appUrl.replace(/\/$/, '');
-
+// --- IMPORTANT METADATA URL ---
+// This URL MUST be an HTTPS URL.
+// It MUST EXACTLY match one of the "App Domains" whitelisted in your WalletConnect Cloud dashboard for the projectId.
+// Mismatches or HTTP URLs can cause connection issues with mobile wallets like Trust Wallet.
+const dAppConnectUrl = 'https://www.winbig.fun/'; // Using your provided production domain
 console.warn(
-  `[walletConfig] Using metadata.url: "${cleanedAppUrl}". ` +
-  `Ensure this is an HTTPS URL and is whitelisted in your WalletConnect Cloud project dashboard for Project ID: ${projectId}. ` +
-  `If using a placeholder, replace it with your actual deployment URL.`
+  `[walletConfig] Using dAppConnectUrl: "${dAppConnectUrl}" for WalletConnect metadata. ` +
+  `Ensure this exact URL is whitelisted in your WalletConnect Cloud project dashboard for Project ID: ${projectId}.`
 );
 
 export const metadata = {
   name: 'ViralBet',
   description: 'ViralBet - Swipe, Bet, Share!',
-  url: cleanedAppUrl, // This is the critical URL
-  icons: ['https://placehold.co/128x128.png?text=VB']
+  url: dAppConnectUrl, // CRITICAL for WalletConnect
+  icons: ['https://placehold.co/128x128.png?text=VB'] // Replace with your actual icon URL
 };
 
-// Configure with the same set of networks as CryptoIndexFund for consistency
+// Configure with the same set of networks as CryptoIndexFund for consistency in testing
 export const appKitNetworks = [mainnet, arbitrum, polygonAmoy].filter(Boolean) as Chain[];
+// For initial Trust Wallet debugging, you might simplify this to:
+// export const appKitNetworks = [mainnet].filter(Boolean) as Chain[];
 
 console.log('[walletConfig] Initializing AppKit with Reown networks:', appKitNetworks.map(n => n?.name || 'Unknown Network'));
 
