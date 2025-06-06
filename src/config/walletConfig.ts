@@ -3,8 +3,8 @@
 
 import { cookieStorage, createStorage, noopStorage, type Chain } from 'wagmi';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
-// Import multiple chains from Reown AppKit
-import { mainnet, arbitrum, polygonAmoy } from '@reown/appkit/networks';
+// UPDATED: Import chains from wagmi/chains
+import { mainnet, arbitrum, polygonAmoy } from 'wagmi/chains';
 
 export const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 const PLACEHOLDER_PROJECT_ID = 'your_wallet_connect_project_id_here';
@@ -35,21 +35,22 @@ export const metadata = {
   description: 'ViralBet - Swipe, Bet, Share!',
   url: appUrlForMetadata, // Cleaned origin
   // Ensure this icon is publicly accessible and a PNG/JPG.
+  // IMPORTANT: Replace with your actual icon URL or ensure vb-icon-192.png is in public folder
   icons: ['https://www.winbig.fun/vb-icon-192.png'] 
 };
 
-// MODIFIED: Using a multi-chain configuration
+// UPDATED: Using chains from wagmi/chains
 export const appKitNetworks = [mainnet, arbitrum, polygonAmoy].filter(Boolean) as Chain[];
-console.log('[walletConfig] Initializing AppKit with Reown networks (current):', appKitNetworks.map(n => ({id: n.id, name: n.name})));
+console.log('[walletConfig] Initializing AppKit with networks from wagmi/chains:', appKitNetworks.map(n => ({id: n.id, name: n.name})));
 
 export const wagmiAdapter = new WagmiAdapter({
   storage: createStorage({ storage: typeof window !== 'undefined' ? cookieStorage : noopStorage }),
   ssr: true,
-  projectId: projectId!, // projectId existence is checked above, exclamation mark is for TS
-  networks: appKitNetworks,
+  projectId: projectId!, 
+  networks: appKitNetworks, // Now using chains from wagmi/chains
 });
 
 export const wagmiConfig = wagmiAdapter.wagmiConfig;
 
+// Ensure chains is correctly typed for use elsewhere if needed
 export const chains = appKitNetworks as readonly [Chain, ...Chain[]];
-
