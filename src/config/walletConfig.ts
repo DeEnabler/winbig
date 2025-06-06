@@ -33,7 +33,9 @@ export const metadata = {
   name: 'ViralBet',
   description: 'ViralBet - Swipe, Bet, Share!',
   url: appUrlForMetadata, // Cleaned origin
-  icons: [], // Reverted to empty array as per user's feedback and for debugging
+  // IMPORTANT: Replace placeholder with an actual, publicly accessible URL to a 192x192 PNG or SVG logo.
+  // Using .ico files here is not recommended and can cause issues with some wallets like Trust Wallet.
+  icons: ['https://www.winbig.fun/viralbet-logo-192.png'],
 };
 
 // SIMPLIFIED: appKitNetworks configured with ONLY mainnet from @reown/appkit/networks
