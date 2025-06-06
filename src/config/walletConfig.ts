@@ -33,13 +33,8 @@ export const metadata = {
   name: 'ViralBet',
   description: 'ViralBet - Swipe, Bet, Share!',
   url: appUrlForMetadata, // Cleaned origin
-  /**
-   * CRITICAL: Ensure the icon URL below points to a valid, publicly accessible PNG or JPG image.
-   * Trust Wallet may have issues if this array is empty or the URL is invalid/slow.
-   * Replace 'vb-icon-192.png' with your actual icon filename.
-   * Recommended size: 192x192 or similar.
-   */
-  icons: ['https://www.winbig.fun/vb-icon-192.png'],
+  // Testing with favicon.ico as per user hypothesis
+  icons: ['https://www.winbig.fun/favicon.ico'],
 };
 
 // SIMPLIFIED: appKitNetworks configured with ONLY mainnet from @reown/appkit/networks
