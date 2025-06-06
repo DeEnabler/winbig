@@ -3,8 +3,8 @@
 
 import { cookieStorage, createStorage, noopStorage, type Chain } from 'wagmi';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
-// UPDATED: Import chains from wagmi/chains
-import { mainnet, arbitrum, polygonAmoy } from 'wagmi/chains';
+// Import specific chains from wagmi/chains
+import { arbitrum, polygonAmoy } from 'wagmi/chains';
 
 export const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 const PLACEHOLDER_PROJECT_ID = 'your_wallet_connect_project_id_here';
@@ -34,20 +34,43 @@ export const metadata = {
   name: 'ViralBet',
   description: 'ViralBet - Swipe, Bet, Share!',
   url: appUrlForMetadata, // Cleaned origin
-  // Ensure this icon is publicly accessible and a PNG/JPG.
-  // IMPORTANT: Replace with your actual icon URL or ensure vb-icon-192.png is in public folder
+  // Ensure vb-icon-192.png is in your public folder and accessible at this URL
   icons: ['https://www.winbig.fun/vb-icon-192.png'] 
 };
 
-// UPDATED: Using chains from wagmi/chains
-export const appKitNetworks = [mainnet, arbitrum, polygonAmoy].filter(Boolean) as Chain[];
-console.log('[walletConfig] Initializing AppKit with networks from wagmi/chains:', appKitNetworks.map(n => ({id: n.id, name: n.name})));
+// Manually define mainnet with a single, common RPC URL
+const mainnetCustom: Chain = {
+  id: 1,
+  name: 'Ethereum',
+  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://cloudflare-eth.com'] },
+    public: { http: ['https://cloudflare-eth.com'] },
+  },
+  blockExplorers: {
+    default: { name: 'Etherscan', url: 'https://etherscan.io' },
+  },
+  contracts: {
+    ensRegistry: {
+      address: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
+    },
+    multicall3: {
+      address: '0xcA11bde05977b3631167028862bE2a173976CA11',
+      blockCreated: 14353601,
+    },
+  },
+} as const;
+
+
+// Using the manually defined mainnet and others from wagmi/chains
+export const appKitNetworks = [mainnetCustom, arbitrum, polygonAmoy].filter(Boolean) as Chain[];
+console.log('[walletConfig] Initializing AppKit with custom mainnet and wagmi/chains for others:', appKitNetworks.map(n => ({id: n.id, name: n.name})));
 
 export const wagmiAdapter = new WagmiAdapter({
   storage: createStorage({ storage: typeof window !== 'undefined' ? cookieStorage : noopStorage }),
   ssr: true,
   projectId: projectId!, 
-  networks: appKitNetworks, // Now using chains from wagmi/chains
+  networks: appKitNetworks,
 });
 
 export const wagmiConfig = wagmiAdapter.wagmiConfig;
