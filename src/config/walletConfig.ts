@@ -4,9 +4,7 @@
 
 import { cookieStorage, createStorage, noopStorage } from 'wagmi';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
-// Import desired chains from @reown/appkit/networks
-// For initial Trust Wallet debugging, simplify to only mainnet
-import { mainnet } from '@reown/appkit/networks'; // Using mainnet, arbitrum, polygonAmoy from CryptoIndexFund example
+import { mainnet } from '@reown/appkit/networks'; // Testing with mainnet only
 import type { Chain } from 'viem';
 
 export const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
@@ -24,24 +22,33 @@ if (!projectId || projectId === PLACEHOLDER_PROJECT_ID || projectId === 'undefin
   throw new Error(errorMessage.replace(/\n/g, ' '));
 }
 
-// --- IMPORTANT METADATA URL ---
-// This URL MUST be an HTTPS URL and EXACTLY match one of the "App Domains" whitelisted in your WalletConnect Cloud.
-const dAppConnectUrl = 'https://www.winbig.fun'; // Using your production domain WITHOUT trailing slash
+// --- App URL and Metadata Configuration ---
+// Derive the app's origin for metadata.url from NEXT_PUBLIC_APP_URL
+// This ensures consistency and relies on your Vercel/env configuration.
+let appOrigin = 'https://www.winbig.fun'; // Default fallback, ensure this is your canonical production URL.
+if (process.env.NEXT_PUBLIC_APP_URL) {
+  try {
+    // Use new URL().origin to get a clean base URL (e.g., https://www.example.com)
+    // This strips paths and trailing slashes.
+    appOrigin = new URL(process.env.NEXT_PUBLIC_APP_URL).origin;
+  } catch (e) {
+    console.warn(`[walletConfig] Invalid NEXT_PUBLIC_APP_URL: "${process.env.NEXT_PUBLIC_APP_URL}". Using fallback metadata URL "${appOrigin}". Error: ${e}`);
+  }
+} else {
+  console.warn(`[walletConfig] NEXT_PUBLIC_APP_URL is not set. Using fallback metadata URL "${appOrigin}". This should be configured in your Vercel environment variables for production.`);
+}
 
-console.warn(
-  `[walletConfig] Using dAppConnectUrl: "${dAppConnectUrl}" for WalletConnect metadata. ` +
-  `Ensure this exact URL is whitelisted in your WalletConnect Cloud project dashboard for Project ID: ${projectId}. ` +
-  `Also ensure NEXT_PUBLIC_APP_URL (used for OG images etc.) is set correctly in your environment (e.g., Vercel & .env).`
-);
+console.log(`[walletConfig] Using metadata.url: "${appOrigin}". Ensure this exact origin is whitelisted in WalletConnect Cloud for Project ID: ${projectId}, and that it is accessible via HTTPS.`);
 
 export const metadata = {
   name: 'ViralBet',
   description: 'ViralBet - Swipe, Bet, Share!',
-  url: dAppConnectUrl, // CRITICAL for WalletConnect
-  icons: [`${dAppConnectUrl}/icon.png`] // Ensure an icon exists at this URL, e.g., https://www.winbig.fun/icon.png
+  url: appOrigin, // Use the cleaned, derived origin
+  icons: [], // Temporarily REMOVED for testing. Ensure your production icon URLs are valid and fast.
+  // Example if you re-add: icons: [`${appOrigin}/icon.png`]
 };
 
-// Configure with the simplest set for Trust Wallet debugging
+// Configure with ONLY mainnet from @reown/appkit/networks for Trust Wallet debugging
 export const appKitNetworks = [mainnet].filter(Boolean) as Chain[];
 
 console.log('[walletConfig] Initializing AppKit with Reown networks:', appKitNetworks.map(n => n?.name || 'Unknown Network'));
