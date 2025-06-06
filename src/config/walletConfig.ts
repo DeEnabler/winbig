@@ -3,8 +3,8 @@
 
 import { cookieStorage, createStorage, noopStorage, type Chain } from 'wagmi';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
-// Import specific chains from wagmi/chains
-import { arbitrum, polygonAmoy } from 'wagmi/chains';
+// Import mainnet directly from wagmi/chains
+import { mainnet } from 'wagmi/chains';
 
 export const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 const PLACEHOLDER_PROJECT_ID = 'your_wallet_connect_project_id_here';
@@ -34,37 +34,13 @@ export const metadata = {
   name: 'ViralBet',
   description: 'ViralBet - Swipe, Bet, Share!',
   url: appUrlForMetadata, // Cleaned origin
-  // Ensure vb-icon-192.png is in your public folder and accessible at this URL
+  // Ensure this icon is publicly accessible at this exact URL
   icons: ['https://www.winbig.fun/vb-icon-192.png'] 
 };
 
-// Manually define mainnet with a single, common RPC URL
-const mainnetCustom: Chain = {
-  id: 1,
-  name: 'Ethereum',
-  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-  rpcUrls: {
-    default: { http: ['https://cloudflare-eth.com'] },
-    public: { http: ['https://cloudflare-eth.com'] },
-  },
-  blockExplorers: {
-    default: { name: 'Etherscan', url: 'https://etherscan.io' },
-  },
-  contracts: {
-    ensRegistry: {
-      address: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
-    },
-    multicall3: {
-      address: '0xcA11bde05977b3631167028862bE2a173976CA11',
-      blockCreated: 14353601,
-    },
-  },
-} as const;
-
-
-// Using the manually defined mainnet and others from wagmi/chains
-export const appKitNetworks = [mainnetCustom, arbitrum, polygonAmoy].filter(Boolean) as Chain[];
-console.log('[walletConfig] Initializing AppKit with custom mainnet and wagmi/chains for others:', appKitNetworks.map(n => ({id: n.id, name: n.name})));
+// SIMPLIFIED: appKitNetworks configured with ONLY mainnet from wagmi/chains
+export const appKitNetworks = [mainnet].filter(Boolean) as Chain[];
+console.log('[walletConfig] Initializing AppKit with networks from wagmi/chains (current):', appKitNetworks.map(n => ({id: n.id, name: n.name})));
 
 export const wagmiAdapter = new WagmiAdapter({
   storage: createStorage({ storage: typeof window !== 'undefined' ? cookieStorage : noopStorage }),
@@ -77,3 +53,4 @@ export const wagmiConfig = wagmiAdapter.wagmiConfig;
 
 // Ensure chains is correctly typed for use elsewhere if needed
 export const chains = appKitNetworks as readonly [Chain, ...Chain[]];
+
