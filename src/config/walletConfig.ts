@@ -33,8 +33,7 @@ export const metadata = {
   name: 'ViralBet',
   description: 'ViralBet - Swipe, Bet, Share!',
   url: appUrlForMetadata, // Cleaned origin
-  // Testing with favicon.ico as per user hypothesis
-  icons: ['https://www.winbig.fun/favicon.ico'],
+  icons: [], // Reverted to empty array as per user's feedback and for debugging
 };
 
 // SIMPLIFIED: appKitNetworks configured with ONLY mainnet from @reown/appkit/networks
