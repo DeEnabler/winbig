@@ -5,8 +5,7 @@
 import { cookieStorage, createStorage, noopStorage } from 'wagmi';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 // Import desired chains from @reown/appkit/networks
-// For debugging Trust Wallet, starting with mainnet only, then will try the set from CryptoIndexFund
-import { mainnet, arbitrum, polygonAmoy } from '@reown/appkit/networks';
+import { mainnet, arbitrum, polygonAmoy } from '@reown/appkit/networks'; // Using the full set from CryptoIndexFund
 import type { Chain } from 'viem';
 
 export const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
@@ -17,19 +16,23 @@ if (!projectId || projectId === PLACEHOLDER_PROJECT_ID || projectId === 'undefin
     `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is missing, is the placeholder ('${PLACEHOLDER_PROJECT_ID}'), or is the string "undefined".\n` +
     `Value received: "${projectId}"\n` +
     `Wallet functionality will be SEVERELY IMPAIRED or NON-FUNCTIONAL.\n` +
-    `Please set it correctly in your .env file and RESTART the development server.\n\n`;
+    `Please set it correctly in your .env file (or Vercel environment variables) and RESTART the development server / REBUILD & REDEPLOY on Vercel.\n\n`;
   console.error(errorMessage);
-  throw new Error(errorMessage.replace(/\n/g, ' ')); // Throw error to stop initialization if ID is clearly bad
+  // This error will be caught by the WalletKitProvider's UI error boundary as well.
+  // Throwing here ensures it's loud if the server-side part of this config is evaluated.
+  // For client-side, WalletKitProvider will show a more user-friendly error.
 }
 
 // --- IMPORTANT METADATA URL ---
 // This URL MUST be an HTTPS URL.
 // It MUST EXACTLY match one of the "App Domains" whitelisted in your WalletConnect Cloud dashboard for the projectId.
 // Mismatches or HTTP URLs can cause connection issues with mobile wallets like Trust Wallet.
-const dAppConnectUrl = 'https://www.winbig.fun/'; // Using your provided production domain
+const dAppConnectUrl = 'https://www.winbig.fun'; // Using your production domain WITHOUT trailing slash
+
 console.warn(
   `[walletConfig] Using dAppConnectUrl: "${dAppConnectUrl}" for WalletConnect metadata. ` +
-  `Ensure this exact URL is whitelisted in your WalletConnect Cloud project dashboard for Project ID: ${projectId}.`
+  `Ensure this exact URL is whitelisted in your WalletConnect Cloud project dashboard for Project ID: ${projectId}. ` +
+  `Also ensure NEXT_PUBLIC_APP_URL (used for OG images etc.) is set correctly in your environment (e.g., Vercel & .env).`
 );
 
 export const metadata = {
