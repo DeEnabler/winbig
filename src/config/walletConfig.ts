@@ -1,67 +1,58 @@
 
-// src/config/walletConfig.ts
-'use client';
+'use client'; // Ensures client-side execution for environment variable access
 
-import { cookieStorage, createStorage, noopStorage } from 'wagmi';
+import { cookieStorage, createStorage, noopStorage, type Chain } from 'wagmi';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
-import { mainnet } from '@reown/appkit/networks'; // Testing with mainnet only
-import type { Chain } from 'viem';
+// SIMPLIFIED: Using only mainnet from Reown AppKit for debugging
+import { mainnet } from '@reown/appkit/networks';
 
 export const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 const PLACEHOLDER_PROJECT_ID = 'your_wallet_connect_project_id_here';
 
 if (!projectId || projectId === PLACEHOLDER_PROJECT_ID || projectId === 'undefined') {
-  const errorMessage = `\n\n[walletConfig] CRITICAL ERROR:\n` +
-    `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is missing, is the placeholder ('${PLACEHOLDER_PROJECT_ID}'), or is the string "undefined".\n` +
-    `Value received: "${projectId}"\n` +
-    `Wallet functionality will be SEVERELY IMPAIRED or NON-FUNCTIONAL.\n` +
-    `Please set it correctly in your .env file (or Vercel environment variables) and RESTART the development server / REBUILD & REDEPLOY on Vercel.\n\n`;
+  const errorMessage = `[walletConfig] CRITICAL ERROR: NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is missing, placeholder, or 'undefined'. Value: "${projectId}". Wallet functionality will be disabled. Set it in .env and RESTART server.`;
   console.error(errorMessage);
-  // Throwing an error here will stop further initialization if the ID is clearly bad.
-  // WalletKitProvider will also show a UI error message.
   throw new Error(errorMessage.replace(/\n/g, ' '));
 }
 
-// --- App URL and Metadata Configuration ---
-// Derive the app's origin for metadata.url from NEXT_PUBLIC_APP_URL
-// This ensures consistency and relies on your Vercel/env configuration.
-let appOrigin = 'https://www.winbig.fun'; // Default fallback, ensure this is your canonical production URL.
+// Derive metadata.url from NEXT_PUBLIC_APP_URL, ensuring it's a clean origin
+let appUrlForMetadata = 'https://www.winbig.fun'; // Default fallback
 if (process.env.NEXT_PUBLIC_APP_URL) {
   try {
-    // Use new URL().origin to get a clean base URL (e.g., https://www.example.com)
-    // This strips paths and trailing slashes.
-    appOrigin = new URL(process.env.NEXT_PUBLIC_APP_URL).origin;
+    appUrlForMetadata = new URL(process.env.NEXT_PUBLIC_APP_URL).origin;
   } catch (e) {
-    console.warn(`[walletConfig] Invalid NEXT_PUBLIC_APP_URL: "${process.env.NEXT_PUBLIC_APP_URL}". Using fallback metadata URL "${appOrigin}". Error: ${e}`);
+    console.warn(`[walletConfig] Invalid NEXT_PUBLIC_APP_URL: "${process.env.NEXT_PUBLIC_APP_URL}". Using fallback metadata URL "${appUrlForMetadata}". Error: ${e}`);
   }
 } else {
-  console.warn(`[walletConfig] NEXT_PUBLIC_APP_URL is not set. Using fallback metadata URL "${appOrigin}". This should be configured in your Vercel environment variables for production.`);
+  console.warn(`[walletConfig] NEXT_PUBLIC_APP_URL is not set. Using fallback metadata URL "${appUrlForMetadata}". This must be configured in Vercel/env for production & whitelisted in WalletConnect Cloud.`);
 }
+console.log(`[walletConfig] Using metadata.url: "${appUrlForMetadata}" for WalletConnect modal.`);
 
-console.log(`[walletConfig] Using metadata.url: "${appOrigin}". Ensure this exact origin is whitelisted in WalletConnect Cloud for Project ID: ${projectId}, and that it is accessible via HTTPS.`);
 
 export const metadata = {
   name: 'ViralBet',
   description: 'ViralBet - Swipe, Bet, Share!',
-  url: appOrigin, // Use the cleaned, derived origin
-  icons: [], // Temporarily REMOVED for testing. Ensure your production icon URLs are valid and fast.
-  // Example if you re-add: icons: [`${appOrigin}/icon.png`]
+  url: appUrlForMetadata, // Cleaned origin
+  /**
+   * CRITICAL: Ensure the icon URL below points to a valid, publicly accessible PNG or JPG image.
+   * Trust Wallet may have issues if this array is empty or the URL is invalid/slow.
+   * Replace 'vb-icon-192.png' with your actual icon filename.
+   * Recommended size: 192x192 or similar.
+   */
+  icons: ['https://www.winbig.fun/vb-icon-192.png'],
 };
 
-// Configure with ONLY mainnet from @reown/appkit/networks for Trust Wallet debugging
+// SIMPLIFIED: appKitNetworks configured with ONLY mainnet from @reown/appkit/networks
 export const appKitNetworks = [mainnet].filter(Boolean) as Chain[];
-
-console.log('[walletConfig] Initializing AppKit with Reown networks:', appKitNetworks.map(n => n?.name || 'Unknown Network'));
+console.log('[walletConfig] Initializing AppKit with Reown networks (current):', appKitNetworks.map(n => n?.name || 'Unknown Network'));
 
 export const wagmiAdapter = new WagmiAdapter({
   storage: createStorage({ storage: typeof window !== 'undefined' ? cookieStorage : noopStorage }),
   ssr: true,
-  projectId: projectId, // Pass the validated projectId
+  projectId: projectId,
   networks: appKitNetworks,
 });
 
 export const wagmiConfig = wagmiAdapter.wagmiConfig;
 
-// This 'chains' export is not directly used by AppKit initialization but can be for other wagmi features.
-// It should reflect the appKitNetworks for consistency if used elsewhere.
 export const chains = appKitNetworks as readonly [Chain, ...Chain[]];
