@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   description: 'Instantly challenge others on high-emotion predictions. Swipe, bet, and share virally on X!',
 };
 
-export default function RootLayout({
+export default async function RootLayout({ // Made this function async
   children,
 }: Readonly<{
   children: React.ReactNode;
