@@ -2,16 +2,15 @@
 // src/config/walletConfig.ts
 'use client';
 
-import { cookieStorage, createStorage, noopStorage } from 'wagmi';
+import { cookieStorage, createStorage, noopStorage } from 'wagmi'; // Corrected import for createStorage
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
-// Import chains from @reown/appkit/networks
-import { mainnet, arbitrum, polygonAmoy } from '@reown/appkit/networks';
+// Import desired chains from @reown/appkit/networks
+import { mainnet, arbitrum, polygonAmoy } from '@reown/appkit/networks'; // Using the multi-chain config that works for CryptoIndexFund
 import type { Chain } from 'viem';
 
 export const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 const PLACEHOLDER_PROJECT_ID = 'your_wallet_connect_project_id_here';
 
-// Stricter Project ID validation
 if (!projectId || projectId === PLACEHOLDER_PROJECT_ID || projectId === 'undefined') {
   const errorMessage = `\n\n[walletConfig] CRITICAL ERROR:\n` +
     `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is missing, is the placeholder ('${PLACEHOLDER_PROJECT_ID}'), or is the string "undefined".\n` +
@@ -19,24 +18,36 @@ if (!projectId || projectId === PLACEHOLDER_PROJECT_ID || projectId === 'undefin
     `Wallet functionality will be SEVERELY IMPAIRED or NON-FUNCTIONAL.\n` +
     `Please set it correctly in your .env file and RESTART the development server.\n\n`;
   console.error(errorMessage);
-  // We throw an error here to ensure this is caught early if projectId is bad.
-  // WalletKitProvider will also show a UI error, but this stops execution earlier for clarity.
+  // Throwing an error here ensures this is caught early if projectId is bad.
+  // WalletKitProvider will also show a UI error.
   throw new Error(errorMessage.replace(/\n/g, ' '));
 }
 
-
-const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://viralbet.example.com';
+// --- IMPORTANT ---
+// For Trust Wallet and other mobile wallets, metadata.url often needs to be:
+// 1. An HTTPS URL.
+// 2. A non-localhost URL (e.g., your Vercel preview/production URL).
+// 3. EXACTLY matching a domain whitelisted in your WalletConnect Cloud dashboard for the projectId.
+//
+// Replace the placeholder below with your actual deployed app's HTTPS URL.
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://your-viralbet-app.vercel.app'; // Updated placeholder
 const cleanedAppUrl = appUrl.replace(/\/$/, '');
+
+console.warn(
+  `[walletConfig] Using metadata.url: "${cleanedAppUrl}". ` +
+  `Ensure this is an HTTPS URL and is whitelisted in your WalletConnect Cloud project dashboard for Project ID: ${projectId}. ` +
+  `If using a placeholder, replace it with your actual deployment URL.`
+);
 
 export const metadata = {
   name: 'ViralBet',
   description: 'ViralBet - Swipe, Bet, Share!',
-  url: cleanedAppUrl,
-  icons: ['https://placehold.co/128x128.png?text=VB'] // Replaced with ViralBet placeholder
+  url: cleanedAppUrl, // This is the critical URL
+  icons: ['https://placehold.co/128x128.png?text=VB']
 };
 
-// ** STEP 1: Test with ONLY mainnet from @reown/appkit/networks **
-export const appKitNetworks = [mainnet].filter(Boolean) as Chain[];
+// Configure with the same set of networks as CryptoIndexFund for consistency
+export const appKitNetworks = [mainnet, arbitrum, polygonAmoy].filter(Boolean) as Chain[];
 
 console.log('[walletConfig] Initializing AppKit with Reown networks:', appKitNetworks.map(n => n?.name || 'Unknown Network'));
 
