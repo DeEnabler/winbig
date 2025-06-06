@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 import { WagmiProvider, cookieToInitialState, type Config } from 'wagmi'; // Import cookieToInitialState and Config
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createAppKit, type AppKitModal } from '@reown/appkit/react';
-import { wagmiAdapter, projectId as ImportedProjectId, appKitNetworks, metadata } from '@/config/walletConfig';
+import { wagmiAdapter, projectId as ImportedProjectId, appKitNetworks as ImportedAppKitNetworks, metadata as ImportedMetadata } from '@/config/walletConfig';
 
 let appKitModalInstance: AppKitModal | null = null;
 const PLACEHOLDER_PROJECT_ID = 'your_wallet_connect_project_id_here';
@@ -17,21 +17,30 @@ const isWagmiAdapterInvalid = !wagmiAdapter || !wagmiAdapter.wagmiConfig;
 
 if (!isProjectIdMissing && !isProjectIdPlaceholder && !isWagmiAdapterInvalid) {
   try {
+    // DIAGNOSTIC LOG: Log parameters just before createAppKit
+    console.log('[WalletKitProvider] About to call createAppKit with:', {
+      projectId: ImportedProjectId,
+      networks: ImportedAppKitNetworks.map(n => ({id: n.id, name: n.name})), // Log relevant parts of networks
+      defaultNetworkId: (ImportedAppKitNetworks[0] || {}).id,
+      metadata: ImportedMetadata,
+      analyticsFeature: false // Explicitly matching ViralBet's original setting
+    });
+
     appKitModalInstance = createAppKit({
       adapters: [wagmiAdapter!],
       projectId: ImportedProjectId!,
-      networks: appKitNetworks,
-      defaultNetwork: appKitNetworks[0] || undefined,
-      metadata,
+      networks: ImportedAppKitNetworks,
+      defaultNetwork: ImportedAppKitNetworks[0] || undefined,
+      metadata: ImportedMetadata,
       features: { analytics: false } 
     });
-    console.log('[WalletKitProvider] Reown AppKit modal instance (appKitModal) created with projectId:', ImportedProjectId);
+    console.log('[WalletKitProvider] Reown AppKit modal instance (appKitModal) created successfully.');
   } catch (e) {
     console.error("[WalletKitProvider] CRITICAL: Error during createAppKit initialization.", e);
   }
 } else {
   if (isProjectIdMissing) {
-    console.error("[WalletKitProvider] CRITICAL: projectId is undefined (NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is missing from .env). Wallet functionality will be disabled. RESTART server after adding to .env.");
+    console.error("[WalletKitProvider] CRITICAL: projectId is undefined (NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is missing or invalid in .env). Wallet functionality will be disabled. RESTART server after adding/fixing in .env.");
   } else if (isProjectIdPlaceholder) {
     console.error(`[WalletKitProvider] CRITICAL: projectId is the placeholder '${PLACEHOLDER_PROJECT_ID}'. Wallet functionality will be disabled. Update .env and RESTART server.`);
   }
@@ -55,7 +64,7 @@ export function WalletKitProvider({ children, cookies }: WalletKitProviderProps)
     let errorMessageLine2 = "Please ensure the <code>NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID</code> variable is correctly set in your <code>.env</code> file at the root of your project (it should NOT be '<code>your_wallet_connect_project_id_here</code>' and must not be empty), and then <strong>thoroughly restart your development server</strong>.";
     
     if (isProjectIdMissing) {
-        errorMessageLine2 = "The <code>NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID</code> environment variable is missing entirely from your <code>.env</code> file. Please add it and restart your development server.";
+        errorMessageLine2 = "The <code>NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID</code> environment variable is missing entirely from your <code>.env</code> file or is invalid (e.g. 'undefined' string). Please add/fix it and restart your development server.";
     } else if (isProjectIdPlaceholder) {
         errorMessageLine2 = "The <code>NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID</code> is still set to the placeholder '<code>your_wallet_connect_project_id_here</code>'. Please replace it with your actual Project ID in your <code>.env</code> file and restart your development server.";
     }
@@ -67,7 +76,7 @@ export function WalletKitProvider({ children, cookies }: WalletKitProviderProps)
         <p dangerouslySetInnerHTML={{ __html: errorMessageLine1 }} style={{ marginBottom: '15px', fontSize: '1em' }} />
         <p dangerouslySetInnerHTML={{ __html: errorMessageLine2 }} style={{ marginBottom: '20px', fontSize: '1em' }} />
         <p style={{ fontSize: '0.9em', color: '#7F0000', marginTop:'15px', paddingTop:'15px', borderTop:'1px dashed #FFCDD2' }}>
-          <strong>Technical Details:</strong> Project ID Missing: <strong>{String(isProjectIdMissing)}</strong>, Project ID is Placeholder: <strong>{String(isProjectIdPlaceholder)}</strong>.
+          <strong>Technical Details:</strong> Project ID Missing or Invalid: <strong>{String(isProjectIdMissing)}</strong>, Project ID is Placeholder: <strong>{String(isProjectIdPlaceholder)}</strong>.
         </p>
         <p style={{ fontSize: '1em', marginTop: '25px', fontWeight: 'bold' }}>The rest of the application, especially Web3 features, cannot load until this configuration issue is resolved.</p>
       </div>
@@ -90,15 +99,14 @@ export function WalletKitProvider({ children, cookies }: WalletKitProviderProps)
      );
   }
   
-  // Use cookieToInitialState for SSR and better connection persistence
   const initialState = cookieToInitialState(
-    wagmiAdapter.wagmiConfig as Config, // Cast to Config as WagmiAdapter might not have perfect type alignment
+    wagmiAdapter.wagmiConfig as Config, 
     cookies 
   );
 
-  console.log('[WalletKitProvider] Rendering with WagmiProvider (using config from wagmiAdapter and initialState from cookies).');
+  console.log('[WalletKitProvider] Rendering with WagmiProvider.');
   return (
-    <WagmiProvider config={wagmiAdapter.wagmiConfig as Config} initialState={initialState}> {/* Use initialState, remove reconnectOnMount */}
+    <WagmiProvider config={wagmiAdapter.wagmiConfig as Config} initialState={initialState}> 
       <QueryClientProvider client={queryClient}>
         {children}
       </QueryClientProvider>

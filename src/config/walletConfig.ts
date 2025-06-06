@@ -5,7 +5,8 @@
 import { cookieStorage, createStorage, noopStorage } from 'wagmi';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 // Import desired chains from @reown/appkit/networks
-import { mainnet, arbitrum, polygonAmoy } from '@reown/appkit/networks'; // Using the full set from CryptoIndexFund
+// For initial Trust Wallet debugging, simplify to only mainnet
+import { mainnet } from '@reown/appkit/networks'; // Using mainnet, arbitrum, polygonAmoy from CryptoIndexFund example
 import type { Chain } from 'viem';
 
 export const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
@@ -18,15 +19,13 @@ if (!projectId || projectId === PLACEHOLDER_PROJECT_ID || projectId === 'undefin
     `Wallet functionality will be SEVERELY IMPAIRED or NON-FUNCTIONAL.\n` +
     `Please set it correctly in your .env file (or Vercel environment variables) and RESTART the development server / REBUILD & REDEPLOY on Vercel.\n\n`;
   console.error(errorMessage);
-  // This error will be caught by the WalletKitProvider's UI error boundary as well.
-  // Throwing here ensures it's loud if the server-side part of this config is evaluated.
-  // For client-side, WalletKitProvider will show a more user-friendly error.
+  // Throwing an error here will stop further initialization if the ID is clearly bad.
+  // WalletKitProvider will also show a UI error message.
+  throw new Error(errorMessage.replace(/\n/g, ' '));
 }
 
 // --- IMPORTANT METADATA URL ---
-// This URL MUST be an HTTPS URL.
-// It MUST EXACTLY match one of the "App Domains" whitelisted in your WalletConnect Cloud dashboard for the projectId.
-// Mismatches or HTTP URLs can cause connection issues with mobile wallets like Trust Wallet.
+// This URL MUST be an HTTPS URL and EXACTLY match one of the "App Domains" whitelisted in your WalletConnect Cloud.
 const dAppConnectUrl = 'https://www.winbig.fun'; // Using your production domain WITHOUT trailing slash
 
 console.warn(
@@ -39,13 +38,11 @@ export const metadata = {
   name: 'ViralBet',
   description: 'ViralBet - Swipe, Bet, Share!',
   url: dAppConnectUrl, // CRITICAL for WalletConnect
-  icons: ['https://placehold.co/128x128.png?text=VB'] // Replace with your actual icon URL
+  icons: [`${dAppConnectUrl}/icon.png`] // Ensure an icon exists at this URL, e.g., https://www.winbig.fun/icon.png
 };
 
-// Configure with the same set of networks as CryptoIndexFund for consistency in testing
-export const appKitNetworks = [mainnet, arbitrum, polygonAmoy].filter(Boolean) as Chain[];
-// For initial Trust Wallet debugging, you might simplify this to:
-// export const appKitNetworks = [mainnet].filter(Boolean) as Chain[];
+// Configure with the simplest set for Trust Wallet debugging
+export const appKitNetworks = [mainnet].filter(Boolean) as Chain[];
 
 console.log('[walletConfig] Initializing AppKit with Reown networks:', appKitNetworks.map(n => n?.name || 'Unknown Network'));
 
