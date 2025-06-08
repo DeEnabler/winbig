@@ -3,21 +3,26 @@
 'use client';
 
 import type { ChallengeInviteProps } from '@/types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { useEntryContext } from '@/contexts/EntryContext';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
-import { CheckCircle, Swords } from 'lucide-react';
+import { CheckCircle, Swords, ShieldCheck, Users, Zap, BarChartHorizontalBig } from 'lucide-react';
 import { mockOpponentUser } from '@/lib/mockData';
 import { useAccount } from 'wagmi';
-import { appKitModal } from '@/context/index'; // Adjusted import path
+import { appKitModal } from '@/context/index'; 
 import { useState, useEffect, useCallback } from 'react';
+import { networks } from '@/config/index'; // To display supported networks
+import { Badge } from '@/components/ui/badge';
 
 const REWARD_AMOUNT = 100;
 const REWARD_CURRENCY = "ViralPoints";
-const REWARD_GIVEN_STORAGE_KEY = 'viralBetWalletConnectRewardGiven_v1'; // Consider changing if Reown uses different reward logic
+const REWARD_GIVEN_STORAGE_KEY = 'viralBetWalletConnectRewardGiven_v1_reown';
+
+const DEFAULT_EXAMPLE_BET_AMOUNT = 10; // e.g., 10 SOL or $10
+const EXAMPLE_PAYOUT_MULTIPLIER = 1.9; // Bet X, win X * 1.9 (total return)
 
 export default function ChallengeInvite({ 
   matchId: originalChallengeMatchId, 
@@ -39,6 +44,8 @@ export default function ChallengeInvite({
   const referrerAvatar = referrerName === mockOpponentUser.username 
     ? mockOpponentUser.avatarUrl 
     : `https://placehold.co/40x40.png?text=${referrerName.substring(0,2).toUpperCase()}`;
+
+  const examplePotentialWinnings = (DEFAULT_EXAMPLE_BET_AMOUNT * EXAMPLE_PAYOUT_MULTIPLIER).toFixed(1);
 
   const proceedWithNavigation = useCallback((userAction: 'with' | 'against', actualUserChoice: 'YES' | 'NO') => {
     console.log('Analytics: challenge_responded', {
@@ -63,7 +70,7 @@ export default function ChallengeInvite({
         localStorage.setItem(REWARD_GIVEN_STORAGE_KEY, address); 
         toast({
           title: "Wallet Connected! 🎉",
-          description: `You've earned ${REWARD_AMOUNT} ${REWARD_CURRENCY}! (XP in header updates on next full load due to mock data).`,
+          description: `You've earned ${REWARD_AMOUNT} ${REWARD_CURRENCY}! Your XP will update soon.`,
           duration: 5000,
         });
       }
@@ -110,10 +117,10 @@ export default function ChallengeInvite({
       }
       return;
     }
-
-    // Wallet is already connected, proceed directly
     proceedWithNavigation(userAction, actualUserChoice);
   };
+  
+  const supportedNetworkNames = networks.slice(0, 2).map(n => n.name).join(', '); // Show first 2 for brevity
 
   return (
     <Card className="w-full max-w-md mx-auto shadow-xl rounded-lg text-center overflow-hidden">
@@ -132,6 +139,15 @@ export default function ChallengeInvite({
         <p className="italic text-xl font-semibold text-foreground leading-tight">
           “{predictionQuestion}”
         </p>
+
+        <div className="text-center p-3 bg-background rounded-md border border-dashed border-primary/50">
+            <p className="text-sm text-muted-foreground">Example Bet & Potential Return:</p>
+            <p className="text-lg font-semibold text-primary">
+                Bet {DEFAULT_EXAMPLE_BET_AMOUNT} SOL → Win {examplePotentialWinnings} SOL!
+            </p>
+            <p className="text-xs text-muted-foreground">(Nearly {EXAMPLE_PAYOUT_MULTIPLIER}x Payout. Actual bet amount set on next step.)</p>
+        </div>
+
         <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 mt-6">
           <motion.button
             whileHover={{ scale: 1.03, y: -2 }}
@@ -155,6 +171,24 @@ export default function ChallengeInvite({
           </motion.button>
         </div>
       </CardContent>
+      <CardFooter className="flex-col items-center justify-center p-4 bg-muted/30 border-t space-y-2">
+        <div className="flex items-center text-xs text-muted-foreground">
+          <ShieldCheck className="w-4 h-4 mr-1.5 text-primary" />
+          Platform Secured. Live on: {supportedNetworkNames} & more.
+        </div>
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <Badge variant="secondary" className="py-0.5 px-1.5">
+                <Users className="w-3 h-3 mr-1 text-blue-500" /> 12,000+ Bettors
+            </Badge>
+            <Badge variant="secondary" className="py-0.5 px-1.5">
+                <BarChartHorizontalBig className="w-3 h-3 mr-1 text-purple-500" /> 500+ Active Predictions
+            </Badge>
+             <Badge variant="secondary" className="py-0.5 px-1.5">
+                <Zap className="w-3 h-3 mr-1 text-yellow-500" /> High-Emotion Bets
+            </Badge>
+        </div>
+      </CardFooter>
     </Card>
   );
 }
+
