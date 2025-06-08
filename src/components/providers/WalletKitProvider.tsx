@@ -1,49 +1,47 @@
+
 // src/components/providers/WalletKitProvider.tsx
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { WagmiProvider } from 'wagmi';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
+import { WagmiProvider } from 'wagmi';
 import { createWeb3Modal } from '@web3modal/wagmi/react';
-import {
-  wagmiConfig,
-  projectId as ImportedProjectId,
-  chains as ImportedChains,
-  metadata as ImportedMetadata
-} from '@/config/walletConfig';
+import { wagmiConfig, chains, projectId as ImportedProjectId, metadata as ImportedMetadata } from '@/config/walletConfig';
 
 const queryClient = new QueryClient();
 
-const projectId = ImportedProjectId; // Use the imported projectId
+const PLACEHOLDER_PROJECT_ID = 'your_wallet_connect_project_id_here'; // Or a more generic placeholder
 
-if (!projectId || projectId === 'your_wallet_connect_project_id_here') {
-  console.error(
-    '[Web3ModalProvider] CRITICAL ERROR: NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is not defined or is still the placeholder. Web3Modal will likely not work.'
-  );
-}
+// Ensure ImportedProjectId is treated as potentially undefined initially
+const effectiveProjectId = ImportedProjectId === 'undefined' ? undefined : ImportedProjectId;
 
-const chains = ImportedChains;
-const metadata = ImportedMetadata;
-
-const isProjectIdValid = projectId && projectId !== 'your_wallet_connect_project_id_here';
+const isProjectIdValid = effectiveProjectId && effectiveProjectId !== PLACEHOLDER_PROJECT_ID && effectiveProjectId !== 'your_reown_project_id_here'; // Added reown placeholder check for safety
 
 if (isProjectIdValid) {
-  // Log all parameters being passed to createWeb3Modal
-  console.log('[Web3ModalProvider] About to call createWeb3Modal with:', {
+  // Log all parameters being passed to createWeb3Modal for debugging
+  console.log('[Web3ModalProvider] Initializing Web3Modal. Config being passed:', {
     wagmiConfig,
-    projectId,
+    projectId: effectiveProjectId, // This should be your WalletConnect Cloud Project ID
     chains,
     metadata,
-    enableAnalytics: true, // Explicitly set analytics
+    enableAnalytics: false, // Explicitly setting to false for diagnostics
+    // Other Web3Modal options can be added here:
+    // themeMode: 'light',
+    // themeVariables: {
+    //   '--w3m-font-family': 'inherit', // Use app's font
+    //   '--w3m-accent': 'hsl(var(--primary))', // Use app's primary color
+    //   '--w3m-border-radius-master': 'var(--radius)', // Use app's border radius
+    //   // ... more theme variables
+    // },
   });
   try {
     createWeb3Modal({
       wagmiConfig: wagmiConfig,
-      projectId: projectId,
+      projectId: effectiveProjectId,
       chains: chains,
       metadata: metadata,
-      enableAnalytics: true, // Explicitly enabling analytics to see if it affects the 403 or sv parameter
+      enableAnalytics: false, // Explicitly set to false for diagnostics
       // You can add other Web3Modal options here, like:
       // themeMode: 'dark',
       // themeVariables: {
@@ -51,14 +49,19 @@ if (isProjectIdValid) {
       //   '--w3m-accent': '#A020F0', // Your primary purple
       // }
     });
-    console.log('[Web3ModalProvider] createWeb3Modal called successfully.');
+    console.log('[Web3ModalProvider] Web3Modal created successfully with analytics disabled.');
   } catch (error) {
     console.error('[Web3ModalProvider] Error calling createWeb3Modal:', error);
   }
 } else {
-  console.warn('[Web3ModalProvider] createWeb3Modal not called due to invalid or missing projectId.');
+  if (!effectiveProjectId) {
+    console.error('[Web3ModalProvider] CRITICAL ERROR: NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is not defined. Web3Modal will not be initialized.');
+  } else if (effectiveProjectId === PLACEHOLDER_PROJECT_ID || effectiveProjectId === 'your_reown_project_id_here') {
+    console.error(`[Web3ModalProvider] CRITICAL ERROR: NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is still the placeholder value "${effectiveProjectId}". Web3Modal will not be initialized.`);
+  } else {
+    console.warn('[Web3ModalProvider] createWeb3Modal not called due to invalid or missing projectId. Current effectiveProjectId:', effectiveProjectId);
+  }
 }
-
 
 export function WalletKitProvider({ children }: { children: ReactNode }) {
   const [isMounted, setIsMounted] = useState(false);
@@ -69,10 +72,15 @@ export function WalletKitProvider({ children }: { children: ReactNode }) {
 
   if (!isMounted) {
     console.log('[Web3ModalProvider] Not mounted yet, rendering null.');
-    return null;
+    return null; // Or a loading spinner
   }
 
-  console.log('[Web3ModalProvider] Rendering with WagmiProvider and QueryClientProvider.');
+  if (!isProjectIdValid) {
+    console.warn("[Web3ModalProvider] WalletKitProvider rendered, but Web3Modal was not initialized due to invalid Project ID. Wallet functionality will be impaired.");
+    // Optionally render a message to the user or a disabled state
+  }
+
+  console.log('[Web3ModalProvider] Rendering with WagmiProvider.');
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
