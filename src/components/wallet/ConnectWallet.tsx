@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useWeb3Modal } from '@web3modal/wagmi/react'; // Changed import
+import { appKitModal } from '@/context/index'; // Adjusted import path
 
 function truncateAddress(address: string) {
   if (!address) return '';
@@ -23,22 +23,18 @@ function truncateAddress(address: string) {
 export default function ConnectWalletButton() {
   const { address, isConnected, chain } = useAccount();
   const { disconnect } = useDisconnect();
-  const { open } = useWeb3Modal(); // Get open function from hook
 
   const handleOpenModal = () => {
-    if (open && typeof open === 'function') {
-      console.log('[ConnectWalletButton] "Connect Wallet" button clicked. Attempting to call open().');
-      open();
+    if (appKitModal && typeof appKitModal.open === 'function') {
+      console.log('[ConnectWalletButton] "Connect Wallet" button clicked. Attempting to call appKitModal.open().');
+      appKitModal.open();
     } else {
-      console.error('[ConnectWalletButton] open function from useWeb3Modal is not available. Web3Modal might not be initialized.');
-      alert("Wallet connect service is not available. Please check configuration and restart the server if you recently updated .env.");
+      console.error('[ConnectWalletButton] appKitModal or appKitModal.open is not available. Reown AppKit might not be initialized.');
+      alert("Wallet connect service is not available. Please check configuration or console for errors.");
     }
   };
-
-  // Check if Web3Modal hook is available. If not, it might mean Web3ModalProvider isn't set up.
-  // However, the provider itself has error boundaries for projectId issues.
-  // This check is more about whether the hook itself is functional.
-  if (typeof open !== 'function') {
+  
+  if (!appKitModal) {
      return (
       <Button variant="outline" disabled className="flex items-center space-x-2 border-destructive text-destructive">
         <AlertTriangle className="h-5 w-5" />
@@ -63,15 +59,17 @@ export default function ConnectWalletButton() {
             {chain?.name || 'Unknown Network'}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => open?.({ view: 'Account' })}>
+          {/* Reown AppKit manages account and network views within its modal */}
+          {/* You might not need these if appKitModal.open() handles everything */}
+          {/* <DropdownMenuItem onClick={() => appKitModal.open?.({ view: 'Account' })}> // Reown might have different view keys
             <UserCircle className="mr-2 h-4 w-4" />
             <span>Account Details</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => open?.({ view: 'Networks' })}>
+          <DropdownMenuItem onClick={() => appKitModal.open?.({ view: 'Networks' })}>
             <LogIn className="mr-2 h-4 w-4" />
             <span>Switch Network</span>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
+          </DropdownMenuItem> 
+          <DropdownMenuSeparator />*/}
           <DropdownMenuItem onClick={() => disconnect()} className="text-destructive focus:text-destructive focus:bg-destructive/10">
             <LogOut className="mr-2 h-4 w-4" />
             <span>Disconnect</span>
@@ -92,4 +90,3 @@ export default function ConnectWalletButton() {
     </Button>
   );
 }
-

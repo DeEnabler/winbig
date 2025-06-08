@@ -6,8 +6,9 @@ import { Toaster } from '@/components/ui/toaster';
 import AppLayout from '@/components/layout/AppLayout';
 import { EntryContextProvider } from '@/contexts/EntryContext';
 import { Suspense } from 'react';
-import ClientSideWeb3ProviderLoader from '@/components/providers/ClientSideWeb3ProviderLoader';
-import { headers } from 'next/headers'; // Import headers
+// Removed ClientSideWeb3ProviderLoader, using ContextProvider from @/context now
+import ContextProvider from '@/context/index'; // Adjusted path
+import { headers } from 'next/headers';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -24,17 +25,17 @@ export const metadata: Metadata = {
   description: 'Instantly challenge others on high-emotion predictions. Swipe, bet, and share virally on X!',
 };
 
-export default async function RootLayout({ // Made this function async
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const cookie = headers().get('cookie'); // Get cookies
+  const cookie = headers().get('cookie');
 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}>
-        <ClientSideWeb3ProviderLoader cookies={cookie}> {/* Pass cookies */}
+        <ContextProvider cookies={cookie}> {/* Use the new ContextProvider */}
           <Suspense fallback={<div>Loading context...</div>}>
             <EntryContextProvider>
                 <AppLayout>
@@ -42,7 +43,7 @@ export default async function RootLayout({ // Made this function async
                 </AppLayout>
             </EntryContextProvider>
           </Suspense>
-        </ClientSideWeb3ProviderLoader>
+        </ContextProvider>
         <Toaster />
       </body>
     </html>

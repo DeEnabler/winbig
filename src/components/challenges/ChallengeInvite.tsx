@@ -12,12 +12,12 @@ import { motion } from 'framer-motion';
 import { CheckCircle, Swords } from 'lucide-react';
 import { mockOpponentUser } from '@/lib/mockData';
 import { useAccount } from 'wagmi';
-import { useWeb3Modal } from '@web3modal/wagmi/react'; // Changed import
+import { appKitModal } from '@/context/index'; // Adjusted import path
 import { useState, useEffect, useCallback } from 'react';
 
 const REWARD_AMOUNT = 100;
 const REWARD_CURRENCY = "ViralPoints";
-const REWARD_GIVEN_STORAGE_KEY = 'viralBetWalletConnectRewardGiven_v1';
+const REWARD_GIVEN_STORAGE_KEY = 'viralBetWalletConnectRewardGiven_v1'; // Consider changing if Reown uses different reward logic
 
 export default function ChallengeInvite({ 
   matchId: originalChallengeMatchId, 
@@ -30,7 +30,6 @@ export default function ChallengeInvite({
   const { toast } = useToast();
   const { appendEntryParams } = useEntryContext();
   const { isConnected, address } = useAccount();
-  const { open: openWeb3Modal } = useWeb3Modal(); // Get open function from hook
 
   const [pendingActionData, setPendingActionData] = useState<{
     userAction: 'with' | 'against';
@@ -99,10 +98,10 @@ export default function ChallengeInvite({
         });
       }
 
-      if (openWeb3Modal) { // Use the open function from useWeb3Modal
-        openWeb3Modal();
+      if (appKitModal && typeof appKitModal.open === 'function') {
+        appKitModal.open();
       } else {
-        console.error('ChallengeInvite: openWeb3Modal is not available. Wallet connection cannot be initiated.');
+        console.error('ChallengeInvite: appKitModal or appKitModal.open is not available. Wallet connection cannot be initiated.');
         toast({
           variant: "destructive",
           title: "Wallet Error",
