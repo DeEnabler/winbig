@@ -12,7 +12,7 @@ import { motion } from 'framer-motion';
 import { CheckCircle, Swords } from 'lucide-react';
 import { mockOpponentUser } from '@/lib/mockData';
 import { useAccount } from 'wagmi';
-import { appKitModal } from '@/components/providers/WalletKitProvider';
+import { useWeb3Modal } from '@web3modal/wagmi/react'; // Changed import
 import { useState, useEffect, useCallback } from 'react';
 
 const REWARD_AMOUNT = 100;
@@ -30,6 +30,7 @@ export default function ChallengeInvite({
   const { toast } = useToast();
   const { appendEntryParams } = useEntryContext();
   const { isConnected, address } = useAccount();
+  const { open: openWeb3Modal } = useWeb3Modal(); // Get open function from hook
 
   const [pendingActionData, setPendingActionData] = useState<{
     userAction: 'with' | 'against';
@@ -49,12 +50,6 @@ export default function ChallengeInvite({
       predictionId: predictionId,
     });
 
-    // This toast can be shown if desired, or removed if the reward toast is sufficient
-    // toast({
-    //   title: "Great Choice!",
-    //   description: `You chose to bet ${actualUserChoice}. Let's confirm your bet!`,
-    // });
-
     const baseUrl = `/match/${originalChallengeMatchId}?predictionId=${predictionId}&choice=${actualUserChoice}&confirmChallenge=true&referrer=${referrerName}`;
     const urlWithEntryParams = appendEntryParams(baseUrl);
     router.push(urlWithEntryParams);
@@ -66,7 +61,7 @@ export default function ChallengeInvite({
       const rewardAlreadyGiven = localStorage.getItem(REWARD_GIVEN_STORAGE_KEY) === address;
 
       if (!rewardAlreadyGiven) {
-        localStorage.setItem(REWARD_GIVEN_STORAGE_KEY, address); // Store address to tie reward to specific wallet
+        localStorage.setItem(REWARD_GIVEN_STORAGE_KEY, address); 
         toast({
           title: "Wallet Connected! 🎉",
           description: `You've earned ${REWARD_AMOUNT} ${REWARD_CURRENCY}! (XP in header updates on next full load due to mock data).`,
@@ -90,9 +85,9 @@ export default function ChallengeInvite({
 
     if (!isConnected) {
       setPendingActionData({ userAction, actualUserChoice });
-      const rewardAlreadyGiven = !!address && localStorage.getItem(REWARD_GIVEN_STORAGE_KEY) === address; // Check if reward given to *this specific address* if it somehow exists before connection
+      const rewardAlreadyGiven = !!address && localStorage.getItem(REWARD_GIVEN_STORAGE_KEY) === address; 
 
-      if (!rewardAlreadyGiven) { // We assume if no address, reward not given. If address exists but no reward, also offer.
+      if (!rewardAlreadyGiven) { 
         toast({
           title: "Connect Wallet & Earn!",
           description: `Connect your wallet to proceed and earn ${REWARD_AMOUNT} ${REWARD_CURRENCY} instantly!`,
@@ -104,10 +99,10 @@ export default function ChallengeInvite({
         });
       }
 
-      if (appKitModal && typeof appKitModal.open === 'function') {
-        appKitModal.open();
+      if (openWeb3Modal) { // Use the open function from useWeb3Modal
+        openWeb3Modal();
       } else {
-        console.error('ChallengeInvite: appKitModal.open is not available. Wallet connection cannot be initiated.');
+        console.error('ChallengeInvite: openWeb3Modal is not available. Wallet connection cannot be initiated.');
         toast({
           variant: "destructive",
           title: "Wallet Error",

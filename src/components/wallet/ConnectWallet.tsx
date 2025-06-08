@@ -4,7 +4,7 @@
 
 import { Button } from '@/components/ui/button';
 import { useAccount, useDisconnect } from 'wagmi';
-import { LogIn, LogOut, UserCircle, AlertTriangle } from 'lucide-react'; // Added AlertTriangle
+import { LogIn, LogOut, UserCircle, AlertTriangle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,8 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-// Import the appKitModal instance from the new provider
-import { appKitModal } from '@/components/providers/WalletKitProvider';
+import { useWeb3Modal } from '@web3modal/wagmi/react'; // Changed import
 
 function truncateAddress(address: string) {
   if (!address) return '';
@@ -24,25 +23,30 @@ function truncateAddress(address: string) {
 export default function ConnectWalletButton() {
   const { address, isConnected, chain } = useAccount();
   const { disconnect } = useDisconnect();
+  const { open } = useWeb3Modal(); // Get open function from hook
 
   const handleOpenModal = () => {
-    if (appKitModal && typeof appKitModal.open === 'function') {
-      console.log('[ConnectWalletButton] "Connect Wallet" button clicked. Attempting to call appKitModal.open().');
-      appKitModal.open();
+    if (open && typeof open === 'function') {
+      console.log('[ConnectWalletButton] "Connect Wallet" button clicked. Attempting to call open().');
+      open();
     } else {
-      console.error('[ConnectWalletButton] appKitModal.open is not available or not a function. appKitModal:', appKitModal);
-      alert("Wallet connect service is not available. Please check configuration (Project ID) and restart the server if you recently updated .env.");
+      console.error('[ConnectWalletButton] open function from useWeb3Modal is not available. Web3Modal might not be initialized.');
+      alert("Wallet connect service is not available. Please check configuration and restart the server if you recently updated .env.");
     }
   };
 
-  if (!appKitModal) {
-    return (
+  // Check if Web3Modal hook is available. If not, it might mean Web3ModalProvider isn't set up.
+  // However, the provider itself has error boundaries for projectId issues.
+  // This check is more about whether the hook itself is functional.
+  if (typeof open !== 'function') {
+     return (
       <Button variant="outline" disabled className="flex items-center space-x-2 border-destructive text-destructive">
         <AlertTriangle className="h-5 w-5" />
         <span>Wallet Disabled</span>
       </Button>
     );
   }
+
 
   if (isConnected && address) {
     return (
@@ -59,11 +63,11 @@ export default function ConnectWalletButton() {
             {chain?.name || 'Unknown Network'}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => appKitModal?.open?.({ view: 'Account' })}>
+          <DropdownMenuItem onClick={() => open?.({ view: 'Account' })}>
             <UserCircle className="mr-2 h-4 w-4" />
             <span>Account Details</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => appKitModal?.open?.({ view: 'Networks' })}>
+          <DropdownMenuItem onClick={() => open?.({ view: 'Networks' })}>
             <LogIn className="mr-2 h-4 w-4" />
             <span>Switch Network</span>
           </DropdownMenuItem>
@@ -88,3 +92,4 @@ export default function ConnectWalletButton() {
     </Button>
   );
 }
+
