@@ -1,10 +1,11 @@
 
-'use client'; // Ensures client-side execution for environment variable access
+// src/config/walletConfig.ts
+'use client';
 
-import { cookieStorage, createStorage, noopStorage, type Chain } from 'wagmi';
-import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
-// Import mainnet directly from wagmi/chains
-import { mainnet } from 'wagmi/chains';
+import { mainnet, sepolia } from 'wagmi/chains';
+import { defaultWagmiConfig } from '@web3modal/wagmi/react';
+import { cookieStorage, createStorage, noopStorage } from 'wagmi';
+import type { Chain } from 'wagmi';
 
 export const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 const PLACEHOLDER_PROJECT_ID = 'your_wallet_connect_project_id_here';
@@ -12,11 +13,10 @@ const PLACEHOLDER_PROJECT_ID = 'your_wallet_connect_project_id_here';
 if (!projectId || projectId === PLACEHOLDER_PROJECT_ID || projectId === 'undefined') {
   const errorMessage = `[walletConfig] CRITICAL ERROR: NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is missing, placeholder, or 'undefined'. Value: "${projectId}". Wallet functionality will be disabled. Set it in .env and RESTART server.`;
   console.error(errorMessage);
-  // Avoid throwing error in a way that breaks the build if NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is problematic during build time
-  // The WalletKitProvider will show an error message to the user.
+  // Potentially throw an error or return a dummy config to prevent app crash,
+  // though Web3ModalProvider already has error display logic.
 }
 
-// Derive metadata.url from NEXT_PUBLIC_APP_URL, ensuring it's a clean origin
 let appUrlForMetadata = 'https://www.winbig.fun'; // Default fallback
 if (process.env.NEXT_PUBLIC_APP_URL) {
   try {
@@ -34,23 +34,26 @@ export const metadata = {
   name: 'ViralBet',
   description: 'ViralBet - Swipe, Bet, Share!',
   url: appUrlForMetadata, // Cleaned origin
-  // Ensure this icon is publicly accessible at this exact URL
-  icons: ['https://www.winbig.fun/vb-icon-192.png'] 
+  icons: [`${appUrlForMetadata}/vb-icon-192.png`] // Use dynamic app URL for icon
 };
 
-// SIMPLIFIED: appKitNetworks configured with ONLY mainnet from wagmi/chains
-export const appKitNetworks = [mainnet].filter(Boolean) as Chain[];
-console.log('[walletConfig] Initializing AppKit with networks from wagmi/chains (current):', appKitNetworks.map(n => ({id: n.id, name: n.name})));
+// Define the chains your dApp will support
+export const chains = [mainnet, sepolia] as const; // Use 'as const' for better type inference
 
-export const wagmiAdapter = new WagmiAdapter({
-  storage: createStorage({ storage: typeof window !== 'undefined' ? cookieStorage : noopStorage }),
-  ssr: true,
-  projectId: projectId!, 
-  networks: appKitNetworks,
+// Create wagmiConfig
+if (!projectId) {
+  console.error("[walletConfig] WalletConnect Project ID is missing. Wagmi config creation will likely fail or be incomplete for WalletConnect functionality.");
+}
+
+export const wagmiConfig = defaultWagmiConfig({
+  chains: chains as readonly [Chain, ...Chain[]], // Ensure the type matches what defaultWagmiConfig expects
+  projectId: projectId!, // Assert projectId is defined; error handling is above
+  metadata,
+  ssr: true, // Enable SSR for Wagmi if using Next.js App Router and need cookie-based session persistence
+  storage: createStorage({ // Use cookie storage for SSR
+    storage: typeof window !== 'undefined' ? cookieStorage : noopStorage,
+  }),
+  // enableEmail: true, // Optional: For Web3Modal's email login feature
 });
 
-export const wagmiConfig = wagmiAdapter.wagmiConfig;
-
-// Ensure chains is correctly typed for use elsewhere if needed
-export const chains = appKitNetworks as readonly [Chain, ...Chain[]];
-
+console.log('[walletConfig] Initialized with Web3Modal defaultWagmiConfig.');
