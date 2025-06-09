@@ -22,7 +22,7 @@ const REWARD_CURRENCY = "ViralPoints";
 const REWARD_GIVEN_STORAGE_KEY = 'viralBetWalletConnectRewardGiven_v1_reown';
 
 const DEFAULT_EXAMPLE_BET_AMOUNT = 10; // e.g., 10 SOL or $10
-const EXAMPLE_PAYOUT_MULTIPLIER = 1.9; // Bet X, win X * 1.9 (total return)
+const EXAMPLE_PAYOUT_MULTIPLIER = 1.85; // Bet X, win X * 1.85 (total return)
 
 export default function ChallengeInvite({ 
   matchId: originalChallengeMatchId, 
@@ -45,7 +45,7 @@ export default function ChallengeInvite({
     ? mockOpponentUser.avatarUrl 
     : `https://placehold.co/40x40.png?text=${referrerName.substring(0,2).toUpperCase()}`;
 
-  const examplePotentialWinnings = (DEFAULT_EXAMPLE_BET_AMOUNT * EXAMPLE_PAYOUT_MULTIPLIER).toFixed(1);
+  const examplePotentialWinnings = (DEFAULT_EXAMPLE_BET_AMOUNT * EXAMPLE_PAYOUT_MULTIPLIER).toFixed(2); // Use toFixed(2) for currency
 
   const proceedWithNavigation = useCallback((userAction: 'with' | 'against', actualUserChoice: 'YES' | 'NO') => {
     console.log('Analytics: challenge_responded', {
@@ -120,7 +120,7 @@ export default function ChallengeInvite({
     proceedWithNavigation(userAction, actualUserChoice);
   };
   
-  const supportedNetworkNames = networks.slice(0, 2).map(n => n.name).join(', '); // Show first 2 for brevity
+  const supportedNetworkNames = networks.slice(0, 2).map(n => n.name).join(', '); 
 
   return (
     <Card className="w-full max-w-md mx-auto shadow-xl rounded-lg text-center overflow-hidden">
@@ -145,7 +145,9 @@ export default function ChallengeInvite({
             <p className="text-lg font-semibold text-primary">
                 Bet {DEFAULT_EXAMPLE_BET_AMOUNT} SOL → Win {examplePotentialWinnings} SOL!
             </p>
-            <p className="text-xs text-muted-foreground">(Nearly {EXAMPLE_PAYOUT_MULTIPLIER}x Payout. Actual bet amount set on next step.)</p>
+            <p className="text-xs text-muted-foreground">
+              (Nearly {EXAMPLE_PAYOUT_MULTIPLIER}x Payout based on live market odds. Set your amount next!)
+            </p>
         </div>
 
         <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 mt-6">
@@ -170,11 +172,17 @@ export default function ChallengeInvite({
             <span>Bet {referrerOriginalChoice === 'YES' ? 'NO' : 'YES'} & Challenge</span>
           </motion.button>
         </div>
+         <div className="text-sm text-muted-foreground mt-4 space-y-1">
+          <p>Challenge friends and go viral! Share your bet to X and earn ViralPoints.</p>
+          <p>
+            New to crypto? <a href="/wallet-guide" className="underline text-primary hover:text-primary/80">Learn how to connect your wallet in 1 minute!</a>
+          </p>
+        </div>
       </CardContent>
       <CardFooter className="flex-col items-center justify-center p-4 bg-muted/30 border-t space-y-2">
         <div className="flex items-center text-xs text-muted-foreground">
           <ShieldCheck className="w-4 h-4 mr-1.5 text-primary" />
-          Platform Secured. Live on: {supportedNetworkNames} & more.
+           Fast, secure bets on leading blockchains like Ethereum and Polygon.
         </div>
         <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <Badge variant="secondary" className="py-0.5 px-1.5">
@@ -183,12 +191,8 @@ export default function ChallengeInvite({
             <Badge variant="secondary" className="py-0.5 px-1.5">
                 <BarChartHorizontalBig className="w-3 h-3 mr-1 text-purple-500" /> 500+ Active Predictions
             </Badge>
-             <Badge variant="secondary" className="py-0.5 px-1.5">
-                <Zap className="w-3 h-3 mr-1 text-yellow-500" /> High-Emotion Bets
-            </Badge>
         </div>
       </CardFooter>
     </Card>
   );
 }
-
