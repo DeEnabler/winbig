@@ -14,15 +14,15 @@ import { mockOpponentUser } from '@/lib/mockData';
 import { useAccount } from 'wagmi';
 import { appKitModal } from '@/context/index'; 
 import { useState, useEffect, useCallback } from 'react';
-import { networks } from '@/config/index'; // To display supported networks
+import { networks } from '@/config/index'; 
 import { Badge } from '@/components/ui/badge';
 
 const REWARD_AMOUNT = 100;
 const REWARD_CURRENCY = "ViralPoints";
 const REWARD_GIVEN_STORAGE_KEY = 'viralBetWalletConnectRewardGiven_v1_reown';
 
-const DEFAULT_EXAMPLE_BET_AMOUNT = 10; // e.g., 10 SOL or $10
-const EXAMPLE_PAYOUT_MULTIPLIER = 1.85; // Bet X, win X * 1.85 (total return)
+const DEFAULT_EXAMPLE_BET_AMOUNT = 10; 
+const EXAMPLE_PAYOUT_MULTIPLIER = 1.85; 
 
 export default function ChallengeInvite({ 
   matchId: originalChallengeMatchId, 
@@ -45,7 +45,7 @@ export default function ChallengeInvite({
     ? mockOpponentUser.avatarUrl 
     : `https://placehold.co/40x40.png?text=${referrerName.substring(0,2).toUpperCase()}`;
 
-  const examplePotentialWinnings = (DEFAULT_EXAMPLE_BET_AMOUNT * EXAMPLE_PAYOUT_MULTIPLIER).toFixed(2); // Use toFixed(2) for currency
+  const examplePotentialWinnings = (DEFAULT_EXAMPLE_BET_AMOUNT * EXAMPLE_PAYOUT_MULTIPLIER).toFixed(2); 
 
   const proceedWithNavigation = useCallback((userAction: 'with' | 'against', actualUserChoice: 'YES' | 'NO') => {
     console.log('Analytics: challenge_responded', {
@@ -85,7 +85,7 @@ export default function ChallengeInvite({
     let actualUserChoice: 'YES' | 'NO';
     if (userAction === 'with') {
       actualUserChoice = referrerOriginalChoice;
-    } else { // 'against'
+    } else { 
       actualUserChoice = referrerOriginalChoice === 'YES' ? 'NO' : 'YES';
     }
 
@@ -121,6 +121,7 @@ export default function ChallengeInvite({
   };
   
   const supportedNetworkNames = networks.slice(0, 2).map(n => n.name).join(', '); 
+  const oppositeChoice = referrerOriginalChoice === 'YES' ? 'NO' : 'YES';
 
   return (
     <Card className="w-full max-w-md mx-auto shadow-xl rounded-lg text-center overflow-hidden">
@@ -159,7 +160,7 @@ export default function ChallengeInvite({
             onClick={() => handleBetAction('with')}
           >
             <CheckCircle className="w-5 h-5" />
-            <span>Agree & Bet {referrerOriginalChoice}</span>
+            <span>I'm IN – Bet {referrerOriginalChoice}</span>
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.03, y: -2 }}
@@ -169,7 +170,7 @@ export default function ChallengeInvite({
             onClick={() => handleBetAction('against')}
           >
             <Swords className="w-5 h-5" />
-            <span>Bet {referrerOriginalChoice === 'YES' ? 'NO' : 'YES'} & Challenge</span>
+            <span>Challenge 'Em & Bet {oppositeChoice}</span>
           </motion.button>
         </div>
          <div className="text-sm text-muted-foreground mt-4 space-y-1">
@@ -193,3 +194,4 @@ export default function ChallengeInvite({
     </Card>
   );
 }
+
