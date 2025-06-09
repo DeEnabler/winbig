@@ -12,24 +12,21 @@ import { motion } from 'framer-motion';
 import { CheckCircle, Swords, ShieldCheck, Users, Zap, BarChartHorizontalBig } from 'lucide-react';
 import { mockOpponentUser } from '@/lib/mockData';
 import { useAccount } from 'wagmi';
-import { appKitModal } from '@/context/index'; 
+import { appKitModal } from '@/context/index';
 import { useState, useEffect, useCallback } from 'react';
-import { networks } from '@/config/index'; 
+import { networks } from '@/config/index';
 import { Badge } from '@/components/ui/badge';
 
 const REWARD_AMOUNT = 100;
 const REWARD_CURRENCY = "ViralPoints";
 const REWARD_GIVEN_STORAGE_KEY = 'viralBetWalletConnectRewardGiven_v1_reown';
 
-const DEFAULT_EXAMPLE_BET_AMOUNT = 10; 
-const EXAMPLE_PAYOUT_MULTIPLIER = 1.85; 
-
-export default function ChallengeInvite({ 
-  matchId: originalChallengeMatchId, 
-  referrerName, 
-  predictionQuestion, 
+export default function ChallengeInvite({
+  matchId: originalChallengeMatchId,
+  referrerName,
+  predictionQuestion,
   predictionId,
-  referrerOriginalChoice 
+  referrerOriginalChoice
 }: ChallengeInviteProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -41,11 +38,9 @@ export default function ChallengeInvite({
     actualUserChoice: 'YES' | 'NO';
   } | null>(null);
 
-  const referrerAvatar = referrerName === mockOpponentUser.username 
-    ? mockOpponentUser.avatarUrl 
+  const referrerAvatar = referrerName === mockOpponentUser.username
+    ? mockOpponentUser.avatarUrl
     : `https://placehold.co/40x40.png?text=${referrerName.substring(0,2).toUpperCase()}`;
-
-  const examplePotentialWinnings = (DEFAULT_EXAMPLE_BET_AMOUNT * EXAMPLE_PAYOUT_MULTIPLIER).toFixed(2); 
 
   const [yesBettors, setYesBettors] = useState(Math.floor(Math.random() * 15) + 8); // Start with some base
   const [noBettors, setNoBettors] = useState(Math.floor(Math.random() * 15) + 7);
@@ -92,7 +87,7 @@ export default function ChallengeInvite({
   const proceedWithNavigation = useCallback((userAction: 'with' | 'against', actualUserChoice: 'YES' | 'NO') => {
     console.log('Analytics: challenge_responded', {
       matchId: originalChallengeMatchId,
-      userAction: userAction, 
+      userAction: userAction,
       actualUserChoice: actualUserChoice,
       referrer: referrerName,
       predictionId: predictionId,
@@ -109,14 +104,14 @@ export default function ChallengeInvite({
       const rewardAlreadyGiven = localStorage.getItem(REWARD_GIVEN_STORAGE_KEY) === address;
 
       if (!rewardAlreadyGiven) {
-        localStorage.setItem(REWARD_GIVEN_STORAGE_KEY, address); 
+        localStorage.setItem(REWARD_GIVEN_STORAGE_KEY, address);
         toast({
           title: "Wallet Connected! 🎉",
           description: `You've earned ${REWARD_AMOUNT} ${REWARD_CURRENCY}! Your XP will update soon.`,
           duration: 5000,
         });
       }
-      
+
       proceedWithNavigation(pendingActionData.userAction, pendingActionData.actualUserChoice);
       setPendingActionData(null);
     }
@@ -127,15 +122,15 @@ export default function ChallengeInvite({
     let actualUserChoice: 'YES' | 'NO';
     if (userAction === 'with') {
       actualUserChoice = referrerOriginalChoice;
-    } else { 
+    } else {
       actualUserChoice = referrerOriginalChoice === 'YES' ? 'NO' : 'YES';
     }
 
     if (!isConnected) {
       setPendingActionData({ userAction, actualUserChoice });
-      const rewardAlreadyGiven = !!address && localStorage.getItem(REWARD_GIVEN_STORAGE_KEY) === address; 
+      const rewardAlreadyGiven = !!address && localStorage.getItem(REWARD_GIVEN_STORAGE_KEY) === address;
 
-      if (!rewardAlreadyGiven) { 
+      if (!rewardAlreadyGiven) {
         toast({
           title: "Connect Wallet & Earn!",
           description: `Connect your wallet to proceed and earn ${REWARD_AMOUNT} ${REWARD_CURRENCY} instantly!`,
@@ -161,8 +156,8 @@ export default function ChallengeInvite({
     }
     proceedWithNavigation(userAction, actualUserChoice);
   };
-  
-  const supportedNetworkNames = networks.slice(0, 2).map(n => n.name).join(', '); 
+
+  const supportedNetworkNames = networks.slice(0, 2).map(n => n.name).join(', ');
   const oppositeChoice = referrerOriginalChoice === 'YES' ? 'NO' : 'YES';
 
   return (
@@ -182,16 +177,6 @@ export default function ChallengeInvite({
         <p className="italic text-xl font-semibold text-foreground leading-tight">
           “{predictionQuestion}”
         </p>
-
-        <div className="text-center p-3 bg-background rounded-md border border-dashed border-primary/50">
-            <p className="text-sm text-muted-foreground">Example Bet & Potential Return:</p>
-            <p className="text-lg font-semibold text-primary">
-                Bet {DEFAULT_EXAMPLE_BET_AMOUNT} SOL → Win {examplePotentialWinnings} SOL!
-            </p>
-            <p className="text-xs text-muted-foreground">
-              (Nearly {EXAMPLE_PAYOUT_MULTIPLIER}x Payout based on live market odds. Set your amount next!)
-            </p>
-        </div>
 
         {/* Live Activity Section */}
         <div className="my-4 space-y-3 py-3 border-y border-border/50">
@@ -218,7 +203,7 @@ export default function ChallengeInvite({
               </div>
             </div>
           </div>
-          <div 
+          <div
             className={`text-center p-2 rounded-md transition-all duration-300 ${oddsPulse ? 'animate-pulse-once bg-primary/10' : 'bg-muted/30'}`}
           >
             <p className="text-sm text-muted-foreground">Current Odds:</p>
