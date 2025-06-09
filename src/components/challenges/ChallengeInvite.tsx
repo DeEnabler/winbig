@@ -174,9 +174,6 @@ export default function ChallengeInvite({
         </div>
          <div className="text-sm text-muted-foreground mt-4 space-y-1">
           <p>Challenge friends and go viral! Share your bet to X and earn ViralPoints.</p>
-          <p>
-            New to crypto? <a href="/wallet-guide" className="underline text-primary hover:text-primary/80">Learn how to connect your wallet in 1 minute!</a>
-          </p>
         </div>
       </CardContent>
       <CardFooter className="flex-col items-center justify-center p-4 bg-muted/30 border-t space-y-2">
