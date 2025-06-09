@@ -26,8 +26,9 @@ export interface BetPlacement {
   choice: 'YES' | 'NO';
   amount: number;
   // For challenge acceptance, these might be relevant
-  challengeMatchId?: string; 
+  challengeMatchId?: string;
   referrerName?: string;
+  bonusApplied?: boolean; // Added for bonus tracking
 }
 
 export interface Match {
@@ -50,11 +51,12 @@ export interface Match {
   betSize?: string; // e.g., "5" (for 5 SOL) - can differ from betAmount if different currency/unit displayed
   rank?: string; // e.g., "2"
   rankCategory?: string; // e.g., "Politics"
+  bonusApplied?: boolean; // Added for bonus tracking
 
   // For MatchViewClient specific props
-  userBet?: { side: 'YES'|'NO'; amount: number; status: 'PENDING'|'WON'|'LOST' }; 
-  opponent?: { username: string; winRate?: number, avatarUrl?: string } | 'system'; 
-  confidence?: { yesPercentage: number }; 
+  userBet?: { side: 'YES'|'NO'; amount: number; status: 'PENDING'|'WON'|'LOST'; bonusApplied?: boolean };
+  opponent?: { username: string; winRate?: number, avatarUrl?: string } | 'system';
+  confidence?: { yesPercentage: number };
 
   // Flags for challenge confirmation flow
   isConfirmingChallenge?: boolean;
@@ -86,30 +88,31 @@ export interface PredictionCardProps {
   facePileCount?: number;
   category?: string;
   timeLeft?: string;
-  endsAt?: Date; 
-  onBet: (bet: Omit<BetPlacement, 'challengeMatchId' | 'referrerName'>) => Promise<void>;
+  endsAt?: Date;
+  aiHint?: string;
+  onBet: (bet: Omit<BetPlacement, 'challengeMatchId' | 'referrerName' | 'bonusApplied'>) => Promise<void>;
 }
 
 // Props for ChallengeInvite
 export interface ChallengeInviteProps {
-  matchId: string; 
+  matchId: string;
   referrerName: string;
   predictionQuestion: string;
-  predictionId: string; 
-  referrerOriginalChoice: 'YES' | 'NO'; // Added this
+  predictionId: string;
+  referrerOriginalChoice: 'YES' | 'NO';
 }
 
 // Props for MatchViewClient
 export interface MatchViewProps {
-  match: Match; 
+  match: Match;
 }
 
 // Props for ShareDialog
 export interface ShareDialogProps {
   matchId: string;
   ogImageUrl: string;
-  tweetTemplates?: string[]; 
-  rewardIncentive?: string; 
+  tweetTemplates?: string[];
+  rewardIncentive?: string;
   currentShareMessage: string;
   onShareMessageChange: (message: string) => void;
   shareUrl: string;
@@ -118,9 +121,24 @@ export interface ShareDialogProps {
 // EntryContext type
 export interface EntryContextType {
   source?: string;
-  challenge?: boolean; 
+  challenge?: boolean;
   referrer?: string;
-  marketId?: string; 
-  predictionId?: string; 
+  marketId?: string;
+  predictionId?: string;
   appendEntryParams: (url: string) => string;
+}
+
+// For getMatchDetailsForOg
+export interface OgData {
+  predictionText: string;
+  userChoice: 'YES' | 'NO';
+  userAvatar?: string;
+  username: string;
+  outcome: 'PENDING' | 'WON' | 'LOST';
+  betAmount: number;
+  betSize?: string;
+  streak?: string;
+  rank?: string;
+  rankCategory?: string;
+  bonusApplied?: boolean; // Added for bonus tracking in OG
 }

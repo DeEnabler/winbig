@@ -8,7 +8,7 @@ import NextImage from 'next/image';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Share2, MessageSquare, Repeat, ArrowLeft, TrendingUp, Crown, ExternalLink, CheckCircle } from 'lucide-react';
+import { Share2, MessageSquare, Repeat, ArrowLeft, TrendingUp, Crown, ExternalLink, CheckCircle, Sparkles } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useEffect, useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -20,6 +20,9 @@ import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
 import { useEntryContext } from '@/contexts/EntryContext';
+
+const STANDARD_PAYOUT_MULTIPLIER = 1.9;
+const BONUS_PAYOUT_INCREASE_FACTOR = 1.2; // 20% bonus
 
 function formatTimeLeft(endDate: number) {
   const totalSeconds = Math.max(0, Math.floor((endDate - Date.now()) / 1000));
@@ -43,46 +46,53 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   const [match, setMatch] = useState<Match>(initialMatch);
   const [timeLeft, setTimeLeft] = useState(formatTimeLeft(match.countdownEnds));
   const [countdownProgress, setCountdownProgress] = useState(100);
-  
+
   const [shareMessage, setShareMessage] = useState<string>('');
   const [isLoadingShareMessage, setIsLoadingShareMessage] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
-  
-  const [betAmountState, setBetAmountState] = useState(match.userBet?.amount || match.betAmount || 10);
-  const [isBetting, setIsBetting] = useState(false); 
 
-  const potentialPayout = useMemo(() => (betAmountState * 1.9).toFixed(2), [betAmountState]);
+  const [betAmountState, setBetAmountState] = useState(match.userBet?.amount || match.betAmount || 10);
+  const [isBetting, setIsBetting] = useState(false);
+
+  const potentialPayout = useMemo(() => {
+    let payout = betAmountState * STANDARD_PAYOUT_MULTIPLIER;
+    if (match.bonusApplied) {
+      payout *= BONUS_PAYOUT_INCREASE_FACTOR;
+    }
+    return payout.toFixed(2);
+  }, [betAmountState, match.bonusApplied]);
 
   const [isClient, setIsClient] = useState(false);
   useEffect(() => setIsClient(true), []);
 
-  const appUrl = typeof window !== 'undefined' 
-    ? `${window.location.protocol}//${window.location.host}` 
+  const appUrl = typeof window !== 'undefined'
+    ? `${window.location.protocol}//${window.location.host}`
     : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002');
 
   const ogImageUrl = useMemo(() => {
     const url = new URL(`${appUrl}/api/og`);
     url.searchParams.set('v', Date.now().toString());
     url.searchParams.set('predictionText', match.predictionText);
-    url.searchParams.set('userChoice', match.userChoice || 'YES'); 
+    url.searchParams.set('userChoice', match.userChoice || 'YES');
     url.searchParams.set('userAvatar', match.user1AvatarUrl || mockCurrentUser.avatarUrl || 'https://placehold.co/128x128.png?text=VB');
     url.searchParams.set('username', match.user1Username === 'You' ? 'I' : match.user1Username);
     url.searchParams.set('outcome', match.outcome || 'PENDING');
-    
+
     const displayBetAmount = match.userBet?.amount || (match.isConfirmingChallenge ? betAmountState : match.betAmount);
     url.searchParams.set('betAmount', (displayBetAmount || 0).toString());
 
-    if (match.betSize) url.searchParams.set('betSize', match.betSize); 
+    if (match.betSize) url.searchParams.set('betSize', match.betSize);
     if (match.streak) url.searchParams.set('streak', match.streak);
     if (match.rank) url.searchParams.set('rank', match.rank);
     if (match.rankCategory) url.searchParams.set('rankCategory', match.rankCategory);
-    
+    if (match.bonusApplied) url.searchParams.set('bonus', 'true'); // Add bonus flag for OG image
+
     return url.toString();
   }, [match, appUrl, betAmountState]);
 
   useEffect(() => {
     const initialDuration = Math.max(0, match.countdownEnds - Date.now());
-    if (initialDuration === 0) { 
+    if (initialDuration === 0) {
         setTimeLeft("Match Ended");
         setCountdownProgress(0);
         return;
@@ -103,24 +113,37 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
 
   const handleGenerateShareMessage = async () => {
     if (shareMessage && !isLoadingShareMessage) return;
-    if (match.isConfirmingChallenge) { 
+    if (match.isConfirmingChallenge) {
         setShareMessage("Confirm your bet to generate a share message!");
         return;
     }
 
     setIsLoadingShareMessage(true);
     try {
+      const baseBetAmount = match.userBet?.amount || betAmountState;
+      let effectivePotentialWinnings = baseBetAmount * STANDARD_PAYOUT_MULTIPLIER;
+      if (match.bonusApplied || match.userBet?.bonusApplied) {
+        effectivePotentialWinnings *= BONUS_PAYOUT_INCREASE_FACTOR;
+      }
+
       const details: ShareMessageDetails = {
         prediction: match.predictionText,
-        betAmount: match.userBet?.amount || betAmountState, 
-        potentialWinnings: parseFloat(( (match.userBet?.amount || betAmountState) * 1.9).toFixed(2)),
+        betAmount: baseBetAmount,
+        potentialWinnings: parseFloat(effectivePotentialWinnings.toFixed(2)),
         opponentUsername: typeof match.opponent === 'string' ? match.opponent : match.opponent?.username || 'a Rival',
       };
       const result = await generateXShareMessage(details);
-      setShareMessage(result.shareMessage);
+      let finalMessage = result.shareMessage;
+      if (match.bonusApplied || match.userBet?.bonusApplied) {
+        finalMessage += " (+20% Bonus!)";
+      }
+      setShareMessage(finalMessage);
     } catch (error) {
       console.error("Failed to generate share message:", error);
       let defaultMsg = `I just bet ${match.betSize || (match.userBet?.amount || betAmountState)} SOL that "${match.predictionText}" against @${typeof match.opponent === 'string' ? match.opponent : match.opponent?.username || 'a_Rival'}! Potential winnings: ${potentialPayout} SOL! #ViralBet`;
+      if (match.bonusApplied || match.userBet?.bonusApplied) {
+        defaultMsg += " (includes +20% Bonus!)";
+      }
       setShareMessage(defaultMsg);
       toast({ variant: "destructive", title: "Error", description: "Could not generate AI share message. Using default." });
     } finally {
@@ -133,27 +156,27 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
         toast({ title: "Action Required", description: "Please confirm your bet before sharing." });
         return;
     }
-    handleGenerateShareMessage(); 
+    handleGenerateShareMessage();
     setIsShareDialogOpen(true);
   };
-  
+
   const user1 = { username: match.user1Username, avatarUrl: match.user1AvatarUrl || mockCurrentUser.avatarUrl };
-  const user2 = typeof match.opponent === 'object' 
-    ? { username: match.opponent.username, avatarUrl: match.opponent.avatarUrl || mockOpponentUser.avatarUrl, winRate: match.opponent.winRate } 
+  const user2 = typeof match.opponent === 'object'
+    ? { username: match.opponent.username, avatarUrl: match.opponent.avatarUrl || mockOpponentUser.avatarUrl, winRate: match.opponent.winRate }
     : { username: 'System Pool', avatarUrl: 'https://placehold.co/40x40.png?text=S', winRate: undefined };
 
   const predictionDetails = mockPredictions.find(p => p.id === match.predictionId);
   const predictionImage = predictionDetails?.imageUrl || 'https://placehold.co/600x300.png';
   const predictionAiHint = predictionDetails?.aiHint || 'abstract event';
 
-  const confidenceYes = match.confidence?.yesPercentage || 50; 
+  const confidenceYes = match.confidence?.yesPercentage || 50;
 
   const handleConfirmBet = async () => {
     if (!match.isConfirmingChallenge || !match.userChoice || !match.predictionId) return;
     setIsBetting(true);
     toast({
         title: "Placing your bet...",
-        description: `You chose ${match.userChoice} for "${match.predictionText.substring(0,30)}...". Amount: $${betAmountState}`,
+        description: `You chose ${match.userChoice} for "${match.predictionText.substring(0,30)}...". Amount: $${betAmountState}${match.bonusApplied ? " (+20% Bonus!)" : ""}`,
     });
 
     try {
@@ -161,12 +184,13 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                userId: mockCurrentUser.id, 
-                challengeMatchId: match.id, 
+                userId: mockCurrentUser.id,
+                challengeMatchId: match.id,
                 predictionId: match.predictionId,
                 choice: match.userChoice,
                 amount: betAmountState,
-                referrerName: match.originalReferrer, 
+                referrerName: match.originalReferrer,
+                bonusApplied: match.bonusApplied ?? false, // Send bonus status to API
             }),
         });
         const result = await response.json();
@@ -176,20 +200,23 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
 
         toast({
             title: "Bet Confirmed & Placed!",
-            description: `Your ${match.userChoice} bet for $${betAmountState} is in! Good luck!`,
+            description: `Your ${match.userChoice} bet for $${betAmountState} is in! Good luck!${result.data?.bonusApplied ? " Bonus applied!" : ""}`,
         });
 
         setMatch(prevMatch => ({
             ...prevMatch,
-            isConfirmingChallenge: false, 
-            userBet: { 
+            isConfirmingChallenge: false,
+            userBet: {
                 side: prevMatch.userChoice!,
                 amount: betAmountState,
                 status: 'PENDING',
+                bonusApplied: result.data?.bonusApplied ?? false,
             },
-            betAmount: betAmountState, 
+            betAmount: betAmountState,
+            // potentialWinnings will be recalculated by potentialPayout useMemo
+            bonusApplied: result.data?.bonusApplied ?? false, // Update match bonus status from API response
         }));
-        
+
     } catch (error) {
         console.error("Error confirming bet:", error);
         toast({
@@ -215,18 +242,25 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
             <div className="w-8"></div> {/* Spacer */}
           </div>
           {match.isConfirmingChallenge && (
-            <p className="text-center text-sm text-accent font-semibold">
-              You chose: {match.userChoice}. Confirm your bet against @{match.originalReferrer || 'your challenger'}!
-            </p>
+            <div className="text-center">
+              <p className="text-sm text-accent font-semibold">
+                You chose: {match.userChoice}. Confirm your bet against @{match.originalReferrer || 'your challenger'}!
+              </p>
+              {match.bonusApplied && (
+                <Badge variant="default" className="mt-1 bg-yellow-500 text-yellow-900 hover:bg-yellow-500/90">
+                  <Sparkles className="w-4 h-4 mr-1.5" /> +20% Bonus Active!
+                </Badge>
+              )}
+            </div>
           )}
         </CardHeader>
         <CardContent className="p-6 space-y-4">
           <div className="relative w-full h-40 md:h-48 rounded-md overflow-hidden mb-4 shadow-md">
-              <NextImage 
-                src={predictionImage} 
-                alt={match.predictionText} 
+              <NextImage
+                src={predictionImage}
+                alt={match.predictionText}
                 fill
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // Example sizes
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 style={{ objectFit: 'cover' }}
                 data-ai-hint={predictionAiHint}
               />
@@ -276,8 +310,8 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
               </Badge>
             )}
           </div>
-          
-          {(match.isConfirmingChallenge || !match.userBet) && ( 
+
+          {(match.isConfirmingChallenge || !match.userBet) && (
             <div className="space-y-3 pt-2">
               <div className="flex justify-between items-center">
                 <label htmlFor="betAmountSlider" className="text-sm font-medium">
@@ -294,16 +328,28 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                 onValueChange={(value) => setBetAmountState(value[0])}
                 disabled={isBetting || (!!match.userBet && !match.isConfirmingChallenge)}
               />
-              <p className="text-center text-lg">
+              <div className="text-center text-lg">
                 Potential Payout: <span className="font-bold text-green-600 dark:text-green-400">${potentialPayout}</span>
-              </p>
+                {(match.bonusApplied || match.userBet?.bonusApplied) && !match.isConfirmingChallenge && (
+                   <Badge variant="default" className="ml-2 bg-yellow-500 text-yellow-900 hover:bg-yellow-500/90 text-xs">
+                     <Sparkles className="w-3 h-3 mr-1" /> +20% Bonus
+                   </Badge>
+                )}
+              </div>
             </div>
           )}
-          {match.userBet && !match.isConfirmingChallenge && ( 
+          {match.userBet && !match.isConfirmingChallenge && (
              <div className="text-center text-lg pt-2">
                 <p>Your Bet: <span className="font-bold text-primary">${match.userBet.amount} on {match.userBet.side}</span></p>
                 <div>Status: <Badge variant={match.userBet.status === 'WON' ? 'default' : match.userBet.status === 'LOST' ? 'destructive' : 'secondary'}>{match.userBet.status}</Badge></div>
-                <p>Potential Payout: <span className="font-bold text-green-600 dark:text-green-400">${(match.userBet.amount * 1.9).toFixed(2)}</span></p>
+                <p>
+                  Potential Payout: <span className="font-bold text-green-600 dark:text-green-400">${potentialPayout}</span>
+                  {match.userBet.bonusApplied && (
+                    <Badge variant="default" className="ml-2 bg-yellow-500 text-yellow-900 hover:bg-yellow-500/90 text-xs">
+                      <Sparkles className="w-3 h-3 mr-1" /> +20% Bonus
+                    </Badge>
+                  )}
+                </p>
              </div>
           )}
 
@@ -343,8 +389,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                   </span>
                 </Link>
               ) : (
-                 // Fallback for server-side rendering or when not yet client
-                <span className="inline-flex items-center justify-center gap-2"> 
+                <span className="inline-flex items-center justify-center gap-2">
                   <ExternalLink className="w-5 h-5" /> Find More Bets
                 </span>
               )}
@@ -359,7 +404,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
         ogImageUrl={ogImageUrl}
         currentShareMessage={isLoadingShareMessage ? "Generating viral message..." : shareMessage}
         onShareMessageChange={setShareMessage}
-        shareUrl={match.shareUrl || `${appUrl}/match/${match.id}?predictionId=${match.predictionId}`}
+        shareUrl={match.shareUrl || `${appUrl}/match/${match.id}?predictionId=${match.predictionId}${match.bonusApplied ? '&bonusApplied=true' : ''}`}
       />
     </>
   );

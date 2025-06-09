@@ -1,16 +1,9 @@
+
 // src/app/api/og/route.tsx
 import { ImageResponse } from '@vercel/og';
 import { type NextRequest } from 'next/server';
 
 export const runtime = 'edge'; // Recommended for @vercel/og
-
-// TODO: Consider loading custom fonts if needed, e.g., Geist Sans
-// async function getGeistFont() {
-//   const fontData = await fetch(
-//     new URL('../../../../assets/GeistVariableVF.ttf', import.meta.url)
-//   ).then((res) => res.arrayBuffer());
-//   return fontData;
-// }
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
@@ -25,6 +18,7 @@ export async function GET(req: NextRequest) {
   const streak = searchParams.get('streak'); // e.g., 3
   const rank = searchParams.get('rank'); // e.g., 2 (for #2 in Politics)
   const rankCategory = searchParams.get('rankCategory') || 'Predictions'; // e.g. Politics
+  const bonusApplied = searchParams.get('bonus') === 'true';
 
   const tagline = 'Bet Like a Legend!';
 
@@ -48,14 +42,19 @@ export async function GET(req: NextRequest) {
     ctaText = "Think you’re smarter?";
   }
 
-  // const geistFontData = await getGeistFont();
-
   return new ImageResponse(
     (
       <div tw="flex flex-col w-full h-full items-center justify-between bg-purple-800 text-white p-10 pb-6" style={{ fontFamily: 'sans-serif' }}>
         {/* Header: App Logo + User Avatar + Username */}
         <div tw="flex w-full justify-between items-center">
-          <div tw="text-5xl font-bold" style={{color: '#D8B4FE'}}>ViralBet</div>
+          <div tw="flex items-center">
+             <div tw="text-5xl font-bold mr-3" style={{color: '#D8B4FE'}}>ViralBet</div>
+             {bonusApplied && (
+                <div tw="flex items-center bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-xl font-semibold shadow-md">
+                    ✨ +20% Bonus!
+                </div>
+             )}
+          </div>
           <div tw="flex items-center">
             <span tw="text-2xl mr-4" style={{color: '#E9D5FF'}}>{username}</span>
             <img src={userAvatar} tw="w-20 h-20 rounded-full border-4" style={{borderColor: '#A78BFA'}} alt="User Avatar" />
@@ -101,7 +100,7 @@ export async function GET(req: NextRequest) {
           </div>
           <div tw="italic" style={{color: '#D8B4FE'}}>{ctaText}</div>
         </div>
-        
+
         <div tw="w-full text-center text-lg mt-3" style={{color: '#C084FC'}}>{tagline}</div>
 
       </div>
@@ -109,8 +108,6 @@ export async function GET(req: NextRequest) {
     {
       width: 1200,
       height: 630,
-      // fonts: [{ name: 'Geist', data: geistFontData, style: 'normal' }],
-      // emoji: 'fluent', // Example for emojis
     }
   );
 }

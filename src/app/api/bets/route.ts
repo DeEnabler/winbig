@@ -12,7 +12,8 @@ export async function POST(req: NextRequest) {
       predictionId,
       choice, // 'YES' or 'NO'
       amount,
-      referrerName // Optional: who referred this challenge acceptance
+      referrerName, // Optional: who referred this challenge acceptance
+      bonusApplied // Added to receive bonus status
     } = body;
 
     // --- Backend Logic Placeholder ---
@@ -20,14 +21,14 @@ export async function POST(req: NextRequest) {
     // 1. Validate the input (e.g., ensure predictionId exists, user has funds, etc.)
     // 2. Get the authenticated userId securely (not from the request body for sensitive ops)
     // 3. Record the bet in your database (e.g., Firestore)
-    //    - Associate with userId, predictionId, choice, amount, timestamp
+    //    - Associate with userId, predictionId, choice, amount, timestamp, bonusApplied
     //    - Handle P2P matching or liquidity pool interaction
     //    - Generate a unique bet ID
-    // 4. Potentially update user's balance, XP, etc.
+    // 4. Potentially update user's balance, XP, etc. (factor in bonus for potential display)
     // 5. If it's a P2P challenge, notify the original challenger.
 
     console.log('Received bet placement request:');
-    console.log({ userId, challengeMatchId, predictionId, choice, amount, referrerName });
+    console.log({ userId, challengeMatchId, predictionId, choice, amount, referrerName, bonusApplied });
 
     // For now, we just simulate a successful bet placement.
     const mockBetId = `bet_${Date.now()}`;
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
       amount,
       status: 'PENDING', // Bets start as pending
       timestamp: new Date().toISOString(),
+      bonusApplied: !!bonusApplied, // Ensure it's a boolean
     };
 
     // --- End Backend Logic Placeholder ---
