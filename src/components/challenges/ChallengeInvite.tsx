@@ -47,6 +47,48 @@ export default function ChallengeInvite({
 
   const examplePotentialWinnings = (DEFAULT_EXAMPLE_BET_AMOUNT * EXAMPLE_PAYOUT_MULTIPLIER).toFixed(2); 
 
+  const [yesBettors, setYesBettors] = useState(Math.floor(Math.random() * 15) + 8); // Start with some base
+  const [noBettors, setNoBettors] = useState(Math.floor(Math.random() * 15) + 7);
+  const [showPlusOneYes, setShowPlusOneYes] = useState(false);
+  const [showPlusOneNo, setShowPlusOneNo] = useState(false);
+  const [oddsYes, setOddsYes] = useState(50);
+  const [oddsPulse, setOddsPulse] = useState(false);
+
+  useEffect(() => {
+    const calculateOdds = (yes: number, no: number) => {
+      const total = yes + no;
+      return total > 0 ? (yes / total) * 100 : 50;
+    };
+    setOddsYes(calculateOdds(yesBettors, noBettors));
+  }, [yesBettors, noBettors]);
+
+  useEffect(() => {
+    const activityInterval = setInterval(() => {
+      const isAddingYes = Math.random() < 0.6; // More likely to add to YES for seeding
+      const isAddingNo = Math.random() < 0.45;
+
+      if (isAddingYes) {
+        setYesBettors(prev => prev + 1);
+        setShowPlusOneYes(true);
+        setTimeout(() => setShowPlusOneYes(false), 800);
+      }
+      if (isAddingNo) {
+        setNoBettors(prev => prev + 1);
+        setShowPlusOneNo(true);
+        setTimeout(() => setShowPlusOneNo(false), 800);
+      }
+
+      // Trigger odds pulse if counts changed
+      if (isAddingYes || isAddingNo) {
+        setOddsPulse(true);
+        setTimeout(() => setOddsPulse(false), 700);
+      }
+    }, 2500 + Math.random() * 2000); // Random interval between 2.5s and 4.5s
+
+    return () => clearInterval(activityInterval);
+  }, []);
+
+
   const proceedWithNavigation = useCallback((userAction: 'with' | 'against', actualUserChoice: 'YES' | 'NO') => {
     console.log('Analytics: challenge_responded', {
       matchId: originalChallengeMatchId,
@@ -151,6 +193,43 @@ export default function ChallengeInvite({
             </p>
         </div>
 
+        {/* Live Activity Section */}
+        <div className="my-4 space-y-3 py-3 border-y border-border/50">
+          <div className="text-center">
+            <p className="text-sm font-medium text-muted-foreground mb-2">Live Activity</p>
+            <div className="flex justify-around items-start">
+              <div className="text-center relative px-2">
+                <div className="relative inline-block">
+                  <span className="text-3xl font-bold text-green-500">{yesBettors}</span>
+                  {showPlusOneYes && (
+                    <span className="absolute -top-2 -right-4 text-sm text-green-500 animate-fade-in-out-briefly font-semibold">+1</span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Betting YES</p>
+              </div>
+              <div className="text-center relative px-2">
+                 <div className="relative inline-block">
+                  <span className="text-3xl font-bold text-red-500">{noBettors}</span>
+                  {showPlusOneNo && (
+                    <span className="absolute -top-2 -right-4 text-sm text-red-500 animate-fade-in-out-briefly font-semibold">+1</span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Betting NO</p>
+              </div>
+            </div>
+          </div>
+          <div 
+            className={`text-center p-2 rounded-md transition-all duration-300 ${oddsPulse ? 'animate-pulse-once bg-primary/10' : 'bg-muted/30'}`}
+          >
+            <p className="text-sm text-muted-foreground">Current Odds:</p>
+            <p className="text-lg font-semibold">
+              <span className="text-green-500">YES {oddsYes.toFixed(0)}%</span> / <span className="text-red-500">NO {(100 - oddsYes).toFixed(0)}%</span>
+            </p>
+          </div>
+        </div>
+        {/* End Live Activity Section */}
+
+
         <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 mt-6">
           <motion.button
             whileHover={{ scale: 1.03, y: -2 }}
@@ -194,4 +273,3 @@ export default function ChallengeInvite({
     </Card>
   );
 }
-
