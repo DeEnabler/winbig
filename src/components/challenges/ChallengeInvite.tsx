@@ -9,14 +9,14 @@ import { useRouter } from 'next/navigation';
 import { useEntryContext } from '@/contexts/EntryContext';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, Swords, ShieldCheck, Users, Zap, BarChartHorizontalBig, Clock, AlertTriangle, Crown, Coins } from 'lucide-react';
+import { CheckCircle, Swords, ShieldCheck, Users, Zap, BarChartHorizontalBig, Clock, AlertTriangle, Crown, Coins, Info } from 'lucide-react';
 import { mockOpponentUser } from '@/lib/mockData';
 import { useAccount } from 'wagmi';
 import { appKitModal } from '@/context/index';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { networks } from '@/config/index';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const REWARD_AMOUNT = 100;
 const REWARD_CURRENCY = "ViralPoints";
@@ -24,6 +24,7 @@ const REWARD_GIVEN_STORAGE_KEY = 'viralBetWalletConnectRewardGiven_v1_reown';
 
 const BONUS_DURATION_SECONDS = 120; // 2 minutes
 const BONUS_PERCENTAGE = 20;
+const BONUS_LOW_TIME_THRESHOLD = 30; // seconds
 
 interface ReferrerStats {
   winStreak: number;
@@ -57,19 +58,11 @@ export default function ChallengeInvite({
     if (referrerName === mockOpponentUser.username) {
       return {
         winStreak: mockOpponentUser.betStreak || 0,
-        totalWinnings: mockOpponentUser.totalWinnings || "Not Available",
+        totalWinnings: mockOpponentUser.totalWinnings || "N/A",
         predictionRank: mockOpponentUser.predictionRank || "Unranked",
       };
     }
-    // For other referrers, provide some default/generic stats or null if none
-    // For now, returning null for non-CryptoKing88 for simplicity
-    return null; 
-    // Or for generic stats:
-    // return {
-    //   winStreak: Math.floor(Math.random() * 5),
-    //   totalWinnings: `${Math.floor(Math.random() * 100)} XYZ`,
-    //   predictionRank: `Top ${Math.floor(Math.random() * 40) + 10}%`,
-    // };
+    return null;
   }, [referrerName]);
 
 
@@ -122,18 +115,18 @@ export default function ChallengeInvite({
       setIsBonusOfferActive(false);
       return;
     }
-
     const timerId = setInterval(() => {
-      setBonusTimeLeft((prevTime) => prevTime - 1);
+      setBonusTimeLeft((prevTime) => {
+        if (prevTime <= 1) {
+          clearInterval(timerId);
+          setIsBonusOfferActive(false);
+          return 0;
+        }
+        return prevTime - 1;
+      });
     }, 1000);
     return () => clearInterval(timerId);
   }, [isBonusOfferActive, bonusSuccessfullyClaimed, bonusTimeLeft]);
-
-  useEffect(() => {
-    if (bonusTimeLeft <= 0 && isBonusOfferActive && !bonusSuccessfullyClaimed) {
-      setIsBonusOfferActive(false);
-    }
-  }, [bonusTimeLeft, isBonusOfferActive, bonusSuccessfullyClaimed]);
 
 
   const proceedWithNavigation = useCallback((userAction: 'with' | 'against', actualUserChoice: 'YES' | 'NO', bonusApplied = false) => {
@@ -225,81 +218,105 @@ export default function ChallengeInvite({
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
-    return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+    return `${String(minutes).padStart(1, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
   };
 
   const oppositeChoice = referrerOriginalChoice === 'YES' ? 'NO' : 'YES';
 
   return (
     <Card className="w-full max-w-md mx-auto shadow-xl rounded-lg text-center overflow-hidden">
-      <CardHeader className="bg-muted/50 p-6 space-y-3">
-        <div className="flex flex-col items-center space-y-2">
-          <Avatar className="w-16 h-16 border-2 border-primary">
+      <CardHeader className="bg-muted/30 p-3 md:p-4 space-y-2"> {/* Reduced padding */}
+        <div className="flex items-center space-x-3">
+          <Avatar className="w-12 h-12 md:w-16 md:h-16 border-2 border-primary">
             <AvatarImage src={referrerAvatar} alt={referrerName} data-ai-hint="person avatar" />
             <AvatarFallback>{referrerName.substring(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
-          <CardTitle className="text-xl">
-            {referrerName === mockOpponentUser.username && "👑 "}@{referrerName}
-          </CardTitle>
-          <CardDescription>
-            is betting <span className={referrerOriginalChoice === 'YES' ? 'text-green-500 font-bold' : 'text-red-500 font-bold'}>{referrerOriginalChoice}</span>
-          </CardDescription>
-        </div>
-
-        {referrerStats && (
-          <div className="border-2 border-primary/50 rounded-lg p-3 bg-background/70 shadow-md w-full max-w-xs mx-auto">
-            <h3 className="text-sm font-semibold text-primary mb-2 text-center">Referrer Stats</h3>
-            <div className="space-y-1.5 text-left">
-              <div className="flex items-center text-sm">
-                <Zap className="w-4 h-4 mr-2 text-yellow-500" />
-                <span>Win Streak: <strong>{referrerStats.winStreak}</strong></span>
+          <div className="text-left">
+            <h2 className="text-base md:text-lg font-semibold text-foreground">
+              {referrerName === mockOpponentUser.username && "👑 "}@{referrerName}
+              <span className="text-sm md:text-base font-normal text-muted-foreground"> bet <span className={referrerOriginalChoice === 'YES' ? 'text-green-500 font-bold' : 'text-red-500 font-bold'}>{referrerOriginalChoice}</span></span>
+            </h2>
+            {referrerStats && (
+              <div className="flex items-center space-x-2 md:space-x-3 mt-1">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center text-xs text-muted-foreground">
+                        <Zap className="w-3 h-3 md:w-4 md:h-4 mr-1 text-yellow-500" />
+                        <span className="font-bold">{referrerStats.winStreak}</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Win Streak: {referrerStats.winStreak} in a row</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center text-xs text-muted-foreground">
+                        <Coins className="w-3 h-3 md:w-4 md:h-4 mr-1 text-green-500" />
+                        <span className="font-bold">{referrerStats.totalWinnings.split(' ')[0]}</span>
+                        <span className="ml-0.5">{referrerStats.totalWinnings.split(' ')[1]}</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Total Won: {referrerStats.totalWinnings}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center text-xs text-muted-foreground">
+                        <Crown className="w-3 h-3 md:w-4 md:h-4 mr-1 text-purple-500" />
+                        <span className="font-bold">{referrerStats.predictionRank}</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Prediction Rank: {referrerStats.predictionRank}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
-              <div className="flex items-center text-sm">
-                <Coins className="w-4 h-4 mr-2 text-green-500" />
-                <span>Total Won: <strong>{referrerStats.totalWinnings}</strong></span>
-              </div>
-              <div className="flex items-center text-sm">
-                <Crown className="w-4 h-4 mr-2 text-purple-500" />
-                <span>Rank: <strong>{referrerStats.predictionRank}</strong></span>
-              </div>
-            </div>
+            )}
           </div>
-        )}
+        </div>
       </CardHeader>
-      <CardContent className="space-y-6 p-6">
-        <p className="italic text-xl font-semibold text-foreground leading-tight">
+      <CardContent className="space-y-4 p-4 md:p-6"> {/* Reduced padding for consistency */}
+        <p className="italic text-lg md:text-xl font-semibold text-foreground leading-tight">
           “{predictionQuestion}”
         </p>
 
-        <div className="my-4 space-y-3 py-3 border-y border-border/50">
+        <div className="my-3 space-y-2 py-2 border-y border-border/30"> {/* Reduced margins/paddings */}
           <div className="text-center">
-            <p className="text-sm font-medium text-muted-foreground mb-2">Live Activity</p>
+            <p className="text-xs font-medium text-muted-foreground mb-1.5">Live Activity</p>
             <div className="flex justify-around items-start">
-              <div className="text-center relative px-2">
+              <div className="text-center relative px-1">
                 <div className="relative inline-block">
-                  <span className="text-3xl font-bold text-green-500">{yesBettors}</span>
+                  <span className="text-2xl md:text-3xl font-bold text-green-500">{yesBettors}</span>
                   {showPlusOneYes && (
-                    <span className="absolute -top-2 -right-4 text-sm text-green-500 animate-fade-in-out-briefly font-semibold">+1</span>
+                    <span className="absolute -top-1.5 -right-3 text-xs md:text-sm text-green-500 animate-fade-in-out-briefly font-semibold">+1</span>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Betting YES</p>
+                <p className="text-xxs md:text-xs text-muted-foreground mt-0.5">Betting YES</p>
               </div>
-              <div className="text-center relative px-2">
+              <div className="text-center relative px-1">
                  <div className="relative inline-block">
-                  <span className="text-3xl font-bold text-red-500">{noBettors}</span>
+                  <span className="text-2xl md:text-3xl font-bold text-red-500">{noBettors}</span>
                   {showPlusOneNo && (
-                    <span className="absolute -top-2 -right-4 text-sm text-red-500 animate-fade-in-out-briefly font-semibold">+1</span>
+                    <span className="absolute -top-1.5 -right-3 text-xs md:text-sm text-red-500 animate-fade-in-out-briefly font-semibold">+1</span>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Betting NO</p>
+                <p className="text-xxs md:text-xs text-muted-foreground mt-0.5">Betting NO</p>
               </div>
             </div>
           </div>
           <div
-            className={`text-center p-2 rounded-md transition-all duration-300 ${oddsPulse ? 'animate-pulse-once bg-primary/10' : 'bg-muted/30'}`}
+            className={`text-center p-1.5 rounded-md transition-all duration-300 ${oddsPulse ? 'animate-pulse-once bg-primary/10' : 'bg-muted/30'}`}
           >
-            <p className="text-sm text-muted-foreground">Current Odds:</p>
-            <p className="text-lg font-semibold">
+            <p className="text-xs text-muted-foreground">Current Odds:</p>
+            <p className="text-base md:text-lg font-semibold">
               <span className="text-green-500">YES {oddsYes.toFixed(0)}%</span> / <span className="text-red-500">NO {(100 - oddsYes).toFixed(0)}%</span>
             </p>
           </div>
@@ -309,86 +326,117 @@ export default function ChallengeInvite({
           {isBonusOfferActive && !bonusSuccessfullyClaimed && (
             <motion.div
               key="bonus-active"
-              initial={{ opacity: 0, y: 10, height: 0 }}
-              animate={{ opacity: 1, y: 0, height: 'auto' }}
-              exit={{ opacity: 0, y: -10, height: 0, transition: { duration: 0.2 } }}
-              className="text-center p-3 my-4 rounded-lg border-2 border-dashed border-yellow-500 bg-yellow-500/10 space-y-2 overflow-hidden"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
+              className={`flex items-center justify-between w-full p-2 my-2 rounded-lg border border-yellow-500 bg-yellow-500/10 text-xs md:text-sm overflow-hidden h-[36px] md:h-[40px] ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'animate-pulse-glow' : ''}`}
             >
-              <p className="text-sm font-semibold text-yellow-700 dark:text-yellow-400 flex items-center justify-center">
-                <Clock className="w-4 h-4 mr-1.5" /> 🎉 Limited Bonus: +{BONUS_PERCENTAGE}% payout if you bet before the timer ends!
-              </p>
-              <Progress value={(bonusTimeLeft / BONUS_DURATION_SECONDS) * 100} className="h-2 [&>div]:bg-yellow-500" />
-              <p className="text-lg font-bold text-yellow-600 dark:text-yellow-300">{formatTime(bonusTimeLeft)}</p>
+              <div className="flex items-center shrink-0">
+                <Zap className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 text-yellow-600" />
+                <span className="font-semibold text-yellow-700 dark:text-yellow-400 whitespace-nowrap">+${BONUS_PERCENTAGE}% Bonus!</span>
+              </div>
+              <Progress value={(bonusTimeLeft / BONUS_DURATION_SECONDS) * 100} className="h-1.5 md:h-2 mx-2 md:mx-3 w-full flex-grow min-w-[50px] [&>div]:bg-yellow-500" />
+              <div className="flex items-center shrink-0">
+                 <Clock className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 text-yellow-600" />
+                 <span className="font-bold text-yellow-600 dark:text-yellow-300 tabular-nums">{formatTime(bonusTimeLeft)}</span>
+              </div>
             </motion.div>
           )}
           {!isBonusOfferActive && !bonusSuccessfullyClaimed && (
-            <motion.div
+             <motion.div
               key="bonus-expired"
-              initial={{ opacity: 0, y: 10, height: 0 }}
-              animate={{ opacity: 1, y: 0, height: 'auto' }}
-              exit={{ opacity: 0, y: -10, height: 0, transition: { duration: 0.2 } }}
-              className="text-center p-3 my-4 rounded-lg bg-muted/70 overflow-hidden"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
+              className="text-center p-2 my-2 rounded-lg bg-muted/70 text-xs md:text-sm h-[36px] md:h-[40px] flex items-center justify-center"
             >
-              <p className="text-sm font-semibold flex items-center justify-center">
-                <AlertTriangle className="w-4 h-4 mr-1.5 text-muted-foreground" /> ⏱️ Bonus expired – try again next time!
+              <p className="font-semibold flex items-center">
+                <AlertTriangle className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 text-muted-foreground" /> ⏱ Bonus expired.
               </p>
             </motion.div>
           )}
           {bonusSuccessfullyClaimed && (
             <motion.div
               key="bonus-claimed"
-              initial={{ opacity: 0, y: 10, height: 0 }}
-              animate={{ opacity: 1, y: 0, height: 'auto' }}
-              exit={{ opacity: 0, y: -10, height: 0, transition: { duration: 0.2 } }}
-              className="text-center p-3 my-4 rounded-lg bg-green-500/10 border border-green-600 overflow-hidden"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
+              className="text-center p-2 my-2 rounded-lg bg-green-500/10 border border-green-600 text-xs md:text-sm h-[36px] md:h-[40px] flex items-center justify-center"
             >
-              <p className="text-sm font-semibold text-green-700 dark:text-green-400 flex items-center justify-center">
-                <ShieldCheck className="w-4 h-4 mr-1.5" /> ✅ Bonus Locked In! You’ll get +{BONUS_PERCENTAGE}% extra if you win.
+              <p className="font-semibold text-green-700 dark:text-green-400 flex items-center">
+                <ShieldCheck className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5" /> ✅ Bonus Locked In! +${BONUS_PERCENTAGE}% if you win.
               </p>
             </motion.div>
           )}
         </AnimatePresence>
 
-        <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 mt-6">
-          <motion.button
-            whileHover={{ scale: 1.03, y: -2 }}
-            whileTap={{ scale: 0.97 }}
-            transition={{ type: "spring", stiffness: 400, damping: 17 }}
-            className="flex-1 py-4 px-4 bg-gradient-to-br from-green-500 to-green-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 flex items-center justify-center space-x-2"
-            onClick={() => handleBetAction('with')}
-          >
-            <CheckCircle className="w-5 h-5" />
-            <span>I'm IN – Bet {referrerOriginalChoice}</span>
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.03, y: -2 }}
-            whileTap={{ scale: 0.97 }}
-            transition={{ type: "spring", stiffness: 400, damping: 17 }}
-            className="flex-1 py-4 px-4 bg-gradient-to-br from-red-500 to-red-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 flex items-center justify-center space-x-2"
-            onClick={() => handleBetAction('against')}
-          >
-            <Swords className="w-5 h-5" />
-            <span>Challenge 'Em & Bet {oppositeChoice}</span>
-          </motion.button>
+        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 mt-3">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <motion.button
+                  whileHover={{ scale: 1.03, y: -1 }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                  className="flex-1 py-3 px-3 bg-gradient-to-br from-green-500 to-green-600 text-white font-bold rounded-lg shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 flex items-center justify-center space-x-1.5 text-sm md:text-base"
+                  onClick={() => handleBetAction('with')}
+                >
+                  <CheckCircle className="w-4 h-4 md:w-5 md:h-5" />
+                  <span>I'm In</span>
+                </motion.button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Bet {referrerOriginalChoice} with @{referrerName}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <motion.button
+                  whileHover={{ scale: 1.03, y: -1 }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                  className="flex-1 py-3 px-3 bg-gradient-to-br from-red-500 to-red-600 text-white font-bold rounded-lg shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 flex items-center justify-center space-x-1.5 text-sm md:text-base"
+                  onClick={() => handleBetAction('against')}
+                >
+                  <Swords className="w-4 h-4 md:w-5 md:h-5" />
+                  <span>Challenge</span>
+                </motion.button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Bet {oppositeChoice} & Challenge @{referrerName}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
-         <div className="text-sm text-muted-foreground mt-4 space-y-1">
-          <p>Challenge friends and go viral! Share your bet to X and earn ViralPoints.</p>
+         <div className="text-xs text-muted-foreground mt-3 space-y-1">
+          <p>Go viral! Share your bet to X and earn ViralPoints.</p>
         </div>
       </CardContent>
-      <CardFooter className="flex-col items-center justify-center p-4 bg-muted/30 border-t space-y-2">
-        <div className="flex items-center text-xs text-muted-foreground">
-          <ShieldCheck className="w-4 h-4 mr-1.5 text-primary" />
-           Fast, secure bets on leading blockchains like Ethereum and Polygon.
-        </div>
-        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-            <Badge variant="secondary" className="py-0.5 px-1.5">
-                <Users className="w-3 h-3 mr-1 text-blue-500" /> 12,000+ Bettors
-            </Badge>
-            <Badge variant="secondary" className="py-0.5 px-1.5">
-                <BarChartHorizontalBig className="w-3 h-3 mr-1 text-purple-500" /> 500+ Active Predictions
-            </Badge>
+      <CardFooter className="flex items-center justify-between p-3 bg-muted/20 border-t">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button className="p-1 text-muted-foreground hover:text-primary">
+                <Info className="w-4 h-4 md:w-5 md:h-5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" align="start">
+              <p className="max-w-xs text-xs">Fast, secure bets on leading blockchains like Ethereum and Polygon. Your funds are safe.</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+            <div className="flex items-center">
+                <Users className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 text-blue-500" /> 12k+ Bettors
+            </div>
+            <div className="flex items-center">
+                <BarChartHorizontalBig className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 text-purple-500" /> 500+ Markets
+            </div>
         </div>
       </CardFooter>
     </Card>
   );
 }
+
