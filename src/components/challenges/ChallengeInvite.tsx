@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useEntryContext } from '@/contexts/EntryContext';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, Swords, ShieldCheck, Users, Zap, BarChartHorizontalBig, Clock, AlertTriangle, Crown, Coins, Info } from 'lucide-react';
+import { CheckCircle, Swords, ShieldCheck, Users, Zap, BarChartHorizontalBig, Clock, AlertTriangle, Crown, Coins, Info, Flame } from 'lucide-react';
 import { mockOpponentUser } from '@/lib/mockData';
 import { useAccount } from 'wagmi';
 import { appKitModal } from '@/context/index';
@@ -77,6 +77,32 @@ export default function ChallengeInvite({
   const [isBonusOfferActive, setIsBonusOfferActive] = useState(true);
   const [bonusSuccessfullyClaimed, setBonusSuccessfullyClaimed] = useState(false);
 
+
+  useEffect(() => {
+    if (!isBonusOfferActive || bonusSuccessfullyClaimed) return;
+
+    const timerId = setInterval(() => {
+      setBonusTimeLeft((prevTime) => {
+        if (prevTime <= 1) {
+          clearInterval(timerId);
+          setIsBonusOfferActive(false); 
+          return 0;
+        }
+        return prevTime - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timerId);
+  }, [isBonusOfferActive, bonusSuccessfullyClaimed]);
+
+
+  useEffect(() => {
+    if (bonusTimeLeft <= 0 && isBonusOfferActive && !bonusSuccessfullyClaimed) {
+      setIsBonusOfferActive(false);
+    }
+  }, [bonusTimeLeft, isBonusOfferActive, bonusSuccessfullyClaimed]);
+
+
   useEffect(() => {
     const calculateOdds = (yes: number, no: number) => {
       const total = yes + no;
@@ -107,26 +133,6 @@ export default function ChallengeInvite({
     }, 2500 + Math.random() * 2000);
     return () => clearInterval(activityInterval);
   }, []);
-
-  useEffect(() => {
-    if (!isBonusOfferActive || bonusSuccessfullyClaimed) return;
-
-    if (bonusTimeLeft <= 0) {
-      setIsBonusOfferActive(false);
-      return;
-    }
-    const timerId = setInterval(() => {
-      setBonusTimeLeft((prevTime) => {
-        if (prevTime <= 1) {
-          clearInterval(timerId);
-          setIsBonusOfferActive(false);
-          return 0;
-        }
-        return prevTime - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timerId);
-  }, [isBonusOfferActive, bonusSuccessfullyClaimed, bonusTimeLeft]);
 
 
   const proceedWithNavigation = useCallback((userAction: 'with' | 'against', actualUserChoice: 'YES' | 'NO', bonusApplied = false) => {
@@ -225,7 +231,7 @@ export default function ChallengeInvite({
 
   return (
     <Card className="w-full max-w-md mx-auto shadow-xl rounded-lg text-center overflow-hidden">
-      <CardHeader className="bg-muted/30 p-3 md:p-4 space-y-2"> {/* Reduced padding */}
+      <CardHeader className="bg-muted/30 p-3 md:p-4 space-y-1"> {/* Reduced space-y */}
         <div className="flex items-center space-x-3">
           <Avatar className="w-12 h-12 md:w-16 md:h-16 border-2 border-primary">
             <AvatarImage src={referrerAvatar} alt={referrerName} data-ai-hint="person avatar" />
@@ -241,13 +247,13 @@ export default function ChallengeInvite({
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <div className="flex items-center text-xs text-muted-foreground">
-                        <Zap className="w-3 h-3 md:w-4 md:h-4 mr-1 text-yellow-500" />
-                        <span className="font-bold">{referrerStats.winStreak}</span>
+                      <div className="flex items-center space-x-1 text-xs text-yellow-500">
+                        <Flame className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                        <span className="font-bold">{referrerStats.winStreak}W</span>
                       </div>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Win Streak: {referrerStats.winStreak} in a row</p>
+                      <p>Win Streak: {referrerStats.winStreak} wins in a row</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -283,12 +289,12 @@ export default function ChallengeInvite({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4 p-4 md:p-6"> {/* Reduced padding for consistency */}
+      <CardContent className="space-y-4 p-4 md:p-6">
         <p className="italic text-lg md:text-xl font-semibold text-foreground leading-tight">
           “{predictionQuestion}”
         </p>
 
-        <div className="my-3 space-y-2 py-2 border-y border-border/30"> {/* Reduced margins/paddings */}
+        <div className="my-3 space-y-2 py-2 border-y border-border/30">
           <div className="text-center">
             <p className="text-xs font-medium text-muted-foreground mb-1.5">Live Activity</p>
             <div className="flex justify-around items-start">
