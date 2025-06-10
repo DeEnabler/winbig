@@ -8,18 +8,22 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { useEntryContext } from '@/contexts/EntryContext';
 import { useToast } from '@/hooks/use-toast';
-import { motion } from 'framer-motion';
-import { CheckCircle, Swords, ShieldCheck, Users, Zap, BarChartHorizontalBig } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CheckCircle, Swords, ShieldCheck, Users, Zap, BarChartHorizontalBig, Clock, AlertTriangle } from 'lucide-react';
 import { mockOpponentUser } from '@/lib/mockData';
 import { useAccount } from 'wagmi';
 import { appKitModal } from '@/context/index';
 import { useState, useEffect, useCallback } from 'react';
 import { networks } from '@/config/index';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 
 const REWARD_AMOUNT = 100;
 const REWARD_CURRENCY = "ViralPoints";
 const REWARD_GIVEN_STORAGE_KEY = 'viralBetWalletConnectRewardGiven_v1_reown';
+
+const BONUS_DURATION_SECONDS = 120; // 2 minutes
+const BONUS_PERCENTAGE = 20;
 
 export default function ChallengeInvite({
   matchId: originalChallengeMatchId,
@@ -36,18 +40,24 @@ export default function ChallengeInvite({
   const [pendingActionData, setPendingActionData] = useState<{
     userAction: 'with' | 'against';
     actualUserChoice: 'YES' | 'NO';
+    bonusApplied: boolean;
   } | null>(null);
 
   const referrerAvatar = referrerName === mockOpponentUser.username
     ? mockOpponentUser.avatarUrl
     : `https://placehold.co/40x40.png?text=${referrerName.substring(0,2).toUpperCase()}`;
 
-  const [yesBettors, setYesBettors] = useState(Math.floor(Math.random() * 15) + 8); // Start with some base
+  const [yesBettors, setYesBettors] = useState(Math.floor(Math.random() * 15) + 8);
   const [noBettors, setNoBettors] = useState(Math.floor(Math.random() * 15) + 7);
   const [showPlusOneYes, setShowPlusOneYes] = useState(false);
   const [showPlusOneNo, setShowPlusOneNo] = useState(false);
   const [oddsYes, setOddsYes] = useState(50);
   const [oddsPulse, setOddsPulse] = useState(false);
+
+  // Bonus states
+  const [bonusTimeLeft, setBonusTimeLeft] = useState(BONUS_DURATION_SECONDS);
+  const [isBonusOfferActive, setIsBonusOfferActive] = useState(true);
+  const [bonusSuccessfullyClaimed, setBonusSuccessfullyClaimed] = useState(false);
 
   useEffect(() => {
     const calculateOdds = (yes: number, no: number) => {
@@ -59,7 +69,7 @@ export default function ChallengeInvite({
 
   useEffect(() => {
     const activityInterval = setInterval(() => {
-      const isAddingYes = Math.random() < 0.6; // More likely to add to YES for seeding
+      const isAddingYes = Math.random() < 0.6;
       const isAddingNo = Math.random() < 0.45;
 
       if (isAddingYes) {
@@ -72,32 +82,46 @@ export default function ChallengeInvite({
         setShowPlusOneNo(true);
         setTimeout(() => setShowPlusOneNo(false), 800);
       }
-
-      // Trigger odds pulse if counts changed
       if (isAddingYes || isAddingNo) {
         setOddsPulse(true);
         setTimeout(() => setOddsPulse(false), 700);
       }
-    }, 2500 + Math.random() * 2000); // Random interval between 2.5s and 4.5s
-
+    }, 2500 + Math.random() * 2000);
     return () => clearInterval(activityInterval);
   }, []);
 
+  // Effect for managing the bonus timer countdown
+  useEffect(() => {
+    if (isBonusOfferActive && !bonusSuccessfullyClaimed && bonusTimeLeft > 0) {
+      const timerId = setInterval(() => {
+        setBonusTimeLeft((prevTime) => prevTime - 1);
+      }, 1000);
+      return () => clearInterval(timerId);
+    }
+  }, [isBonusOfferActive, bonusSuccessfullyClaimed, bonusTimeLeft]);
 
-  const proceedWithNavigation = useCallback((userAction: 'with' | 'against', actualUserChoice: 'YES' | 'NO') => {
+  // Effect to handle offer expiration when time runs out
+  useEffect(() => {
+    if (bonusTimeLeft <= 0 && isBonusOfferActive && !bonusSuccessfullyClaimed) {
+      setIsBonusOfferActive(false); // Expire the offer
+    }
+  }, [bonusTimeLeft, isBonusOfferActive, bonusSuccessfullyClaimed]);
+
+
+  const proceedWithNavigation = useCallback((userAction: 'with' | 'against', actualUserChoice: 'YES' | 'NO', bonusApplied = false) => {
     console.log('Analytics: challenge_responded', {
       matchId: originalChallengeMatchId,
       userAction: userAction,
       actualUserChoice: actualUserChoice,
       referrer: referrerName,
       predictionId: predictionId,
+      bonusApplied: bonusApplied,
     });
 
-    const baseUrl = `/match/${originalChallengeMatchId}?predictionId=${predictionId}&choice=${actualUserChoice}&confirmChallenge=true&referrer=${referrerName}`;
+    const baseUrl = `/match/${originalChallengeMatchId}?predictionId=${predictionId}&choice=${actualUserChoice}&confirmChallenge=true&referrer=${referrerName}${bonusApplied ? '&bonusApplied=true' : ''}`;
     const urlWithEntryParams = appendEntryParams(baseUrl);
     router.push(urlWithEntryParams);
   }, [originalChallengeMatchId, predictionId, referrerName, appendEntryParams, router]);
-
 
   useEffect(() => {
     if (isConnected && pendingActionData && address) {
@@ -111,11 +135,17 @@ export default function ChallengeInvite({
           duration: 5000,
         });
       }
+      // If bonus was pending and wallet connects, show bonus claimed toast
+      if(pendingActionData.bonusApplied && !bonusSuccessfullyClaimed){
+        // Note: bonusSuccessfullyClaimed might have already been set if action was taken before connect.
+        // This specific toast is more for "bonus was pending on connect".
+        // The primary "Bonus Locked In" toast happens in handleBetAction.
+      }
 
-      proceedWithNavigation(pendingActionData.userAction, pendingActionData.actualUserChoice);
+      proceedWithNavigation(pendingActionData.userAction, pendingActionData.actualUserChoice, pendingActionData.bonusApplied);
       setPendingActionData(null);
     }
-  }, [isConnected, pendingActionData, address, toast, proceedWithNavigation]);
+  }, [isConnected, pendingActionData, address, toast, proceedWithNavigation, bonusSuccessfullyClaimed]);
 
 
   const handleBetAction = (userAction: 'with' | 'against') => {
@@ -126,38 +156,57 @@ export default function ChallengeInvite({
       actualUserChoice = referrerOriginalChoice === 'YES' ? 'NO' : 'YES';
     }
 
+    let bonusAppliedForThisAction = false;
+    if (isBonusOfferActive && !bonusSuccessfullyClaimed) {
+      setBonusSuccessfullyClaimed(true);
+      setIsBonusOfferActive(false); // Turn off offer display, show "claimed" message instead
+      bonusAppliedForThisAction = true;
+      toast({
+        title: "Bonus Locked In! 🌟",
+        description: `You’ll get +${BONUS_PERCENTAGE}% extra if you win. Good luck!`,
+        duration: 5000,
+      });
+    }
+
     if (!isConnected) {
-      setPendingActionData({ userAction, actualUserChoice });
+      setPendingActionData({ userAction, actualUserChoice, bonusApplied: bonusAppliedForThisAction });
       const rewardAlreadyGiven = !!address && localStorage.getItem(REWARD_GIVEN_STORAGE_KEY) === address;
+      let toastTitle = "Connect Wallet";
+      let toastDescription = "Please connect your wallet to continue.";
 
       if (!rewardAlreadyGiven) {
-        toast({
-          title: "Connect Wallet & Earn!",
-          description: `Connect your wallet to proceed and earn ${REWARD_AMOUNT} ${REWARD_CURRENCY} instantly!`,
-        });
-      } else {
-         toast({
-          title: "Connect Wallet",
-          description: "Please connect your wallet to continue.",
-        });
+        toastTitle = "Connect Wallet & Earn!";
+        toastDescription = `Connect your wallet to proceed and earn ${REWARD_AMOUNT} ${REWARD_CURRENCY} instantly!`;
       }
+       if (bonusAppliedForThisAction && !rewardAlreadyGiven) {
+        toastDescription += ` Your +${BONUS_PERCENTAGE}% bonus is also waiting!`;
+      } else if (bonusAppliedForThisAction) {
+        toastDescription += ` Your +${BONUS_PERCENTAGE}% bonus will be applied.`;
+      }
+
+      toast({ title: toastTitle, description: toastDescription });
 
       if (appKitModal && typeof appKitModal.open === 'function') {
         appKitModal.open();
       } else {
-        console.error('ChallengeInvite: appKitModal or appKitModal.open is not available. Wallet connection cannot be initiated.');
+        console.error('ChallengeInvite: appKitModal or appKitModal.open is not available.');
         toast({
           variant: "destructive",
           title: "Wallet Error",
-          description: "Could not initiate wallet connection. Please try the 'Connect Wallet' button in the header.",
+          description: "Could not initiate wallet connection.",
         });
       }
       return;
     }
-    proceedWithNavigation(userAction, actualUserChoice);
+    proceedWithNavigation(userAction, actualUserChoice, bonusAppliedForThisAction);
   };
 
-  const supportedNetworkNames = networks.slice(0, 2).map(n => n.name).join(', ');
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+  };
+
   const oppositeChoice = referrerOriginalChoice === 'YES' ? 'NO' : 'YES';
 
   return (
@@ -178,7 +227,6 @@ export default function ChallengeInvite({
           “{predictionQuestion}”
         </p>
 
-        {/* Live Activity Section */}
         <div className="my-4 space-y-3 py-3 border-y border-border/50">
           <div className="text-center">
             <p className="text-sm font-medium text-muted-foreground mb-2">Live Activity</p>
@@ -212,8 +260,51 @@ export default function ChallengeInvite({
             </p>
           </div>
         </div>
-        {/* End Live Activity Section */}
 
+        {/* Bonus Offer Section */}
+        <AnimatePresence mode="wait">
+          {isBonusOfferActive && !bonusSuccessfullyClaimed && (
+            <motion.div
+              key="bonus-active"
+              initial={{ opacity: 0, y: 10, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, y: -10, height: 0, transition: { duration: 0.2 } }}
+              className="text-center p-3 my-4 rounded-lg border-2 border-dashed border-yellow-500 bg-yellow-500/10 space-y-2 overflow-hidden"
+            >
+              <p className="text-sm font-semibold text-yellow-700 dark:text-yellow-400 flex items-center justify-center">
+                <Clock className="w-4 h-4 mr-1.5" /> 🎉 Limited Bonus: +{BONUS_PERCENTAGE}% payout if you bet before the timer ends!
+              </p>
+              <Progress value={(bonusTimeLeft / BONUS_DURATION_SECONDS) * 100} className="h-2 [&>div]:bg-yellow-500" />
+              <p className="text-lg font-bold text-yellow-600 dark:text-yellow-300">{formatTime(bonusTimeLeft)}</p>
+            </motion.div>
+          )}
+          {!isBonusOfferActive && !bonusSuccessfullyClaimed && (
+            <motion.div
+              key="bonus-expired"
+              initial={{ opacity: 0, y: 10, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, y: -10, height: 0, transition: { duration: 0.2 } }}
+              className="text-center p-3 my-4 rounded-lg bg-muted/70 overflow-hidden"
+            >
+              <p className="text-sm font-semibold flex items-center justify-center">
+                <AlertTriangle className="w-4 h-4 mr-1.5 text-muted-foreground" /> ⏱️ Bonus expired – try again next time!
+              </p>
+            </motion.div>
+          )}
+          {bonusSuccessfullyClaimed && (
+            <motion.div
+              key="bonus-claimed"
+              initial={{ opacity: 0, y: 10, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, y: -10, height: 0, transition: { duration: 0.2 } }}
+              className="text-center p-3 my-4 rounded-lg bg-green-500/10 border border-green-600 overflow-hidden"
+            >
+              <p className="text-sm font-semibold text-green-700 dark:text-green-400 flex items-center justify-center">
+                <ShieldCheck className="w-4 h-4 mr-1.5" /> ✅ Bonus Locked In! You’ll get +{BONUS_PERCENTAGE}% extra if you win.
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 mt-6">
           <motion.button
@@ -258,3 +349,5 @@ export default function ChallengeInvite({
     </Card>
   );
 }
+
+    
