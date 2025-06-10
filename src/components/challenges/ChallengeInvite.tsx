@@ -9,11 +9,11 @@ import { useRouter } from 'next/navigation';
 import { useEntryContext } from '@/contexts/EntryContext';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, Swords, ShieldCheck, Users, Zap, BarChartHorizontalBig, Clock, AlertTriangle } from 'lucide-react';
+import { CheckCircle, Swords, ShieldCheck, Users, Zap, BarChartHorizontalBig, Clock, AlertTriangle, Crown, Coins } from 'lucide-react';
 import { mockOpponentUser } from '@/lib/mockData';
 import { useAccount } from 'wagmi';
 import { appKitModal } from '@/context/index';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { networks } from '@/config/index';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -24,6 +24,12 @@ const REWARD_GIVEN_STORAGE_KEY = 'viralBetWalletConnectRewardGiven_v1_reown';
 
 const BONUS_DURATION_SECONDS = 120; // 2 minutes
 const BONUS_PERCENTAGE = 20;
+
+interface ReferrerStats {
+  winStreak: number;
+  totalWinnings: string;
+  predictionRank: string;
+}
 
 export default function ChallengeInvite({
   matchId: originalChallengeMatchId,
@@ -47,6 +53,26 @@ export default function ChallengeInvite({
     ? mockOpponentUser.avatarUrl
     : `https://placehold.co/40x40.png?text=${referrerName.substring(0,2).toUpperCase()}`;
 
+  const referrerStats = useMemo((): ReferrerStats | null => {
+    if (referrerName === mockOpponentUser.username) {
+      return {
+        winStreak: mockOpponentUser.betStreak || 0,
+        totalWinnings: mockOpponentUser.totalWinnings || "Not Available",
+        predictionRank: mockOpponentUser.predictionRank || "Unranked",
+      };
+    }
+    // For other referrers, provide some default/generic stats or null if none
+    // For now, returning null for non-CryptoKing88 for simplicity
+    return null; 
+    // Or for generic stats:
+    // return {
+    //   winStreak: Math.floor(Math.random() * 5),
+    //   totalWinnings: `${Math.floor(Math.random() * 100)} XYZ`,
+    //   predictionRank: `Top ${Math.floor(Math.random() * 40) + 10}%`,
+    // };
+  }, [referrerName]);
+
+
   const [yesBettors, setYesBettors] = useState(Math.floor(Math.random() * 15) + 8);
   const [noBettors, setNoBettors] = useState(Math.floor(Math.random() * 15) + 7);
   const [showPlusOneYes, setShowPlusOneYes] = useState(false);
@@ -54,7 +80,6 @@ export default function ChallengeInvite({
   const [oddsYes, setOddsYes] = useState(50);
   const [oddsPulse, setOddsPulse] = useState(false);
 
-  // Bonus states
   const [bonusTimeLeft, setBonusTimeLeft] = useState(BONUS_DURATION_SECONDS);
   const [isBonusOfferActive, setIsBonusOfferActive] = useState(true);
   const [bonusSuccessfullyClaimed, setBonusSuccessfullyClaimed] = useState(false);
@@ -90,20 +115,23 @@ export default function ChallengeInvite({
     return () => clearInterval(activityInterval);
   }, []);
 
-  // Effect for managing the bonus timer countdown
   useEffect(() => {
-    if (isBonusOfferActive && !bonusSuccessfullyClaimed && bonusTimeLeft > 0) {
-      const timerId = setInterval(() => {
-        setBonusTimeLeft((prevTime) => prevTime - 1);
-      }, 1000);
-      return () => clearInterval(timerId);
+    if (!isBonusOfferActive || bonusSuccessfullyClaimed) return;
+
+    if (bonusTimeLeft <= 0) {
+      setIsBonusOfferActive(false);
+      return;
     }
+
+    const timerId = setInterval(() => {
+      setBonusTimeLeft((prevTime) => prevTime - 1);
+    }, 1000);
+    return () => clearInterval(timerId);
   }, [isBonusOfferActive, bonusSuccessfullyClaimed, bonusTimeLeft]);
 
-  // Effect to handle offer expiration when time runs out
   useEffect(() => {
     if (bonusTimeLeft <= 0 && isBonusOfferActive && !bonusSuccessfullyClaimed) {
-      setIsBonusOfferActive(false); // Expire the offer
+      setIsBonusOfferActive(false);
     }
   }, [bonusTimeLeft, isBonusOfferActive, bonusSuccessfullyClaimed]);
 
@@ -135,17 +163,10 @@ export default function ChallengeInvite({
           duration: 5000,
         });
       }
-      // If bonus was pending and wallet connects, show bonus claimed toast
-      if(pendingActionData.bonusApplied && !bonusSuccessfullyClaimed){
-        // Note: bonusSuccessfullyClaimed might have already been set if action was taken before connect.
-        // This specific toast is more for "bonus was pending on connect".
-        // The primary "Bonus Locked In" toast happens in handleBetAction.
-      }
-
       proceedWithNavigation(pendingActionData.userAction, pendingActionData.actualUserChoice, pendingActionData.bonusApplied);
       setPendingActionData(null);
     }
-  }, [isConnected, pendingActionData, address, toast, proceedWithNavigation, bonusSuccessfullyClaimed]);
+  }, [isConnected, pendingActionData, address, toast, proceedWithNavigation]);
 
 
   const handleBetAction = (userAction: 'with' | 'against') => {
@@ -159,7 +180,7 @@ export default function ChallengeInvite({
     let bonusAppliedForThisAction = false;
     if (isBonusOfferActive && !bonusSuccessfullyClaimed) {
       setBonusSuccessfullyClaimed(true);
-      setIsBonusOfferActive(false); // Turn off offer display, show "claimed" message instead
+      setIsBonusOfferActive(false); 
       bonusAppliedForThisAction = true;
       toast({
         title: "Bonus Locked In! 🌟",
@@ -211,16 +232,39 @@ export default function ChallengeInvite({
 
   return (
     <Card className="w-full max-w-md mx-auto shadow-xl rounded-lg text-center overflow-hidden">
-      <CardHeader className="bg-muted/50 p-6">
+      <CardHeader className="bg-muted/50 p-6 space-y-3">
         <div className="flex flex-col items-center space-y-2">
           <Avatar className="w-16 h-16 border-2 border-primary">
             <AvatarImage src={referrerAvatar} alt={referrerName} data-ai-hint="person avatar" />
             <AvatarFallback>{referrerName.substring(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
           <CardTitle className="text-xl">
-            @{referrerName} is betting <span className={referrerOriginalChoice === 'YES' ? 'text-green-500 font-bold' : 'text-red-500 font-bold'}>{referrerOriginalChoice}</span>
+            {referrerName === mockOpponentUser.username && "👑 "}@{referrerName}
           </CardTitle>
+          <CardDescription>
+            is betting <span className={referrerOriginalChoice === 'YES' ? 'text-green-500 font-bold' : 'text-red-500 font-bold'}>{referrerOriginalChoice}</span>
+          </CardDescription>
         </div>
+
+        {referrerStats && (
+          <div className="border-2 border-primary/50 rounded-lg p-3 bg-background/70 shadow-md w-full max-w-xs mx-auto">
+            <h3 className="text-sm font-semibold text-primary mb-2 text-center">Referrer Stats</h3>
+            <div className="space-y-1.5 text-left">
+              <div className="flex items-center text-sm">
+                <Zap className="w-4 h-4 mr-2 text-yellow-500" />
+                <span>Win Streak: <strong>{referrerStats.winStreak}</strong></span>
+              </div>
+              <div className="flex items-center text-sm">
+                <Coins className="w-4 h-4 mr-2 text-green-500" />
+                <span>Total Won: <strong>{referrerStats.totalWinnings}</strong></span>
+              </div>
+              <div className="flex items-center text-sm">
+                <Crown className="w-4 h-4 mr-2 text-purple-500" />
+                <span>Rank: <strong>{referrerStats.predictionRank}</strong></span>
+              </div>
+            </div>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="space-y-6 p-6">
         <p className="italic text-xl font-semibold text-foreground leading-tight">
@@ -261,7 +305,6 @@ export default function ChallengeInvite({
           </div>
         </div>
 
-        {/* Bonus Offer Section */}
         <AnimatePresence mode="wait">
           {isBonusOfferActive && !bonusSuccessfullyClaimed && (
             <motion.div
@@ -349,5 +392,3 @@ export default function ChallengeInvite({
     </Card>
   );
 }
-
-    

@@ -18,7 +18,9 @@ export interface User {
   username: string;
   avatarUrl?: string;
   xp: number;
-  betStreak: number;
+  betStreak: number; // Represents win streak
+  totalWinnings?: string; // e.g., "124.5 SOL" or "$5,000"
+  predictionRank?: string; // e.g., "Top 2%" or "#5 Global"
 }
 
 export interface BetPlacement {
@@ -66,7 +68,7 @@ export interface Match {
 export interface LeaderboardEntry {
   rank: number;
   user: User;
-  totalWinnings: number;
+  totalWinnings: number; // Assuming this is a numerical value for sorting, display might format it
   longestStreak: number;
 }
 
@@ -142,3 +144,4 @@ export interface OgData {
   rankCategory?: string;
   bonusApplied?: boolean; // Added for bonus tracking in OG
 }
+
