@@ -243,7 +243,7 @@ export default function ChallengeInvite({
   if (referrerStats) {
     const cleanReferrerName = referrerName.replace(/^👑\s*@/, '@');
     if (referrerStats.winStreak > 7) {
-      egoHookMessage = `🔥 @${referrerName} is on a ${referrerStats.winStreak}W tear. Think you can break it?`;
+      egoHookMessage = `🔥 @${cleanReferrerName} is on a ${referrerStats.winStreak}W tear. Think you can break it?`;
     } else if (referrerStats.winStreak > 3) {
       egoHookMessage = `They're on a ${referrerStats.winStreak}W streak. Feeling lucky?`;
     } else if (referrerStats.predictionRank && (referrerStats.predictionRank.includes("Top") || referrerStats.predictionRank.includes("#"))) {
@@ -357,68 +357,70 @@ export default function ChallengeInvite({
         </div>
 
         {showBonusSection && (
-          <div className="text-red-500 font-bold p-2 border border-red-500 my-2">
-            DEBUG: showBonusSection is TRUE. Bonus content should be below.
-          </div>
-        )}
-
-        {showBonusSection && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-          >
-            <AnimatePresence mode="wait">
-              {isBonusOfferActive && !bonusSuccessfullyClaimed && (
-                <motion.div
-                  key="bonus-active"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                  exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
-                  className={`flex items-center justify-between w-full p-2 my-2 rounded-lg border border-yellow-500 bg-yellow-500/10 text-xs md:text-sm overflow-hidden h-[36px] md:h-[40px] ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'animate-pulse-glow' : ''}`}
-                >
-                  <div className="flex items-center shrink-0">
-                    <Zap className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 text-yellow-600" />
-                    <span className="font-semibold text-yellow-700 dark:text-yellow-400 whitespace-nowrap">+${BONUS_PERCENTAGE}% Bonus!</span>
-                  </div>
-                  <Progress value={(bonusTimeLeft / BONUS_DURATION_SECONDS) * 100} className="h-1.5 md:h-2 mx-2 md:mx-3 w-full flex-grow min-w-[50px] [&>div]:bg-yellow-500" />
-                  <div className="flex items-center shrink-0">
-                     <Clock className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 text-yellow-600" />
-                     <span className="font-bold text-yellow-600 dark:text-yellow-300 tabular-nums">{formatTime(bonusTimeLeft)}</span>
-                  </div>
-                </motion.div>
-              )}
-              {!isBonusOfferActive && !bonusSuccessfullyClaimed && (
-                 <motion.div
-                  key="bonus-expired"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                  exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
-                  className="text-center p-2 my-2 rounded-lg bg-muted/70 text-xs md:text-sm h-[36px] md:h-[40px] flex items-center justify-center"
-                >
-                  <p className="font-semibold flex items-center">
-                    <AlertTriangle className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 text-muted-foreground" /> ⏱ Bonus expired.
-                  </p>
-                </motion.div>
-              )}
-              {bonusSuccessfullyClaimed && (
-                <motion.div
-                  key="bonus-claimed"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                  exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
-                  className="text-center p-2 my-2 rounded-lg bg-green-500/10 border border-green-600 text-xs md:text-sm h-[36px] md:h-[40px] flex items-center justify-center"
-                >
-                  <p className="font-semibold text-green-700 dark:text-green-400 flex items-center">
-                    <ShieldCheck className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5" /> ✅ Bonus Locked In! +${BONUS_PERCENTAGE}% if you win.
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
+          <>
+            <div className="text-red-500 font-bold p-2 border border-red-500 my-2">
+              DEBUG: showBonusSection is TRUE. Bonus content should be below.
+            </div>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+            >
+              <div className="text-blue-500 font-bold p-2 border border-blue-500 my-2">
+                DEBUG: INSIDE PARENT MOTION.DIV. AnimatePresence is next.
+              </div>
+              <AnimatePresence mode="wait">
+                {isBonusOfferActive && !bonusSuccessfullyClaimed && (
+                  <motion.div
+                    key="bonus-active"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                    exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
+                    className={`flex items-center justify-between w-full p-2 my-2 rounded-lg border border-yellow-500 bg-yellow-500/10 text-xs md:text-sm overflow-hidden h-[36px] md:h-[40px] ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'animate-pulse-glow' : ''}`}
+                  >
+                    <div className="flex items-center shrink-0">
+                      <Zap className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 text-yellow-600" />
+                      <span className="font-semibold text-yellow-700 dark:text-yellow-400 whitespace-nowrap">+${BONUS_PERCENTAGE}% Bonus!</span>
+                    </div>
+                    <Progress value={(bonusTimeLeft / BONUS_DURATION_SECONDS) * 100} className="h-1.5 md:h-2 mx-2 md:mx-3 w-full flex-grow min-w-[50px] [&>div]:bg-yellow-500" />
+                    <div className="flex items-center shrink-0">
+                       <Clock className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 text-yellow-600" />
+                       <span className="font-bold text-yellow-600 dark:text-yellow-300 tabular-nums">{formatTime(bonusTimeLeft)}</span>
+                    </div>
+                  </motion.div>
+                )}
+                {!isBonusOfferActive && !bonusSuccessfullyClaimed && (
+                   <motion.div
+                    key="bonus-expired"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                    exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
+                    className="text-center p-2 my-2 rounded-lg bg-muted/70 text-xs md:text-sm h-[36px] md:h-[40px] flex items-center justify-center"
+                  >
+                    <p className="font-semibold flex items-center">
+                      <AlertTriangle className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 text-muted-foreground" /> ⏱ Bonus expired.
+                    </p>
+                  </motion.div>
+                )}
+                {bonusSuccessfullyClaimed && (
+                  <motion.div
+                    key="bonus-claimed"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                    exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
+                    className="text-center p-2 my-2 rounded-lg bg-green-500/10 border border-green-600 text-xs md:text-sm h-[36px] md:h-[40px] flex items-center justify-center"
+                  >
+                    <p className="font-semibold text-green-700 dark:text-green-400 flex items-center">
+                      <ShieldCheck className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5" /> ✅ Bonus Locked In! +${BONUS_PERCENTAGE}% if you win.
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          </>
         )}
 
         <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 mt-3">
@@ -480,3 +482,4 @@ export default function ChallengeInvite({
     </Card>
   );
 }
+
