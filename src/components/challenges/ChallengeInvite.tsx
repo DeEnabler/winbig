@@ -366,6 +366,9 @@ export default function ChallengeInvite({
               {isBonusOfferActive && !bonusSuccessfullyClaimed && (
                 <motion.div
                   key="bonus-active"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
                   exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
                   className={`flex items-center justify-between w-full p-2 my-2 rounded-lg border border-yellow-500 bg-yellow-500/10 text-xs md:text-sm overflow-hidden h-[36px] md:h-[40px] ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'animate-pulse-glow' : ''}`}
                 >
@@ -383,6 +386,9 @@ export default function ChallengeInvite({
               {!isBonusOfferActive && !bonusSuccessfullyClaimed && (
                  <motion.div
                   key="bonus-expired"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
                   exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
                   className="text-center p-2 my-2 rounded-lg bg-muted/70 text-xs md:text-sm h-[36px] md:h-[40px] flex items-center justify-center"
                 >
@@ -394,6 +400,9 @@ export default function ChallengeInvite({
               {bonusSuccessfullyClaimed && (
                 <motion.div
                   key="bonus-claimed"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
                   exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
                   className="text-center p-2 my-2 rounded-lg bg-green-500/10 border border-green-600 text-xs md:text-sm h-[36px] md:h-[40px] flex items-center justify-center"
                 >
@@ -447,13 +456,12 @@ export default function ChallengeInvite({
           </TooltipProvider>
         </div>
          <div className="text-xs text-muted-foreground mt-3 space-y-1">
+          <p>🛡️ Fast, secure bets – Powered by smart contracts</p>
           <p>Go viral! Share your bet to X and earn ViralPoints.</p>
         </div>
       </CardContent>
       <CardFooter className="flex items-center justify-between p-3 bg-muted/20 border-t text-xs text-muted-foreground">
-        <span className="flex items-center">
-           🛡️ Fast, secure bets – Powered by smart contracts
-        </span>
+        
         <div className="flex items-center space-x-3">
             <div className="flex items-center">
                 <Users className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 text-blue-500" /> 12k+ Bettors
@@ -466,6 +474,5 @@ export default function ChallengeInvite({
     </Card>
   );
 }
-
 
     
