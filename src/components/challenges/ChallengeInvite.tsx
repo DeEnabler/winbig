@@ -231,7 +231,7 @@ export default function ChallengeInvite({
 
   return (
     <Card className="w-full max-w-md mx-auto shadow-xl rounded-lg text-center overflow-hidden">
-      <CardHeader className="bg-muted/30 p-3 md:p-4 space-y-1"> {/* Reduced space-y */}
+      <CardHeader className="bg-muted/30 p-3 md:p-4 space-y-1">
         <div className="flex items-center space-x-3">
           <Avatar className="w-12 h-12 md:w-16 md:h-16 border-2 border-primary">
             <AvatarImage src={referrerAvatar} alt={referrerName} data-ai-hint="person avatar" />
@@ -420,20 +420,11 @@ export default function ChallengeInvite({
           <p>Go viral! Share your bet to X and earn ViralPoints.</p>
         </div>
       </CardContent>
-      <CardFooter className="flex items-center justify-between p-3 bg-muted/20 border-t">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button className="p-1 text-muted-foreground hover:text-primary">
-                <Info className="w-4 h-4 md:w-5 md:h-5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top" align="start">
-              <p className="max-w-xs text-xs">Fast, secure bets on leading blockchains like Ethereum and Polygon. Your funds are safe.</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+      <CardFooter className="flex items-center justify-between p-3 bg-muted/20 border-t text-xs text-muted-foreground">
+        <span className="flex items-center">
+            <ShieldCheck className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 text-blue-500" /> Fast, secure bets – Powered by smart contracts
+        </span>
+        <div className="flex items-center space-x-3">
             <div className="flex items-center">
                 <Users className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 text-blue-500" /> 12k+ Bettors
             </div>
