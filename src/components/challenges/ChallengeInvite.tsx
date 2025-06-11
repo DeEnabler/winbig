@@ -375,11 +375,11 @@ export default function ChallengeInvite({
                     animate={{ opacity: 1 }}   
                     transition={{ duration: 0.3 }} 
                     exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
-                    className={`flex items-center justify-between w-full p-2 my-2 rounded-lg border border-yellow-500 bg-yellow-500/10 text-xs md:text-sm overflow-hidden h-[36px] md:h-[40px] ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'animate-pulse-glow' : ''}`}
+                    className={`flex items-center justify-between w-full p-2 my-2 rounded-lg border border-yellow-500 bg-yellow-500/10 text-xs md:text-sm ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'animate-pulse-glow' : ''}`}
                   >
                     <div className="flex items-center shrink-0">
                       <Zap className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 text-yellow-600" />
-                      <span className="font-semibold text-yellow-700 dark:text-yellow-400 whitespace-nowrap">+${BONUS_PERCENTAGE}% Bonus!</span>
+                      <span className="font-semibold text-yellow-700 dark:text-yellow-400 whitespace-nowrap">+{BONUS_PERCENTAGE}% Bonus!</span>
                     </div>
                     <Progress value={(bonusTimeLeft / BONUS_DURATION_SECONDS) * 100} className="h-1.5 md:h-2 mx-2 md:mx-3 w-full flex-grow min-w-[50px] [&>div]:bg-yellow-500" />
                     <div className="flex items-center shrink-0">
@@ -480,5 +480,7 @@ export default function ChallengeInvite({
     </Card>
   );
 }
+
+    
 
     
