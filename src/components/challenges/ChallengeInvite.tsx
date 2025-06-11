@@ -362,7 +362,7 @@ export default function ChallengeInvite({
               DEBUG: showBonusSection is TRUE. Bonus content should be below.
             </div>
             <motion.div
-              // Removed animation props for diagnostics: initial, animate, transition
+              // Animation props removed for diagnostics.
             >
               <div className="text-blue-500 font-bold p-2 border border-blue-500 my-2">
                 DEBUG: INSIDE PARENT MOTION.DIV. AnimatePresence is next.
@@ -371,10 +371,10 @@ export default function ChallengeInvite({
                 {isBonusOfferActive && !bonusSuccessfullyClaimed && (
                   <motion.div
                     key="bonus-active"
-                    initial={{ opacity: 0 }} 
-                    animate={{ opacity: 1 }}   
-                    transition={{ duration: 0.3 }} 
-                    exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
+                    initial={{ opacity: 0 }} // Simplified: just fade in
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                    // exit prop removed for now for diagnostics
                     className={`flex items-center justify-between w-full p-2 my-2 rounded-lg border border-yellow-500 bg-yellow-500/10 text-xs md:text-sm ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'animate-pulse-glow' : ''}`}
                   >
                     <div className="flex items-center shrink-0">
@@ -480,7 +480,3 @@ export default function ChallengeInvite({
     </Card>
   );
 }
-
-    
-
-    
