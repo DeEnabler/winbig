@@ -1,4 +1,3 @@
-
 // src/components/challenges/ChallengeInvite.tsx
 'use client';
 
@@ -85,7 +84,7 @@ export default function ChallengeInvite({
       setBonusTimeLeft((prevTime) => {
         if (prevTime <= 1) {
           clearInterval(timerId);
-          setIsBonusOfferActive(false); 
+          setIsBonusOfferActive(false);
           return 0;
         }
         return prevTime - 1;
@@ -179,7 +178,7 @@ export default function ChallengeInvite({
     let bonusAppliedForThisAction = false;
     if (isBonusOfferActive && !bonusSuccessfullyClaimed) {
       setBonusSuccessfullyClaimed(true);
-      setIsBonusOfferActive(false); 
+      setIsBonusOfferActive(false);
       bonusAppliedForThisAction = true;
       toast({
         title: "Bonus Locked In! 🌟",
@@ -229,6 +228,20 @@ export default function ChallengeInvite({
 
   const oppositeChoice = referrerOriginalChoice === 'YES' ? 'NO' : 'YES';
 
+  let egoHookMessage = "Do you trust their instincts – or bet against them?";
+  if (referrerStats) {
+    if (referrerStats.winStreak > 7) {
+      egoHookMessage = `🔥 @${referrerName} is on a ${referrerStats.winStreak}W tear. Think you can break it?`;
+    } else if (referrerStats.winStreak > 3) {
+      egoHookMessage = `They're on a ${referrerStats.winStreak}W streak. Feeling lucky?`;
+    } else if (referrerStats.predictionRank && (referrerStats.predictionRank.includes("Top") || referrerStats.predictionRank.includes("#"))) {
+      // Make sure referrerName is not "👑 @Username" but just "Username" for the message
+      const cleanReferrerName = referrerName.replace(/^👑\s*@/, '@');
+      egoHookMessage = `${cleanReferrerName} is ${referrerStats.predictionRank}. Challenge the champ?`;
+    }
+  }
+
+
   return (
     <Card className="w-full max-w-md mx-auto shadow-xl rounded-lg text-center overflow-hidden">
       <CardHeader className="bg-muted/30 p-3 md:p-4 space-y-1">
@@ -243,48 +256,53 @@ export default function ChallengeInvite({
               <span className="text-sm md:text-base font-normal text-muted-foreground"> bet <span className={referrerOriginalChoice === 'YES' ? 'text-green-500 font-bold' : 'text-red-500 font-bold'}>{referrerOriginalChoice}</span></span>
             </h2>
             {referrerStats && (
-              <div className="flex items-center space-x-2 md:space-x-3 mt-1">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex items-center space-x-1 text-xs text-yellow-500">
-                        <Flame className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                        <span className="font-bold">{referrerStats.winStreak}W</span>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Win Streak: {referrerStats.winStreak} wins in a row</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex items-center text-xs text-muted-foreground">
-                        <Coins className="w-3 h-3 md:w-4 md:h-4 mr-1 text-green-500" />
-                        <span className="font-bold">{referrerStats.totalWinnings.split(' ')[0]}</span>
-                        <span className="ml-0.5">{referrerStats.totalWinnings.split(' ')[1]}</span>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Total Won: {referrerStats.totalWinnings}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex items-center text-xs text-muted-foreground">
-                        <Crown className="w-3 h-3 md:w-4 md:h-4 mr-1 text-purple-500" />
-                        <span className="font-bold">{referrerStats.predictionRank}</span>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Prediction Rank: {referrerStats.predictionRank}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
+              <>
+                <div className="flex items-center space-x-2 md:space-x-3 mt-1">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center space-x-1 text-xs text-yellow-500">
+                          <Flame className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                          <span className="font-bold">{referrerStats.winStreak}W</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Win Streak: {referrerStats.winStreak} wins in a row</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <Coins className="w-3 h-3 md:w-4 md:h-4 mr-1 text-green-500" />
+                          <span className="font-bold">{referrerStats.totalWinnings.split(' ')[0]}</span>
+                          <span className="ml-0.5">{referrerStats.totalWinnings.split(' ')[1]}</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Total Won: {referrerStats.totalWinnings}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <Crown className="w-3 h-3 md:w-4 md:h-4 mr-1 text-purple-500" />
+                          <span className="font-bold">{referrerStats.predictionRank}</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Prediction Rank: {referrerStats.predictionRank}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <p className="text-xs md:text-sm text-muted-foreground italic mt-1.5 text-center sm:text-left">
+                  {egoHookMessage}
+                </p>
+              </>
             )}
           </div>
         </div>
@@ -422,7 +440,7 @@ export default function ChallengeInvite({
       </CardContent>
       <CardFooter className="flex items-center justify-between p-3 bg-muted/20 border-t text-xs text-muted-foreground">
         <span className="flex items-center">
-            <ShieldCheck className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 text-blue-500" /> Fast, secure bets – Powered by smart contracts
+           🛡️ Fast, secure bets – Powered by smart contracts
         </span>
         <div className="flex items-center space-x-3">
             <div className="flex items-center">
@@ -436,4 +454,3 @@ export default function ChallengeInvite({
     </Card>
   );
 }
-
