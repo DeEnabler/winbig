@@ -2,17 +2,18 @@
 'use client';
 
 import Link from 'next/link';
-import { Home, BarChart3, Menu, X, Coins } from 'lucide-react';
+import { Home, BarChart3, Menu, X, Coins, DollarSign } from 'lucide-react'; // Added DollarSign
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/common/Logo';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { mockCurrentUser } from '@/lib/mockData';
-import ConnectWalletButton from '@/components/wallet/ConnectWallet'; // Added
+import ConnectWalletButton from '@/components/wallet/ConnectWallet';
 
 const navItems = [
   { href: '/', label: 'Bet', icon: Home },
+  { href: '/earn', label: 'Earn', icon: DollarSign }, // Added Earn page
   { href: '/leaderboard', label: 'Leaderboard', icon: BarChart3 },
 ];
 
@@ -48,13 +49,13 @@ export default function Navbar() {
               </Button>
             ))}
           </nav>
-          <div className="hidden md:flex items-center space-x-2 border-l pl-4 ml-2"> {/* Reduced ml-4 to ml-2 */}
+          <div className="hidden md:flex items-center space-x-2 border-l pl-4 ml-2">
             <Coins className="h-5 w-5 text-yellow-500" />
             <span className="text-sm font-semibold text-foreground">
               {mockCurrentUser.xp.toLocaleString()} XP
             </span>
           </div>
-          <div className="hidden md:block ml-2"> {/* Reduced ml-4 to ml-2 */}
+          <div className="hidden md:block ml-2">
             <ConnectWalletButton />
           </div>
 
@@ -106,3 +107,5 @@ export default function Navbar() {
     </header>
   );
 }
+
+    
