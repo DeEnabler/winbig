@@ -4,7 +4,7 @@
 
 import { Button } from '@/components/ui/button';
 import { useAccount, useDisconnect } from 'wagmi';
-import { LogIn, LogOut, UserCircle, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { LogIn, LogOut, UserCircle, AlertTriangle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -81,9 +81,7 @@ export default function ConnectWalletButton() {
 
   return (
     <div className="flex flex-col items-center w-full">
-      <p className="text-xs text-muted-foreground mb-2 flex items-center">
-        <ShieldCheck className="w-3 h-3 mr-1 text-green-600" /> Wallet protected – no access to funds, only signing your bet.
-      </p>
+      {/* Trust text removed from here */}
       <Button
         onClick={handleOpenModal}
         variant="default"
@@ -95,4 +93,3 @@ export default function ConnectWalletButton() {
     </div>
   );
 }
-
