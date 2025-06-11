@@ -30,7 +30,8 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const cookie = headers().get('cookie');
+  const headersList = headers();
+  const cookie = headersList.get('cookie');
 
   return (
     <html lang="en" suppressHydrationWarning>
