@@ -241,12 +241,12 @@ export default function ChallengeInvite({
 
   let egoHookMessage = "Do you trust their instincts – or bet against them?";
   if (referrerStats) {
+    const cleanReferrerName = referrerName.replace(/^👑\s*@/, '@');
     if (referrerStats.winStreak > 7) {
       egoHookMessage = `🔥 @${referrerName} is on a ${referrerStats.winStreak}W tear. Think you can break it?`;
     } else if (referrerStats.winStreak > 3) {
       egoHookMessage = `They're on a ${referrerStats.winStreak}W streak. Feeling lucky?`;
     } else if (referrerStats.predictionRank && (referrerStats.predictionRank.includes("Top") || referrerStats.predictionRank.includes("#"))) {
-      const cleanReferrerName = referrerName.replace(/^👑\s*@/, '@');
       egoHookMessage = `${cleanReferrerName} is ${referrerStats.predictionRank}. Challenge the champ?`;
     }
   }
@@ -355,6 +355,12 @@ export default function ChallengeInvite({
             </p>
           </div>
         </div>
+
+        {showBonusSection && (
+          <div className="text-red-500 font-bold p-2 border border-red-500 my-2">
+            DEBUG: showBonusSection is TRUE. Bonus content should be below.
+          </div>
+        )}
 
         {showBonusSection && (
           <motion.div
@@ -474,5 +480,3 @@ export default function ChallengeInvite({
     </Card>
   );
 }
-
-    
