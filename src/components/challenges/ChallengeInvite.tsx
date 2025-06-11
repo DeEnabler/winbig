@@ -362,9 +362,7 @@ export default function ChallengeInvite({
               DEBUG: showBonusSection is TRUE. Bonus content should be below.
             </div>
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
+              // Removed animation props for diagnostics: initial, animate, transition
             >
               <div className="text-blue-500 font-bold p-2 border border-blue-500 my-2">
                 DEBUG: INSIDE PARENT MOTION.DIV. AnimatePresence is next.
@@ -373,9 +371,9 @@ export default function ChallengeInvite({
                 {isBonusOfferActive && !bonusSuccessfullyClaimed && (
                   <motion.div
                     key="bonus-active"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3 }}
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }}   
+                    transition={{ duration: 0.3 }} 
                     exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
                     className={`flex items-center justify-between w-full p-2 my-2 rounded-lg border border-yellow-500 bg-yellow-500/10 text-xs md:text-sm overflow-hidden h-[36px] md:h-[40px] ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'animate-pulse-glow' : ''}`}
                   >
@@ -393,9 +391,9 @@ export default function ChallengeInvite({
                 {!isBonusOfferActive && !bonusSuccessfullyClaimed && (
                    <motion.div
                     key="bonus-expired"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3 }}
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }}   
+                    transition={{ duration: 0.3 }} 
                     exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
                     className="text-center p-2 my-2 rounded-lg bg-muted/70 text-xs md:text-sm h-[36px] md:h-[40px] flex items-center justify-center"
                   >
@@ -407,9 +405,9 @@ export default function ChallengeInvite({
                 {bonusSuccessfullyClaimed && (
                   <motion.div
                     key="bonus-claimed"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3 }}
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }}   
+                    transition={{ duration: 0.3 }} 
                     exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
                     className="text-center p-2 my-2 rounded-lg bg-green-500/10 border border-green-600 text-xs md:text-sm h-[36px] md:h-[40px] flex items-center justify-center"
                   >
@@ -483,3 +481,4 @@ export default function ChallengeInvite({
   );
 }
 
+    
