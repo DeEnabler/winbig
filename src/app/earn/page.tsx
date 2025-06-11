@@ -66,19 +66,19 @@ export default function EarnPage() {
   ];
 
   return (
-    <div className="container mx-auto py-8 md:py-12 text-foreground">
+    <div className="container mx-auto py-6 md:py-10 text-foreground">
       {/* 1. Hero Section */}
       <motion.section
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7 }}
-        className="text-center py-10 md:py-16 rounded-xl bg-gradient-to-br from-primary/10 via-background to-background shadow-lg mb-12 md:mb-16"
+        className="text-center py-8 md:py-12 rounded-xl bg-gradient-to-br from-primary/10 via-background to-background shadow-lg mb-10 md:mb-12"
         // Conceptual background: animated growing graph or flashing rewards
       >
-        <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-4 leading-tight tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
-          Bet Smarter. <span className="block md:inline">Earn Passively.</span> Invite the Future.
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-3 leading-tight tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
+          Bet Smarter. <span className="block md:inline">Earn Passively.</span> Own the Network.
         </h1>
-        <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6">
+        <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-5">
           Get paid every time your network bets on ViralBet. No code. No capital. Just your unique link. This is how you make money in 2025.
         </p>
         <div className="flex justify-center">
@@ -88,40 +88,40 @@ export default function EarnPage() {
               For now, it serves as the wallet connect CTA.
           */}
         </div>
-         <p className="text-xs text-muted-foreground mt-4">Connect your wallet to start earning.</p>
+         <p className="text-xs text-muted-foreground mt-3">Connect your wallet to start earning.</p>
       </motion.section>
 
       {/* 2. How It Works (3 Steps) */}
-      <section className="mb-12 md:mb-16">
-        <h2 className="text-3xl md:text-4xl font-bold text-center mb-8 md:mb-10">
+      <section className="mb-10 md:mb-12">
+        <h2 className="text-3xl md:text-4xl font-bold text-center mb-6 md:mb-8">
           Unlock Your Earnings in <span className="text-primary">3 Simple Steps</span>
         </h2>
-        <div className="grid md:grid-cols-3 gap-6 md:gap-8">
+        <div className="grid md:grid-cols-3 gap-5 md:gap-6">
           {howItWorksSteps.map((step, index) => (
             <motion.div
               key={index}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.2 }}
-              className="text-center p-6 bg-card rounded-lg shadow-md hover:shadow-xl transition-shadow"
+              className="text-center p-5 bg-card rounded-lg shadow-md hover:shadow-xl transition-shadow"
             >
               {step.icon}
-              <h3 className="text-xl md:text-2xl font-semibold mb-2">{step.title}</h3>
+              <h3 className="text-xl md:text-2xl font-semibold mb-1.5">{step.title}</h3>
               <p className="text-muted-foreground text-sm md:text-base">{step.description}</p>
             </motion.div>
           ))}
         </div>
-        <p className="text-center text-xs text-muted-foreground mt-6 max-w-xl mx-auto">
+        <p className="text-center text-xs text-muted-foreground mt-5 max-w-xl mx-auto">
           You get the biggest rewards from people you bring in directly. Their friends mean a smaller cut, but it stacks up incredibly fast. Think network effect, on autopilot.
         </p>
       </section>
 
       {/* 3. Why It’s Different */}
-      <section className="mb-12 md:mb-16">
-        <h2 className="text-3xl md:text-4xl font-bold text-center mb-8 md:mb-10">
+      <section className="mb-10 md:mb-12">
+        <h2 className="text-3xl md:text-4xl font-bold text-center mb-6 md:mb-8">
           This Isn't Just Affiliate. <span className="block md:inline">This is <span className="text-accent">Leverage.</span></span>
         </h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6">
           {whyDifferentFeatures.map((feature, index) => (
             <motion.div
               key={index}
@@ -144,15 +144,15 @@ export default function EarnPage() {
       </section>
 
       {/* 4. Simulated Earnings Block */}
-      <section className="mb-12 md:mb-16 p-6 md:p-8 bg-muted/50 rounded-xl shadow-lg">
-        <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
+      <section className="mb-10 md:mb-12 p-5 md:p-6 bg-muted/50 rounded-xl shadow-lg">
+        <h2 className="text-3xl md:text-4xl font-bold text-center mb-3">
           What Could <span className="text-primary">You</span> Earn?
         </h2>
-        <p className="text-center text-muted-foreground mb-6 md:mb-8 max-w-lg mx-auto">
+        <p className="text-center text-muted-foreground mb-5 md:mb-6 max-w-lg mx-auto">
           This isn't a guarantee, it's a glimpse. Your network, your hustle, your potential.
         </p>
-        <div className="max-w-2xl mx-auto bg-card p-6 rounded-lg shadow-md">
-          <div className="mb-6 text-center">
+        <div className="max-w-2xl mx-auto bg-card p-5 rounded-lg shadow-md">
+          <div className="mb-5 text-center">
             <p className="text-lg">
               If <span className="font-bold text-primary">{simulatedFriends} friends</span> each bet {dailyBetPerFriend} SOL/day...
             </p>
@@ -162,8 +162,8 @@ export default function EarnPage() {
             <p className="text-sm text-muted-foreground">(Directly from your invites)</p>
           </div>
 
-          <div className="mb-6">
-            <label htmlFor="friendsSlider" className="block text-sm font-medium text-center mb-2">Adjust Your Direct Invites:</label>
+          <div className="mb-5">
+            <label htmlFor="friendsSlider" className="block text-sm font-medium text-center mb-1.5">Adjust Your Direct Invites:</label>
             <Slider
               id="friendsSlider"
               min={1}
@@ -179,7 +179,7 @@ export default function EarnPage() {
             </div>
           </div>
           
-          <div className="text-center mt-4 border-t border-border pt-4">
+          <div className="text-center mt-3 border-t border-border pt-3">
              <p className="text-lg">
               And if their network grows (e.g., {simulatedSubFriends} sub-referrals)...
             </p>
@@ -188,35 +188,35 @@ export default function EarnPage() {
             </p>
              <p className="text-sm text-muted-foreground">(From their friends' activity)</p>
           </div>
-           <p className="text-center text-3xl md:text-4xl font-extrabold text-primary mt-6">
+           <p className="text-center text-3xl md:text-4xl font-extrabold text-primary mt-5">
              Total Potential: ~{totalDailyEarnings.toFixed(2)} SOL/day
             </p>
         </div>
-        <p className="text-center text-sm italic text-muted-foreground mt-6 max-w-md mx-auto">
+        <p className="text-center text-sm italic text-muted-foreground mt-5 max-w-md mx-auto">
           📊 Some top partners are already earning passively without placing a single bet themselves. They just shared.
         </p>
       </section>
 
       {/* 5. Join the Movement CTA Section */}
-      <section className="text-center py-10 md:py-12 bg-gradient-to-tr from-accent/10 to-background rounded-xl shadow-lg">
-        <blockquote className="text-2xl md:text-3xl font-semibold italic text-foreground max-w-2xl mx-auto mb-6">
+      <section className="text-center py-8 md:py-10 bg-gradient-to-tr from-accent/10 to-background rounded-xl shadow-lg">
+        <blockquote className="text-2xl md:text-3xl font-semibold italic text-foreground max-w-2xl mx-auto mb-5">
           “We don’t pay influencers. <span className="block">We pay <span className="text-accent underline decoration-wavy">believers.</span></span>”
         </blockquote>
-        <h2 className="text-3xl md:text-4xl font-bold mb-6">
+        <h2 className="text-3xl md:text-4xl font-bold mb-5">
           Become an <span className="text-primary">Early Partner</span>
         </h2>
-        <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
+        <p className="text-muted-foreground mb-5 max-w-xl mx-auto">
           Your link is your key. The earlier you start, the bigger your network grows. The time is now.
         </p>
         <div className="flex justify-center">
             {/* Re-using the ConnectWalletButton. If connected, text should ideally change. */}
             <ConnectWalletButton />
         </div>
-        <p className="text-xs text-muted-foreground mt-4">Connect to get your unique shareable link.</p>
+        <p className="text-xs text-muted-foreground mt-3">Connect to get your unique shareable link.</p>
       </section>
 
       {/* 6. Optional Footer */}
-      <footer className="text-center mt-12 md:mt-16 py-6 border-t border-border/50">
+      <footer className="text-center mt-10 md:mt-12 py-5 border-t border-border/50">
         <p className="text-xs text-muted-foreground mb-1">
           <ShieldCheck className="w-3 h-3 inline mr-1" /> Revenue is generated from a small platform fee on each bet placed.
         </p>
@@ -227,7 +227,3 @@ export default function EarnPage() {
     </div>
   );
 }
-
-    
-
-    
