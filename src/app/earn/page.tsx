@@ -66,19 +66,19 @@ export default function EarnPage() {
   ];
 
   return (
-    <div className="container mx-auto py-8 md:py-16 text-foreground">
+    <div className="container mx-auto py-8 md:py-12 text-foreground">
       {/* 1. Hero Section */}
       <motion.section
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7 }}
-        className="text-center py-12 md:py-20 rounded-xl bg-gradient-to-br from-primary/10 via-background to-background shadow-lg mb-16 md:mb-24"
+        className="text-center py-10 md:py-16 rounded-xl bg-gradient-to-br from-primary/10 via-background to-background shadow-lg mb-12 md:mb-16"
         // Conceptual background: animated growing graph or flashing rewards
       >
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-4 leading-tight tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
           Bet Smarter. <span className="block md:inline">Earn Passively.</span> Invite the Future.
         </h1>
-        <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
+        <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6">
           Get paid every time your network bets on ViralBet. No code. No capital. Just your unique link. This is how you make money in 2025.
         </p>
         <div className="flex justify-center">
@@ -92,11 +92,11 @@ export default function EarnPage() {
       </motion.section>
 
       {/* 2. How It Works (3 Steps) */}
-      <section className="mb-16 md:mb-24">
-        <h2 className="text-3xl md:text-4xl font-bold text-center mb-10 md:mb-12">
+      <section className="mb-12 md:mb-16">
+        <h2 className="text-3xl md:text-4xl font-bold text-center mb-8 md:mb-10">
           Unlock Your Earnings in <span className="text-primary">3 Simple Steps</span>
         </h2>
-        <div className="grid md:grid-cols-3 gap-8 md:gap-12">
+        <div className="grid md:grid-cols-3 gap-6 md:gap-8">
           {howItWorksSteps.map((step, index) => (
             <motion.div
               key={index}
@@ -111,14 +111,14 @@ export default function EarnPage() {
             </motion.div>
           ))}
         </div>
-        <p className="text-center text-xs text-muted-foreground mt-8 max-w-xl mx-auto">
+        <p className="text-center text-xs text-muted-foreground mt-6 max-w-xl mx-auto">
           You get the biggest rewards from people you bring in directly. Their friends mean a smaller cut, but it stacks up incredibly fast. Think network effect, on autopilot.
         </p>
       </section>
 
       {/* 3. Why It’s Different */}
-      <section className="mb-16 md:mb-24">
-        <h2 className="text-3xl md:text-4xl font-bold text-center mb-10 md:mb-12">
+      <section className="mb-12 md:mb-16">
+        <h2 className="text-3xl md:text-4xl font-bold text-center mb-8 md:mb-10">
           This Isn't Just Affiliate. <span className="block md:inline">This is <span className="text-accent">Leverage.</span></span>
         </h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
@@ -144,11 +144,11 @@ export default function EarnPage() {
       </section>
 
       {/* 4. Simulated Earnings Block */}
-      <section className="mb-16 md:mb-24 p-6 md:p-10 bg-muted/50 rounded-xl shadow-lg">
+      <section className="mb-12 md:mb-16 p-6 md:p-8 bg-muted/50 rounded-xl shadow-lg">
         <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
           What Could <span className="text-primary">You</span> Earn?
         </h2>
-        <p className="text-center text-muted-foreground mb-8 md:mb-10 max-w-lg mx-auto">
+        <p className="text-center text-muted-foreground mb-6 md:mb-8 max-w-lg mx-auto">
           This isn't a guarantee, it's a glimpse. Your network, your hustle, your potential.
         </p>
         <div className="max-w-2xl mx-auto bg-card p-6 rounded-lg shadow-md">
@@ -192,20 +192,20 @@ export default function EarnPage() {
              Total Potential: ~{totalDailyEarnings.toFixed(2)} SOL/day
             </p>
         </div>
-        <p className="text-center text-sm italic text-muted-foreground mt-8 max-w-md mx-auto">
+        <p className="text-center text-sm italic text-muted-foreground mt-6 max-w-md mx-auto">
           📊 Some top partners are already earning passively without placing a single bet themselves. They just shared.
         </p>
       </section>
 
       {/* 5. Join the Movement CTA Section */}
-      <section className="text-center py-12 md:py-16 bg-gradient-to-tr from-accent/10 to-background rounded-xl shadow-lg">
-        <blockquote className="text-2xl md:text-3xl font-semibold italic text-foreground max-w-2xl mx-auto mb-8">
+      <section className="text-center py-10 md:py-12 bg-gradient-to-tr from-accent/10 to-background rounded-xl shadow-lg">
+        <blockquote className="text-2xl md:text-3xl font-semibold italic text-foreground max-w-2xl mx-auto mb-6">
           “We don’t pay influencers. <span className="block">We pay <span className="text-accent underline decoration-wavy">believers.</span></span>”
         </blockquote>
         <h2 className="text-3xl md:text-4xl font-bold mb-6">
           Become an <span className="text-primary">Early Partner</span>
         </h2>
-        <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
+        <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
           Your link is your key. The earlier you start, the bigger your network grows. The time is now.
         </p>
         <div className="flex justify-center">
@@ -216,7 +216,7 @@ export default function EarnPage() {
       </section>
 
       {/* 6. Optional Footer */}
-      <footer className="text-center mt-16 md:mt-24 py-6 border-t border-border/50">
+      <footer className="text-center mt-12 md:mt-16 py-6 border-t border-border/50">
         <p className="text-xs text-muted-foreground mb-1">
           <ShieldCheck className="w-3 h-3 inline mr-1" /> Revenue is generated from a small platform fee on each bet placed.
         </p>
@@ -227,5 +227,7 @@ export default function EarnPage() {
     </div>
   );
 }
+
+    
 
     
