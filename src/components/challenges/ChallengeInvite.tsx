@@ -189,7 +189,7 @@ export default function ChallengeInvite({
     let bonusAppliedForThisAction = false;
     if (isBonusOfferActive && !bonusSuccessfullyClaimed && showBonusSection) {
       setBonusSuccessfullyClaimed(true);
-      setIsBonusOfferActive(false); // This will trigger the AnimatePresence change
+      setIsBonusOfferActive(false); 
       bonusAppliedForThisAction = true;
       toast({
         title: "Bonus Locked In! 🌟",
@@ -361,24 +361,24 @@ export default function ChallengeInvite({
         
 
         {showBonusSection && (
-          <motion.div 
-            className="w-full" /* Ensure parent takes width */
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
             transition={{ duration: 0.5 }}
+            className="w-full"
           >
             <AnimatePresence mode="wait">
               {isBonusOfferActive && !bonusSuccessfullyClaimed && (
                 <motion.div
                   key="bonus-active"
-                  className={`flex items-center justify-between w-full p-2 my-2 rounded-lg border ${
-                    bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'animate-pulse-glow border-yellow-500 bg-yellow-500/10' : 'border-primary/50 bg-primary/5'
-                  }`}
-                  style={{ minHeight: '50px' }} 
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
                   transition={{ duration: 0.3 }}
+                  className={`flex items-center justify-between w-full p-2 my-2 rounded-lg border ${
+                    bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'animate-pulse-glow border-yellow-500 bg-yellow-500/10' : 'border-primary/50 bg-primary/5'
+                  }`}
+                  style={{ minHeight: '50px' }} 
                 >
                   <div className="flex items-center space-x-2">
                     <Zap 
@@ -386,21 +386,56 @@ export default function ChallengeInvite({
                         size={20} 
                         className={`w-5 h-5 md:w-6 md:h-6 ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'text-yellow-500' : 'text-primary'}`} />
                     <span 
-                        style={{ color: 'magenta', backgroundColor: 'lightgreen', padding: '3px', fontSize: '16px', fontWeight: 'bold', display: 'inline-block', border: '1px solid red' }}
-                        className={`text-xs md:text-sm font-semibold ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'text-yellow-700 dark:text-yellow-300' : 'text-primary'}`}>
+                        style={{ 
+                          fontFamily: 'Arial, sans-serif !important',
+                          fontSize: '20px !important',
+                          lineHeight: 'normal !important',
+                          color: 'black !important',
+                          backgroundColor: 'yellow !important',
+                          border: '2px solid red !important',
+                          padding: '5px !important',
+                          display: 'block !important',
+                          visibility: 'visible !important',
+                          opacity: '1 !important',
+                          zIndex: '99999 !important',
+                          textIndent: '0 !important',
+                          overflow: 'visible !important',
+                          whiteSpace: 'normal !important'
+                        }}
+                        // Removed Tailwind text color classes to ensure inline styles dominate
+                        className={`font-semibold ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? '' : ''}`}>
                       +${BONUS_PERCENTAGE}% Bonus!
                     </span>
                   </div>
-                  <div className="flex flex-col items-end w-1/2" style={{ border: '1px solid red', backgroundColor: 'lightgray' }}>
+                  <div 
+                    className="flex flex-col items-end w-1/2" 
+                    style={{ border: '1px solid green', backgroundColor: 'lightcyan', padding: '3px' }} // Added different debug style
+                  >
                     <Progress 
                       value={(bonusTimeLeft / BONUS_DURATION_SECONDS) * 100} 
                       className="w-full h-1.5 md:h-2 my-0.5 [&>span]:bg-primary"
-                      style={{ display: 'block', opacity: 1 }} 
+                      style={{ display: 'block', opacity: 1, border: '1px solid blue' }} // Debug style
                     />
-                    <div 
-                        style={{ color: 'blue', backgroundColor: 'cyan', padding: '3px', fontSize: '16px', fontWeight: 'bold', display: 'inline-block', border: '1px solid purple' }}
-                        className={`flex items-center text-xs md:text-sm ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>
-                      <Clock color="green" size={18} className="w-3 h-3 md:w-3.5 md:h-3.5 mr-1" />
+                    <div
+                        style={{ 
+                          fontFamily: 'Arial, sans-serif !important',
+                          fontSize: '20px !important',
+                          lineHeight: 'normal !important',
+                          color: 'black !important',
+                          backgroundColor: 'pink !important', // Different background for time
+                          border: '2px solid purple !important',
+                          padding: '5px !important',
+                          display: 'block !important',
+                          visibility: 'visible !important',
+                          opacity: '1 !important',
+                          zIndex: '99999 !important',
+                          textIndent: '0 !important',
+                          overflow: 'visible !important',
+                          whiteSpace: 'normal !important'
+                        }}
+                        // Removed Tailwind text color classes
+                        className={`flex items-center font-semibold ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? '' : ''}`}>
+                      <Clock color="darkblue" size={18} className="w-3 h-3 md:w-3.5 md:h-3.5 mr-1" />
                       {formatTime(bonusTimeLeft)}
                     </div>
                   </div>
@@ -502,3 +537,4 @@ export default function ChallengeInvite({
     
 
     
+
