@@ -189,7 +189,7 @@ export default function ChallengeInvite({
     let bonusAppliedForThisAction = false;
     if (isBonusOfferActive && !bonusSuccessfullyClaimed && showBonusSection) {
       setBonusSuccessfullyClaimed(true);
-      setIsBonusOfferActive(false);
+      setIsBonusOfferActive(false); // This will trigger the AnimatePresence change
       bonusAppliedForThisAction = true;
       toast({
         title: "Bonus Locked In! 🌟",
@@ -239,19 +239,20 @@ export default function ChallengeInvite({
 
   const oppositeChoice = referrerOriginalChoice === 'YES' ? 'NO' : 'YES';
 
-  let egoHookMessage = "Do you trust their instincts – or bet against them?";
-  if (referrerStats) {
-    const cleanReferrerName = referrerName.replace(/^👑\s*@/, '@');
-    if (referrerStats.winStreak > 7) {
-      egoHookMessage = `🔥 @${cleanReferrerName} is on a ${referrerStats.winStreak}W tear. Think you can break it?`;
-    } else if (referrerStats.winStreak > 3) {
-      egoHookMessage = `They're on a ${referrerStats.winStreak}W streak. Feeling lucky?`;
-    } else if (referrerStats.predictionRank && (referrerStats.predictionRank.includes("Top") || referrerStats.predictionRank.includes("#"))) {
-      egoHookMessage = `${cleanReferrerName} is ${referrerStats.predictionRank}. Challenge the champ?`;
+  const egoHookMessage = useMemo(() => {
+    let message = "Do you trust their instincts – or bet against them?";
+    if (referrerStats) {
+      const cleanReferrerName = referrerName.replace(/^👑\s*@/, '@');
+      if (referrerStats.winStreak > 7) {
+        message = `🔥 @${cleanReferrerName} is on a ${referrerStats.winStreak}W tear. Think you can break it?`;
+      } else if (referrerStats.winStreak > 3) {
+        message = `They're on a ${referrerStats.winStreak}W streak. Feeling lucky?`;
+      } else if (referrerStats.predictionRank && (referrerStats.predictionRank.includes("Top") || referrerStats.predictionRank.includes("#"))) {
+        message = `${cleanReferrerName} is ${referrerStats.predictionRank}. Challenge the champ?`;
+      }
     }
-  }
-
-  console.log("ChallengeInvite RENDER: showBonusSection:", showBonusSection, "isBonusOfferActive:", isBonusOfferActive, "bonusSuccessfullyClaimed:", bonusSuccessfullyClaimed, "bonusTimeLeft:", bonusTimeLeft);
+    return message;
+  }, [referrerStats, referrerName]);
 
 
   return (
@@ -358,58 +359,54 @@ export default function ChallengeInvite({
           </div>
         </div>
         
-        {showBonusSection && (
-          <div className="text-red-500 font-bold p-2 border border-red-500 my-2">
-            DEBUG: showBonusSection is TRUE. Bonus content should be below.
-          </div>
-        )}
 
         {showBonusSection && (
-          <motion.div /* Parent motion.div for delayed reveal - animations removed for debug */ >
-            <div className="text-blue-500 font-bold p-2 border border-blue-500 my-2" style={{opacity: 1, marginBottom: '5px'}}>
-              DEBUG: INSIDE PARENT MOTION.DIV. AnimatePresence/Direct Test is next.
-            </div>
-            
-            {/* AnimatePresence block - keep for other states */}
+          <motion.div /* Parent motion.div for delayed reveal */
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }} // Parent animation
+          >
             <AnimatePresence mode="wait">
-              {/* Commented out original bonus-active for the direct test below
               {isBonusOfferActive && !bonusSuccessfullyClaimed && (
                 <motion.div
                   key="bonus-active"
-                  initial={{ opacity: 1 }} // Forcing initial opacity
-                  animate={{ opacity: 1 }} // Forcing animate opacity
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
                   transition={{ duration: 0.3 }}
-                  // className={`flex items-center justify-between w-full p-2 my-2 rounded-lg ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'animate-pulse-glow' : ''}`}
-                  // Removed className for maximum simplicity
-                  style={{
-                    border: '5px solid darkorange',
-                    backgroundColor: 'orange',
-                    padding: '10px',
-                    margin: '10px 0',
-                    minHeight: '50px',
-                    opacity: 1, // Forced opacity
-                    position: 'relative',
-                    zIndex: 99999, // Extremely high z-index
-                    color: 'black', // Default text color for this div
-                    fontSize: '16px',
-                  }}
+                  className={`flex items-center justify-between w-full p-2 my-2 rounded-lg border ${
+                    bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'animate-pulse-glow border-yellow-500 bg-yellow-500/10' : 'border-primary/50 bg-primary/5'
+                  }`}
+                  style={{ minHeight: '50px' }} 
                 >
-                    <span style={{ color: 'magenta !important', backgroundColor: 'pink !important', padding: '5px', fontSize: '20px !important', display: 'block !important', visibility: 'visible !important', opacity: '1 !important', border: '2px dotted red', position: 'relative', zIndex: 100000 }}>
-                        ANIM-PRES-TEXT
+                  <div className="flex items-center space-x-2">
+                    <Zap className={`w-5 h-5 md:w-6 md:h-6 ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'text-yellow-500' : 'text-primary'}`} />
+                    <span className={`text-xs md:text-sm font-semibold ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'text-yellow-700 dark:text-yellow-300' : 'text-primary'}`}>
+                      +${BONUS_PERCENTAGE}% Bonus!
                     </span>
-                    <div style={{ color: 'blue !important', backgroundColor: 'lightblue !important', padding: '5px', marginTop: '5px', fontSize: '20px !important', display: 'block !important', visibility: 'visible !important', opacity: '1 !important', border: '2px dotted green', position: 'relative', zIndex: 100000 }}>
-                        ANIM-PRES-TIME: {formatTime(bonusTimeLeft)}
+                  </div>
+                  <div className="flex flex-col items-end w-1/2">
+                    <Progress 
+                      value={(bonusTimeLeft / BONUS_DURATION_SECONDS) * 100} 
+                      className="w-full h-1.5 md:h-2 my-0.5 [&>span]:bg-primary"
+                      style={{ display: 'block', opacity: 1 }} // Keep forceful styles for Progress for now
+                    />
+                    <div className={`flex items-center text-xs md:text-sm ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>
+                      <Clock className="w-3 h-3 md:w-3.5 md:h-3.5 mr-1" />
+                      {formatTime(bonusTimeLeft)}
                     </div>
+                  </div>
                 </motion.div>
-              )} */}
+              )}
               {!isBonusOfferActive && !bonusSuccessfullyClaimed && (
                  <motion.div
                   key="bonus-expired"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
                   exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
-                  className="text-center p-2 my-2 rounded-lg bg-muted/70 text-xs md:text-sm h-[36px] md:h-[40px] flex items-center justify-center"
+                  transition={{ duration: 0.3 }}
+                  className="text-center p-2 my-2 rounded-lg bg-muted/70 text-xs md:text-sm flex items-center justify-center border border-muted"
+                  style={{ minHeight: '50px' }}
                 >
                   <p className="font-semibold flex items-center">
                     <AlertTriangle className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 text-muted-foreground" /> ⏱ Bonus expired.
@@ -421,9 +418,10 @@ export default function ChallengeInvite({
                   key="bonus-claimed"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
                   exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
-                  className="text-center p-2 my-2 rounded-lg bg-green-500/10 border border-green-600 text-xs md:text-sm h-[36px] md:h-[40px] flex items-center justify-center"
+                  transition={{ duration: 0.3 }}
+                  className="text-center p-2 my-2 rounded-lg bg-green-500/10 border border-green-600 text-xs md:text-sm flex items-center justify-center"
+                  style={{ minHeight: '50px' }}
                 >
                   <p className="font-semibold text-green-700 dark:text-green-400 flex items-center">
                     <ShieldCheck className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5" /> ✅ Bonus Locked In! +${BONUS_PERCENTAGE}% if you win.
@@ -431,35 +429,6 @@ export default function ChallengeInvite({
                 </motion.div>
               )}
             </AnimatePresence>
-
-            {/* DIRECT TEST BLOCK - Outside AnimatePresence */}
-            {isBonusOfferActive && !bonusSuccessfullyClaimed && (
-              <div
-                style={{
-                  border: '10px solid limegreen !important', // Hyper visible border
-                  backgroundColor: 'yellow !important',   // Hyper visible background
-                  padding: '15px !important',
-                  margin: '15px 0 !important',
-                  minHeight: '70px !important',
-                  opacity: '1 !important',
-                  visibility: 'visible !important',
-                  position: 'relative !important', // Ensure it's in normal flow or stacks high
-                  zIndex: '999999 !important', // Absurdly high z-index
-                  fontSize: '24px !important', // Large font
-                  color: 'black !important', // Ensure text color contrasts
-                  textAlign: 'center',
-                  display: 'block' // Ensure it's block
-                }}
-              >
-                DIRECT TEXT IS VISIBLE?
-                <br />
-                DIRECT TIME: {formatTime(bonusTimeLeft)}
-                <br />
-                <Zap className="w-6 h-6 inline-block" style={{color: 'orange !important', stroke: 'black !important', strokeWidth: '2px !important'}} />
-                <Progress value={(bonusTimeLeft / BONUS_DURATION_SECONDS) * 100} className="w-full h-3 my-1 [&>span]:bg-primary" style={{opacity: '1 !important', display: 'block !important'}} />
-
-              </div>
-            )}
           </motion.div>
         )}
 
@@ -522,4 +491,6 @@ export default function ChallengeInvite({
     </Card>
   );
 }
+    
+
     
