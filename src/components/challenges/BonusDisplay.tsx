@@ -5,6 +5,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Clock, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { useEffect, useRef } from 'react'; // Added useEffect and useRef
 
 interface BonusDisplayProps {
   isActive: boolean;
@@ -25,17 +26,41 @@ export default function BonusDisplay({
   percentage,
   formatTime,
 }: BonusDisplayProps) {
+  const displayRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (displayRef.current) {
+      const element = displayRef.current;
+      // Store original display style, though for a div it's likely 'block' or not set (inheriting)
+      const originalDisplay = element.style.display; 
+      
+      // Force repaint
+      element.style.display = 'none';
+      // Reading offsetHeight is a common way to trigger reflow
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const h = element.offsetHeight; 
+      element.style.display = originalDisplay || ''; // Restore original or set to default if undefined
+      
+      console.log('BonusDisplay: Repaint forced.');
+    }
+  }, []); // Empty dependency array ensures this runs once on mount
+
   return (
-    <div style={{
-      padding: '10px',
-      borderRadius: '8px',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-      minWidth: '280px',
-      border: '3px solid darkorange',
-      backgroundColor: 'rgba(255, 248, 220, 0.95)',
-      color: '#333',
-      zIndex: 1000,
-    }}>
+    <div
+      ref={displayRef}
+      style={{
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        padding: '10px',
+        backgroundColor: 'cornsilk', // The "yellow box"
+        border: '3px solid darkorange',
+        borderRadius: '8px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        zIndex: 1000, // Keep it on top
+        minWidth: '280px', // Give it some width
+      }}
+    >
       <AnimatePresence mode="wait">
         {isActive && !isClaimed && (
           <motion.div
@@ -47,12 +72,12 @@ export default function BonusDisplay({
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center', // Center items like in 'bonus-expired'
-              gap: '8px', // Add gap between items
+              justifyContent: 'center',
+              gap: '8px',
               padding: '8px 12px',
               borderRadius: '6px',
-              border: timeLeftSeconds < lowTimeThreshold ? '2px solid #F59E0B' : '2px solid #A020F0',
-              backgroundColor: timeLeftSeconds < lowTimeThreshold ? 'rgba(251, 239, 213, 0.9)' : 'rgba(240, 229, 245, 0.9)',
+              border: timeLeftSeconds < lowTimeThreshold ? '2px solid #F59E0B' : '2px solid #A020F0', // primary
+              backgroundColor: timeLeftSeconds < lowTimeThreshold ? 'rgba(251, 239, 213, 0.9)' : 'rgba(240, 229, 245, 0.9)', // primary-lighter / yellow-lighter
               minHeight: '50px',
               color: 'black', // Default text color
               fontSize: '14px', // Default font size
@@ -69,7 +94,7 @@ export default function BonusDisplay({
             <Progress
               value={(timeLeftSeconds / durationSeconds) * 100}
               style={{ width: '60px', height: '8px', backgroundColor: '#E5E7EB', border: '1px solid orange', display: 'inline-block' }}
-              className="[&>span]:bg-primary"
+              className="[&>span]:bg-primary" // Use theme primary for progress indicator
             />
             <Clock size={16} style={{ color: timeLeftSeconds < lowTimeThreshold ? '#D97706' : '#6B7280', border: '1px dotted blue', display: 'inline-block' }} />
             <span style={{ fontWeight: 'semibold', fontSize: '13px', color: 'green', backgroundColor: 'lightcyan', border: '1px solid darkgreen', padding: '2px', display: 'inline-block' }}>
@@ -89,9 +114,9 @@ export default function BonusDisplay({
               textAlign: 'center',
               padding: '12px',
               borderRadius: '6px',
-              backgroundColor: 'rgba(229, 231, 235, 0.9)',
+              backgroundColor: 'rgba(229, 231, 235, 0.9)', // gray-200
               color: 'black',
-              border: '1px solid #D1D5DB',
+              border: '1px solid #D1D5DB', // gray-300
               minHeight: '50px',
               display: 'flex',
               alignItems: 'center',
@@ -117,9 +142,9 @@ export default function BonusDisplay({
               textAlign: 'center',
               padding: '12px',
               borderRadius: '6px',
-              backgroundColor: 'rgba(220, 252, 231, 0.9)',
+              backgroundColor: 'rgba(220, 252, 231, 0.9)', // green-100
               color: 'black',
-              border: '1px solid #10B981',
+              border: '1px solid #10B981', // green-500
               minHeight: '50px',
               display: 'flex',
               alignItems: 'center',
@@ -137,3 +162,4 @@ export default function BonusDisplay({
     </div>
   );
 }
+
