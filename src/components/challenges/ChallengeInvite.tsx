@@ -355,70 +355,89 @@ export default function ChallengeInvite({
             </p>
           </div>
         </div>
+        
+        {showBonusSection && (
+          <div className="text-red-500 font-bold p-2 border border-red-500 my-2">
+            DEBUG: showBonusSection is TRUE. Bonus content should be below.
+          </div>
+        )}
 
         {showBonusSection && (
-          <>
-            <div className="text-red-500 font-bold p-2 border border-red-500 my-2">
-              DEBUG: showBonusSection is TRUE. Bonus content should be below.
+          <motion.div /* Removed animation props for debug */ >
+            <div className="text-blue-500 font-bold p-2 border border-blue-500 my-2">
+              DEBUG: INSIDE PARENT MOTION.DIV. AnimatePresence is next.
             </div>
-            <motion.div>
-              <div className="text-blue-500 font-bold p-2 border border-blue-500 my-2">
-                DEBUG: INSIDE PARENT MOTION.DIV. AnimatePresence is next.
-              </div>
-              <AnimatePresence mode="wait">
-                {isBonusOfferActive && !bonusSuccessfullyClaimed && (
-                  <motion.div
-                    key="bonus-active"
-                    initial={{ opacity: 0 }} 
-                    animate={{ opacity: 1 }}   
-                    transition={{ duration: 0.3 }} 
-                    className={`flex items-center justify-between w-full p-2 my-2 rounded-lg border-yellow-500 bg-yellow-500/10 text-xs md:text-sm ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'animate-pulse-glow' : ''}`}
-                    style={{ opacity: 1, border: '3px solid orange', padding: '10px', backgroundColor: 'lightyellow' }} 
-                  >
-                    {/* SIMPLIFIED CONTENT FOR DEBUGGING THE TEXT VISIBILITY */}
-                    <div style={{ border: '2px solid blue', padding: '5px', backgroundColor: 'lightblue', width: '100%', minHeight: '30px' }}>
-                        <Zap className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 text-yellow-600" style={{ display: 'inline-block', verticalAlign: 'middle', color: 'black' }} />
-                        <span 
-                            className="font-semibold whitespace-nowrap" // Removed text-yellow-700 dark:text-yellow-400
-                            style={{ color: 'magenta', fontSize: '18px', display: 'inline-block', verticalAlign: 'middle', backgroundColor: 'pink', padding: '2px' }} 
-                        >
-                            +{BONUS_PERCENTAGE}% Bonus! VISIBLE NOW?
-                        </span>
-                        <div style={{color: 'black', marginTop: '5px', fontSize: '18px'}}>Time Left: {formatTime(bonusTimeLeft)}</div>
-                    </div>
-                  </motion.div>
-                )}
-                {!isBonusOfferActive && !bonusSuccessfullyClaimed && (
-                   <motion.div
-                    key="bonus-expired"
-                    initial={{ opacity: 0 }} 
-                    animate={{ opacity: 1 }}   
-                    transition={{ duration: 0.3 }} 
-                    exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
-                    className="text-center p-2 my-2 rounded-lg bg-muted/70 text-xs md:text-sm h-[36px] md:h-[40px] flex items-center justify-center"
-                  >
-                    <p className="font-semibold flex items-center">
-                      <AlertTriangle className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 text-muted-foreground" /> ⏱ Bonus expired.
-                    </p>
-                  </motion.div>
-                )}
-                {bonusSuccessfullyClaimed && (
-                  <motion.div
-                    key="bonus-claimed"
-                    initial={{ opacity: 0 }} 
-                    animate={{ opacity: 1 }}   
-                    transition={{ duration: 0.3 }} 
-                    exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
-                    className="text-center p-2 my-2 rounded-lg bg-green-500/10 border border-green-600 text-xs md:text-sm h-[36px] md:h-[40px] flex items-center justify-center"
-                  >
-                    <p className="font-semibold text-green-700 dark:text-green-400 flex items-center">
-                      <ShieldCheck className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5" /> ✅ Bonus Locked In! +${BONUS_PERCENTAGE}% if you win.
-                    </p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          </>
+            <AnimatePresence mode="wait">
+              {isBonusOfferActive && !bonusSuccessfullyClaimed && (
+                <motion.div
+                  key="bonus-active"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                  className={`flex items-center justify-between w-full p-2 my-2 rounded-lg ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'animate-pulse-glow' : ''}`}
+                  style={{ border: '3px solid orange', padding: '10px', backgroundColor: 'lightyellow', opacity: 1 }}
+                >
+                  <div style={{ border: '2px solid blue', padding: '5px', backgroundColor: 'lightblue', width: '100%', minHeight: '50px', opacity: 1 }}>
+                      <div style={{ border: '2px solid purple', padding: '3px', backgroundColor: 'rgba(220, 160, 220, 0.7)', zIndex: 10000, position: 'relative', opacity: 1, minHeight: '20px' }}>
+                          <span
+                              style={{
+                                color: 'black', // Changed from magenta for better default visibility
+                                fontSize: '18px',
+                                display: 'block', // Removed !important, React handles it
+                                backgroundColor: 'rgba(255, 192, 203, 0.7)', // pink with alpha
+                                padding: '2px',
+                                zIndex: 10001, // Higher than parent
+                                position: 'relative', // Ensure z-index applies
+                                opacity: 1,
+                                visibility: 'visible',
+                              }}
+                          >
+                              +20% Bonus! VISIBLE NOW?
+                          </span>
+                      </div>
+                       <div style={{ border: '2px solid teal', padding: '3px', backgroundColor: 'rgba(175, 238, 238, 0.7)', zIndex: 10000, position: 'relative', opacity: 1, minHeight: '20px', marginTop: '5px' }}>
+                          <div style={{color: 'black', fontSize: '18px', opacity: 1, visibility: 'visible', display: 'block', zIndex: 10001, position: 'relative'}}>Time Left: {formatTime(bonusTimeLeft)}</div>
+                       </div>
+                       {/* Original Progress and Clock icon section - temporarily commented out for extreme focus on text visibility
+                       <Progress value={(bonusTimeLeft / BONUS_DURATION_SECONDS) * 100} className="w-full h-1.5 flex-grow mx-2 [&>span]:bg-yellow-500" />
+                       <div className="flex items-center font-mono text-xs md:text-sm font-semibold tabular-nums whitespace-nowrap text-yellow-700 dark:text-yellow-400">
+                           <Clock className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1" />
+                           {formatTime(bonusTimeLeft)}
+                       </div>
+                       */}
+                  </div>
+                </motion.div>
+              )}
+              {!isBonusOfferActive && !bonusSuccessfullyClaimed && (
+                 <motion.div
+                  key="bonus-expired"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                  exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
+                  className="text-center p-2 my-2 rounded-lg bg-muted/70 text-xs md:text-sm h-[36px] md:h-[40px] flex items-center justify-center"
+                >
+                  <p className="font-semibold flex items-center">
+                    <AlertTriangle className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 text-muted-foreground" /> ⏱ Bonus expired.
+                  </p>
+                </motion.div>
+              )}
+              {bonusSuccessfullyClaimed && (
+                <motion.div
+                  key="bonus-claimed"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                  exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
+                  className="text-center p-2 my-2 rounded-lg bg-green-500/10 border border-green-600 text-xs md:text-sm h-[36px] md:h-[40px] flex items-center justify-center"
+                >
+                  <p className="font-semibold text-green-700 dark:text-green-400 flex items-center">
+                    <ShieldCheck className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5" /> ✅ Bonus Locked In! +${BONUS_PERCENTAGE}% if you win.
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
         )}
 
         <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 mt-3">
@@ -481,5 +500,4 @@ export default function ChallengeInvite({
   );
 }
 
-
-    
+  
