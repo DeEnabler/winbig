@@ -31,11 +31,10 @@ export default function BonusDisplay({
       borderRadius: '8px',
       boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
       minWidth: '280px',
-      // Ensure it's visually distinct for debugging
-      border: '2px solid orange', 
-      backgroundColor: 'rgba(255, 255, 220, 0.95)', // Light yellow, slightly transparent
-      color: '#333', // Dark text color for contrast
-      zIndex: 1000, // Ensure it's on top
+      border: '3px solid darkorange', // Changed parent border for clarity
+      backgroundColor: 'rgba(255, 248, 220, 0.95)', // Light corn silk, slightly transparent
+      color: '#333', 
+      zIndex: 1000, 
     }}>
       <AnimatePresence mode="wait">
         {isActive && !isClaimed && (
@@ -51,31 +50,31 @@ export default function BonusDisplay({
               justifyContent: 'space-between',
               padding: '8px 12px',
               borderRadius: '6px',
-              border: timeLeftSeconds < lowTimeThreshold ? '2px solid #F59E0B' : '2px solid #A020F0', // yellow-500 or primary purple
-              backgroundColor: timeLeftSeconds < lowTimeThreshold ? 'rgba(251, 239, 213, 0.9)' : 'rgba(240, 229, 245, 0.9)', // yellow-500/10 or primary/5
-              minHeight: '50px', // Ensure it has height
-              color: 'black', // Force black text for debug
-              fontSize: '14px', // Force font size for debug
+              border: timeLeftSeconds < lowTimeThreshold ? '2px solid #F59E0B' : '2px solid #A020F0', 
+              backgroundColor: timeLeftSeconds < lowTimeThreshold ? 'rgba(251, 239, 213, 0.9)' : 'rgba(240, 229, 245, 0.9)', 
+              minHeight: '50px', 
+              color: 'black', 
+              fontSize: '14px', 
             }}
             className={timeLeftSeconds < lowTimeThreshold ? 'animate-pulse-glow' : ''}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Zap
                 size={24}
-                style={{ color: timeLeftSeconds < lowTimeThreshold ? '#D97706' : '#8B5CF6', display: 'inline-block !important', visibility: 'visible !important', opacity: '1 !important' }} 
+                style={{ color: timeLeftSeconds < lowTimeThreshold ? '#D97706' : '#8B5CF6', display: 'inline-block !important', visibility: 'visible !important', opacity: '1 !important', border: '1px dotted red' }} 
               />
               <span style={{ fontWeight: 'bold', fontSize: '16px', color: 'red', backgroundColor: 'lightyellow', border: '1px solid blue', padding: '2px', display: 'inline-block !important', visibility: 'visible !important', opacity: '1 !important' }}>
                 +{percentage}% Bonus!
               </span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', width: '45%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', width: '45%', border: '1px dotted green', padding: '2px' }}>
               <Progress
                 value={(timeLeftSeconds / durationSeconds) * 100}
-                style={{ width: '100%', height: '6px', marginBottom: '4px', backgroundColor: '#E5E7EB', display: 'block !important', visibility: 'visible !important', opacity: '1 !important' }}
+                style={{ width: '100%', height: '6px', marginBottom: '4px', backgroundColor: '#E5E7EB', display: 'block !important', visibility: 'visible !important', opacity: '1 !important', border: '1px solid orange' }}
                 className="[&>span]:bg-primary"
               />
               <div style={{ display: 'flex', alignItems: 'center', fontWeight: 'semibold', fontSize: '14px', color: 'green', backgroundColor: 'lightcyan', border: '1px solid orange', padding: '2px', display: 'inline-block !important', visibility: 'visible !important', opacity: '1 !important' }}>
-                <Clock size={16} style={{ marginRight: '4px', color: timeLeftSeconds < lowTimeThreshold ? '#D97706' : '#6B7280', display: 'inline-block !important', visibility: 'visible !important', opacity: '1 !important' }} />
+                <Clock size={16} style={{ marginRight: '4px', color: timeLeftSeconds < lowTimeThreshold ? '#D97706' : '#6B7280', display: 'inline-block !important', visibility: 'visible !important', opacity: '1 !important', border: '1px dotted blue' }} />
                 {formatTime(timeLeftSeconds)}
               </div>
             </div>
@@ -93,9 +92,9 @@ export default function BonusDisplay({
               textAlign: 'center',
               padding: '12px',
               borderRadius: '6px',
-              backgroundColor: 'rgba(229, 231, 235, 0.9)', // muted/70
-              color: 'black', // Force black text for debug
-              border: '1px solid #D1D5DB', // muted
+              backgroundColor: 'rgba(229, 231, 235, 0.9)', 
+              color: 'black', 
+              border: '1px solid #D1D5DB', 
               minHeight: '50px',
               display: 'flex',
               alignItems: 'center',
@@ -121,9 +120,9 @@ export default function BonusDisplay({
               textAlign: 'center',
               padding: '12px',
               borderRadius: '6px',
-              backgroundColor: 'rgba(220, 252, 231, 0.9)', // green-500/10
-              color: 'black', // Force black text for debug
-              border: '1px solid #10B981', // green-600
+              backgroundColor: 'rgba(220, 252, 231, 0.9)', 
+              color: 'black', 
+              border: '1px solid #10B981', 
               minHeight: '50px',
               display: 'flex',
               alignItems: 'center',
@@ -141,3 +140,4 @@ export default function BonusDisplay({
     </div>
   );
 }
+
