@@ -78,47 +78,73 @@ export default function PositionsPage() {
     setIsShareDialogOpen(true);
 
     const appUrl = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002');
-    const shareUrl = appendEntryParams(`${appUrl}/positions?sharedPositionId=${position.id}`); // Example share URL
+    
+    // Construct the share URL to point to the match page
+    const matchShareParams = new URLSearchParams();
+    matchShareParams.set('predictionId', position.predictionId);
+    matchShareParams.set('userChoice', position.userChoice);
+    matchShareParams.set('outcome', position.status); // The status of the position being shared
+    if (position.bonusApplied) {
+      matchShareParams.set('bonusApplied', 'true');
+    }
+    matchShareParams.set('utm_source', 'viralbet');
+    matchShareParams.set('utm_medium', 'social_share');
+    matchShareParams.set('utm_campaign', 'position_outcome');
+
+    const shareUrl = appendEntryParams(`${appUrl}/match/${position.matchId}?${matchShareParams.toString()}`);
     setCurrentShareUrl(shareUrl);
 
-    // Simplified OG image generation for positions
+    // OG image generation for positions
     const ogParams = new URLSearchParams();
     ogParams.set('v', Date.now().toString());
     ogParams.set('predictionText', position.predictionText.substring(0,50) + '...');
     ogParams.set('username', mockCurrentUser.username === 'You' ? 'I' : mockCurrentUser.username);
     ogParams.set('userAvatar', mockCurrentUser.avatarUrl || 'https://placehold.co/128x128.png?text=VB');
+    ogParams.set('ogType', 'position_outcome'); // Crucial for OG template
     
     let outcomeDescriptionForShare = '';
     let finalAmountForShare: number | undefined;
+    let ogOutcomeParam = 'PENDING';
 
     switch (position.status) {
         case 'LIVE':
         case 'ENDING_SOON':
             outcomeDescriptionForShare = `I'm betting ${position.userChoice} on this! Potential: ${formatCurrency(position.potentialPayout, false)}`;
             finalAmountForShare = position.potentialPayout;
-            ogParams.set('outcome', 'PENDING');
+            ogOutcomeParam = 'PENDING';
             ogParams.set('betAmount', position.betAmount.toString());
             break;
         case 'SETTLED_WON':
             outcomeDescriptionForShare = `I WON ${formatCurrency(position.settledAmount || 0, false)}!`;
             finalAmountForShare = position.settledAmount;
-            ogParams.set('outcome', 'WON');
+            ogOutcomeParam = 'WON';
             ogParams.set('betAmount', (position.settledAmount || 0).toString());
             break;
         case 'SETTLED_LOST':
             outcomeDescriptionForShare = `I lost this one.`;
-            finalAmountForShare = 0;
-            ogParams.set('outcome', 'LOST');
+            finalAmountForShare = position.betAmount; // Show what was lost
+            ogOutcomeParam = 'LOST';
+            ogParams.set('betAmount', position.betAmount.toString());
             break;
         case 'SOLD':
             outcomeDescriptionForShare = `I sold my bet for ${formatCurrency(position.settledAmount || 0, false)}.`;
             finalAmountForShare = position.settledAmount;
-            ogParams.set('outcome', 'SOLD');
+            ogOutcomeParam = 'SOLD';
+            ogParams.set('betAmount', (position.settledAmount || 0).toString());
+            break;
+        case 'PENDING_COLLECTION': // Assuming collected means won for OG purposes
+             outcomeDescriptionForShare = `I collected my winnings of ${formatCurrency(position.settledAmount || 0, false)}!`;
+            finalAmountForShare = position.settledAmount;
+            ogOutcomeParam = 'WON'; // Treat as WON for OG
             ogParams.set('betAmount', (position.settledAmount || 0).toString());
             break;
         default:
             outcomeDescriptionForShare = `My position on "${position.predictionText.substring(0,20)}..."`;
     }
+    ogParams.set('outcome', ogOutcomeParam);
+    ogParams.set('userChoice', position.userChoice);
+
+
     if (position.bonusApplied) {
       ogParams.set('bonus', 'true');
     }
@@ -135,8 +161,8 @@ export default function PositionsPage() {
       };
       const result = await generateXShareMessage(shareDetails);
       let finalMessage = result.shareMessage;
-      if (position.bonusApplied && (position.status === 'SETTLED_WON' || position.status === 'LIVE' || position.status === 'ENDING_SOON')) {
-        finalMessage += " (+20% Bonus!)";
+      if (position.bonusApplied && (position.status === 'SETTLED_WON' || position.status === 'LIVE' || position.status === 'ENDING_SOON' || position.status === 'PENDING_COLLECTION')) {
+        finalMessage += ` (+${(position.status === 'SETTLED_WON' || position.status === 'PENDING_COLLECTION' ? (position.settledAmount || 0) * 0.2 : position.potentialPayout * 0.2 / 1.2).toFixed(0)} Bonus!)`;
       }
       setCurrentShareMessage(finalMessage);
     } catch (error) {
