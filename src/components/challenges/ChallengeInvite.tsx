@@ -361,38 +361,46 @@ export default function ChallengeInvite({
         
 
         {showBonusSection && (
-          <motion.div /* Parent motion.div for delayed reveal */
+          <motion.div 
+            className="w-full" /* Ensure parent takes width */
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }} // Parent animation
+            transition={{ duration: 0.5 }}
           >
             <AnimatePresence mode="wait">
               {isBonusOfferActive && !bonusSuccessfullyClaimed && (
                 <motion.div
                   key="bonus-active"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
-                  transition={{ duration: 0.3 }}
                   className={`flex items-center justify-between w-full p-2 my-2 rounded-lg border ${
                     bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'animate-pulse-glow border-yellow-500 bg-yellow-500/10' : 'border-primary/50 bg-primary/5'
                   }`}
                   style={{ minHeight: '50px' }} 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
+                  transition={{ duration: 0.3 }}
                 >
                   <div className="flex items-center space-x-2">
-                    <Zap className={`w-5 h-5 md:w-6 md:h-6 ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'text-yellow-500' : 'text-primary'}`} />
-                    <span className={`text-xs md:text-sm font-semibold ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'text-yellow-700 dark:text-yellow-300' : 'text-primary'}`}>
+                    <Zap 
+                        color="orange" 
+                        size={20} 
+                        className={`w-5 h-5 md:w-6 md:h-6 ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'text-yellow-500' : 'text-primary'}`} />
+                    <span 
+                        style={{ color: 'magenta', backgroundColor: 'lightgreen', padding: '3px', fontSize: '16px', fontWeight: 'bold', display: 'inline-block', border: '1px solid red' }}
+                        className={`text-xs md:text-sm font-semibold ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'text-yellow-700 dark:text-yellow-300' : 'text-primary'}`}>
                       +${BONUS_PERCENTAGE}% Bonus!
                     </span>
                   </div>
-                  <div className="flex flex-col items-end w-1/2">
+                  <div className="flex flex-col items-end w-1/2" style={{ border: '1px solid red', backgroundColor: 'lightgray' }}>
                     <Progress 
                       value={(bonusTimeLeft / BONUS_DURATION_SECONDS) * 100} 
                       className="w-full h-1.5 md:h-2 my-0.5 [&>span]:bg-primary"
-                      style={{ display: 'block', opacity: 1 }} // Keep forceful styles for Progress for now
+                      style={{ display: 'block', opacity: 1 }} 
                     />
-                    <div className={`flex items-center text-xs md:text-sm ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>
-                      <Clock className="w-3 h-3 md:w-3.5 md:h-3.5 mr-1" />
+                    <div 
+                        style={{ color: 'blue', backgroundColor: 'cyan', padding: '3px', fontSize: '16px', fontWeight: 'bold', display: 'inline-block', border: '1px solid purple' }}
+                        className={`flex items-center text-xs md:text-sm ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>
+                      <Clock color="green" size={18} className="w-3 h-3 md:w-3.5 md:h-3.5 mr-1" />
                       {formatTime(bonusTimeLeft)}
                     </div>
                   </div>
