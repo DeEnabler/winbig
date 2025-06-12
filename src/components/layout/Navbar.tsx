@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Home, BarChart3, Menu, X, Coins, DollarSign } from 'lucide-react'; // Added DollarSign
+import { Home, BarChart3, Menu, X, Coins, DollarSign, ListChecks } from 'lucide-react'; // Added ListChecks
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/common/Logo';
 import { useState, useEffect } from 'react';
@@ -13,7 +13,8 @@ import ConnectWalletButton from '@/components/wallet/ConnectWallet';
 
 const navItems = [
   { href: '/', label: 'Bet', icon: Home },
-  { href: '/earn', label: 'Earn', icon: DollarSign }, // Added Earn page
+  { href: '/positions', label: 'Positions', icon: ListChecks }, // Added Positions page
+  { href: '/earn', label: 'Earn', icon: DollarSign },
   { href: '/leaderboard', label: 'Leaderboard', icon: BarChart3 },
 ];
 
@@ -107,5 +108,3 @@ export default function Navbar() {
     </header>
   );
 }
-
-    

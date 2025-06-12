@@ -1,5 +1,5 @@
 
-import type { Prediction, User, LeaderboardEntry, Match } from '@/types';
+import type { Prediction, User, LeaderboardEntry, Match, OpenPosition } from '@/types';
 
 export const mockPredictions: Prediction[] = [
   {
@@ -104,3 +104,56 @@ export const getMockMatch = (predictionId: string): Match => {
   };
 };
 
+export const mockOpenPositions: OpenPosition[] = [
+  {
+    id: 'pos_1',
+    predictionId: mockPredictions[0].id,
+    predictionText: mockPredictions[0].text,
+    category: mockPredictions[0].category,
+    userChoice: 'YES',
+    betAmount: 10,
+    potentialPayout: 19.5, // Standard 1.95x payout
+    currentValue: 15.0, // Simulating market fluctuation
+    endsAt: mockPredictions[0].endsAt || new Date(),
+    status: 'LIVE',
+    matchId: `match_trump_election_currentUser_${Date.now()}`,
+    imageUrl: mockPredictions[0].imageUrl,
+    aiHint: mockPredictions[0].aiHint,
+    opponentUsername: mockOpponentUser.username,
+    bonusApplied: false,
+  },
+  {
+    id: 'pos_2',
+    predictionId: mockPredictions[1].id,
+    predictionText: mockPredictions[1].text,
+    category: mockPredictions[1].category,
+    userChoice: 'NO',
+    betAmount: 25,
+    potentialPayout: 55.0, // (25 * 1.9) * 1.2 if bonus applied
+    currentValue: 50.0,
+    endsAt: mockPredictions[1].endsAt || new Date(),
+    status: 'ENDING_SOON',
+    matchId: `match_btc_100k_currentUser_${Date.now()}`,
+    imageUrl: mockPredictions[1].imageUrl,
+    aiHint: mockPredictions[1].aiHint,
+    opponentUsername: 'System Pool',
+    bonusApplied: true,
+  },
+  {
+    id: 'pos_3',
+    predictionId: mockPredictions[2].id,
+    predictionText: mockPredictions[2].text,
+    category: mockPredictions[2].category,
+    userChoice: 'YES',
+    betAmount: 5,
+    potentialPayout: 9.5,
+    currentValue: 8.0,
+    endsAt: mockPredictions[2].endsAt || new Date(),
+    status: 'LIVE',
+    matchId: `match_lakers_nba_currentUser_${Date.now()}`,
+    imageUrl: mockPredictions[2].imageUrl,
+    aiHint: mockPredictions[2].aiHint,
+    opponentUsername: 'AnotherBettor',
+    bonusApplied: false,
+  },
+];

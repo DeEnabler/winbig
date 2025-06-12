@@ -145,3 +145,20 @@ export interface OgData {
   bonusApplied?: boolean; // Added for bonus tracking in OG
 }
 
+export interface OpenPosition {
+  id: string; // Unique ID for this specific bet/position
+  predictionId: string;
+  predictionText: string;
+  category: string;
+  userChoice: 'YES' | 'NO';
+  betAmount: number;
+  potentialPayout: number; // Max possible win if user's choice is correct
+  currentValue: number; // Current estimated value of the position before settlement
+  endsAt: Date;
+  status: 'LIVE' | 'ENDING_SOON'; // For open positions
+  matchId: string; // To link back to the specific match instance
+  imageUrl?: string;
+  aiHint?: string;
+  opponentUsername?: string; // Who the user bet against (if applicable)
+  bonusApplied?: boolean; // Was a bonus applied to this bet?
+}
