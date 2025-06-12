@@ -1,5 +1,5 @@
 
-import type { Prediction, User, LeaderboardEntry, Match, OpenPosition } from '@/types';
+import type { Prediction, User, LeaderboardEntry, Match, OpenPosition, OpenPositionStatus } from '@/types';
 
 export const mockPredictions: Prediction[] = [
   {
@@ -112,9 +112,9 @@ export const mockOpenPositions: OpenPosition[] = [
     category: mockPredictions[0].category,
     userChoice: 'YES',
     betAmount: 10,
-    potentialPayout: 19.5, // Standard 1.95x payout
+    potentialPayout: 19.0, // Standard 1.9x payout
     currentValue: 15.0, // Simulating market fluctuation
-    endsAt: mockPredictions[0].endsAt || new Date(),
+    endsAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // Ends in 2 days
     status: 'LIVE',
     matchId: `match_trump_election_currentUser_${Date.now()}`,
     imageUrl: mockPredictions[0].imageUrl,
@@ -127,18 +127,52 @@ export const mockOpenPositions: OpenPosition[] = [
     predictionId: mockPredictions[1].id,
     predictionText: mockPredictions[1].text,
     category: mockPredictions[1].category,
-    userChoice: 'NO',
+    userChoice: 'YES',
     betAmount: 25,
-    potentialPayout: 55.0, // (25 * 1.9) * 1.2 if bonus applied
-    currentValue: 50.0,
-    endsAt: mockPredictions[1].endsAt || new Date(),
-    status: 'ENDING_SOON',
+    potentialPayout: 57.0, // (25 * 1.9) * 1.2 for bonus
+    currentValue: 30.0, // irrelevant for settled
+    settledAmount: 57.0,
+    endsAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // Ended yesterday
+    status: 'SETTLED_WON',
     matchId: `match_btc_100k_currentUser_${Date.now()}`,
     imageUrl: mockPredictions[1].imageUrl,
     aiHint: mockPredictions[1].aiHint,
     opponentUsername: 'System Pool',
     bonusApplied: true,
-  }
-  // Removed the third position to ensure exactly two are shown
+  },
+  {
+    id: 'pos_3',
+    predictionId: mockPredictions[2].id,
+    predictionText: mockPredictions[2].text,
+    category: mockPredictions[2].category,
+    userChoice: 'NO',
+    betAmount: 50,
+    potentialPayout: 95.0, // 50 * 1.9
+    currentValue: 40.0, // irrelevant for settled
+    settledAmount: 0, // Lost
+    endsAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // Ended 2 days ago
+    status: 'SETTLED_LOST',
+    matchId: `match_lakers_currentUser_${Date.now()}`,
+    imageUrl: mockPredictions[2].imageUrl,
+    aiHint: mockPredictions[2].aiHint,
+    bonusApplied: false,
+  },
+  {
+    id: 'pos_4',
+    predictionId: mockPredictions[3].id,
+    predictionText: mockPredictions[3].text,
+    category: mockPredictions[3].category,
+    userChoice: 'YES',
+    betAmount: 5,
+    potentialPayout: 9.5,
+    currentValue: 7.0, // Sold for 7.0
+    settledAmount: 7.0,
+    endsAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // Still active but sold
+    status: 'SOLD',
+    matchId: `match_agi_currentUser_${Date.now()}`,
+    imageUrl: mockPredictions[3].imageUrl,
+    aiHint: mockPredictions[3].aiHint,
+    opponentUsername: 'System Pool',
+    bonusApplied: true,
+  },
 ];
-

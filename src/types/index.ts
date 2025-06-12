@@ -74,10 +74,13 @@ export interface LeaderboardEntry {
 
 // For AI Share Message
 export type ShareMessageDetails = {
-  prediction: string;
-  betAmount: number;
-  potentialWinnings: number;
-  opponentUsername: string;
+  predictionText: string; // Renamed from 'prediction' for clarity
+  betAmount?: number; // Made optional for outcomes where it's less relevant
+  outcomeDescription: string; // e.g., "I WON", "I just SOLD my bet", "I'm betting YES"
+  opponentUsername?: string; // Optional, as not all shares involve a direct opponent
+  finalAmount?: number; // Replaces potentialWinnings; can be actual winnings, sell value, or potential winnings for an open bet
+  currency?: string; // e.g., "SOL", "$", "XP"
+  callToAction?: string; // e.g., "Think you can beat me?", "Check out my win!"
 };
 
 // Props for PredictionCard
@@ -111,13 +114,15 @@ export interface MatchViewProps {
 
 // Props for ShareDialog
 export interface ShareDialogProps {
-  matchId: string;
+  matchId?: string; // Optional, as it might not be relevant for all shares (e.g. sharing a position)
   ogImageUrl: string;
   tweetTemplates?: string[];
   rewardIncentive?: string;
   currentShareMessage: string;
   onShareMessageChange: (message: string) => void;
-  shareUrl: string;
+  shareUrl: string; // The URL to be appended to the tweet
+  entityContext?: 'match_challenge' | 'position_outcome'; // To help OG image generation
+  entityDetails?: Record<string, any>; // General purpose details for OG or Share Message
 }
 
 // EntryContext type
@@ -133,17 +138,22 @@ export interface EntryContextType {
 // For getMatchDetailsForOg
 export interface OgData {
   predictionText: string;
-  userChoice: 'YES' | 'NO';
+  userChoice?: 'YES' | 'NO'; // Made optional for generic OG cards
   userAvatar?: string;
-  username: string;
-  outcome: 'PENDING' | 'WON' | 'LOST';
-  betAmount: number;
+  username?: string; // Made optional
+  outcome?: 'PENDING' | 'WON' | 'LOST' | 'SOLD' | 'CHALLENGE'; // Added 'SOLD' and 'CHALLENGE'
+  betAmount?: number; // Made optional
   betSize?: string;
   streak?: string;
   rank?: string;
   rankCategory?: string;
-  bonusApplied?: boolean; // Added for bonus tracking in OG
+  bonusApplied?: boolean;
+  titleOverride?: string; // For more control over OG title
+  descriptionOverride?: string; // For more control over OG description
+  ogType?: 'match_challenge' | 'position_outcome' | 'generic_prediction';
 }
+
+export type OpenPositionStatus = 'LIVE' | 'ENDING_SOON' | 'SETTLED_WON' | 'SETTLED_LOST' | 'SOLD' | 'PENDING_COLLECTION';
 
 export interface OpenPosition {
   id: string; // Unique ID for this specific bet/position
@@ -154,9 +164,10 @@ export interface OpenPosition {
   betAmount: number;
   potentialPayout: number; // Max possible win if user's choice is correct
   currentValue: number; // Current estimated value of the position before settlement
+  settledAmount?: number; // Actual amount won or sold for
   endsAt: Date;
-  status: 'LIVE' | 'ENDING_SOON'; // For open positions
-  matchId: string; // To link back to the specific match instance
+  status: OpenPositionStatus;
+  matchId: string; // To link back to the specific match instance (could be challenge ID)
   imageUrl?: string;
   aiHint?: string;
   opponentUsername?: string; // Who the user bet against (if applicable)

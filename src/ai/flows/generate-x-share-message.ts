@@ -1,8 +1,9 @@
+
 // src/ai/flows/generate-x-share-message.ts
 'use server';
 
 /**
- * @fileOverview Generates engaging share messages for X (Twitter) when a user places a bet.
+ * @fileOverview Generates engaging share messages for X (Twitter).
  *
  * - generateXShareMessage - A function that generates the share message.
  * - GenerateXShareMessageInput - The input type for the generateXShareMessage function.
@@ -13,10 +14,13 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const GenerateXShareMessageInputSchema = z.object({
-  prediction: z.string().describe('The prediction being made in the bet.'),
-  betAmount: z.number().describe('The amount being bet.'),
-  potentialWinnings: z.number().describe('The potential winnings if the bet is successful.'),
-  opponentUsername: z.string().describe('The username of the opponent in the bet.'),
+  predictionText: z.string().describe('The core text of the prediction or event.'),
+  outcomeDescription: z.string().describe('A short description of the outcome or current state, e.g., "I WON", "I just SOLD my bet for", "I\'m betting YES that", "My bet is LIVE on".'),
+  betAmount: z.number().optional().describe('The original amount bet, if relevant to the share message.'),
+  finalAmount: z.number().optional().describe('The final amount, such as winnings, sell value, or potential payout. To be used with currency.'),
+  currency: z.string().optional().default('$').describe('The currency symbol or code (e.g., "$", "SOL", "XP"). Default is "$".'),
+  opponentUsername: z.string().optional().describe('The username of the opponent, if applicable.'),
+  callToAction: z.string().optional().describe('A custom call to action to include, e.g., "Think you can beat me?", "What\'s your take?".'),
 });
 export type GenerateXShareMessageInput = z.infer<typeof GenerateXShareMessageInputSchema>;
 
@@ -33,23 +37,47 @@ const prompt = ai.definePrompt({
   name: 'generateXShareMessagePrompt',
   input: {schema: GenerateXShareMessageInputSchema},
   output: {schema: GenerateXShareMessageOutputSchema},
-  prompt: `Generate a short, engaging, and viral share message for X (Twitter) to promote a bet.
+  prompt: `Generate a short, engaging, and viral share message for X (Twitter) based on a user's betting activity on ViralBet.
 
-  The message should include:
-  - The prediction: {{{prediction}}}
-  - The bet amount: {{{betAmount}}}
-  - The potential winnings: {{{potentialWinnings}}}
-  - The opponent's username: {{{opponentUsername}}}
+Context:
+- Prediction: "{{{predictionText}}}"
+- User's situation: "{{{outcomeDescription}}}"
+{{#if finalAmount}}
+- Amount involved: {{{finalAmount}}} {{{currency}}}
+{{else if betAmount}}
+- Bet amount: {{{betAmount}}} {{{currency}}}
+{{/if}}
+{{#if opponentUsername}}
+- Against: @{{{opponentUsername}}}
+{{/if}}
 
-  The message should be designed to encourage followers to participate and drive viral growth.
-  Make it fun, exciting and a little bit provocative.
-  Include relevant hashtags like #bet #prediction #challenge.
-  Keep the message under 280 characters.
-  Example: "I just bet {{{betAmount}}} that {{{prediction}}} against @{{{opponentUsername}}}! If I win, I get {{{potentialWinnings}}}! Think you can beat me? #bet #challenge"
+Instructions:
+1. Craft a message under 280 characters.
+2. Make it sound exciting, fun, or a bit provocative depending on the context.
+3. If an opponent is mentioned, incorporate them naturally.
+4. If a 'finalAmount' (like winnings or sell value) is provided, highlight it.
+5. Include relevant hashtags like #ViralBet, #prediction, #bet, #crypto, #sports, etc., based on the prediction.
+6. Include 1-2 relevant emojis to enhance engagement.
+7. If a 'callToAction' is provided, try to weave it in. If not, create a general one like "Join the action on #ViralBet!" or "What do you predict?".
+
+Examples based on input:
+
+- If 'outcomeDescription' is "I WON" and 'finalAmount' is 50:
+  "BOOM! 🚀 Just WON 50 {{{currency}}} on ViralBet predicting: '{{{predictionText}}}'! Feeling like a legend. #ViralBet #Winner"
+
+- If 'outcomeDescription' is "I just SOLD my bet for" and 'finalAmount' is 30:
+  "Cashed out! 💰 Sold my bet on '{{{predictionText}}}' for 30 {{{currency}}} on ViralBet. Smart moves! #Trading #ViralBet"
+
+- If 'outcomeDescription' is "I'm betting YES that" and 'betAmount' is 10 and 'opponentUsername' is 'RivalJoe':
+  "Locked in! 🎲 Betting 10 {{{currency}}} that '{{{predictionText}}}' against @RivalJoe on ViralBet. {{{callToAction}}} #Challenge #ViralBet"
   
-  Ensure the message is tailored for X and includes relevant emojis to enhance engagement.
-  
-  Share Message:`, 
+- If 'outcomeDescription' is "My bet is LIVE on" and 'potentialWinnings' is 19:
+  "My bet is LIVE on ViralBet! 🔥 '{{{predictionText}}}' - watching this one closely. Potential for 19 {{{currency}}}! What's your take? #ViralBet #LiveBet"
+
+Prioritize making the message engaging and natural-sounding for X.
+If '{{{callToAction}}}' is provided, use it. Otherwise, come up with a suitable one.
+
+Share Message:`, 
 });
 
 const generateXShareMessageFlow = ai.defineFlow(
@@ -63,3 +91,27 @@ const generateXShareMessageFlow = ai.defineFlow(
     return output!;
   }
 );
+
+// Example usage (for testing):
+// async function test() {
+//   const exampleWon: GenerateXShareMessageInput = {
+//     predictionText: "Bitcoin will hit $100k by EOY",
+//     outcomeDescription: "I WON BIG!",
+//     finalAmount: 150,
+//     currency: "SOL",
+//     callToAction: "Who's next?"
+//   };
+//   const exampleLiveBet: GenerateXShareMessageInput = {
+//     predictionText: "The Lakers will win the championship",
+//     outcomeDescription: "I'm betting YES that",
+//     betAmount: 20,
+//     currency: "$",
+//     opponentUsername: "LeBronFan23",
+//     callToAction: "Think they'll lose?"
+//   };
+//   const wonMessage = await generateXShareMessage(exampleWon);
+//   console.log("Won message:", wonMessage.shareMessage);
+//   const liveBetMessage = await generateXShareMessage(exampleLiveBet);
+//   console.log("Live bet message:", liveBetMessage.shareMessage);
+// }
+// test();
