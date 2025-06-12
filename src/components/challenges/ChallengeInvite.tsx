@@ -17,6 +17,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { networks } from '@/config/index';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import BonusDisplay from './BonusDisplay'; // Import the new component
 
 const REWARD_AMOUNT = 100;
 const REWARD_CURRENCY = "ViralPoints";
@@ -256,285 +257,184 @@ export default function ChallengeInvite({
 
 
   return (
-    <Card className="w-full max-w-md mx-auto shadow-xl rounded-lg text-center overflow-hidden">
-      <CardHeader className="bg-muted/30 p-3 md:p-4 space-y-1">
-        <div className="flex items-center space-x-3">
-          <Avatar className="w-12 h-12 md:w-16 md:h-16 border-2 border-primary">
-            <AvatarImage src={referrerAvatar} alt={referrerName} data-ai-hint="person avatar" />
-            <AvatarFallback>{referrerName.substring(0, 2).toUpperCase()}</AvatarFallback>
-          </Avatar>
-          <div className="text-left">
-            <h2 className="text-base md:text-lg font-semibold text-foreground">
-              {referrerName === mockOpponentUser.username && "👑 "}@{referrerName}
-              <span className="text-sm md:text-base font-normal text-muted-foreground"> bet <span className={referrerOriginalChoice === 'YES' ? 'text-green-500 font-bold' : 'text-red-500 font-bold'}>{referrerOriginalChoice}</span></span>
-            </h2>
-            {referrerStats && (
-              <>
-                <div className="flex items-center space-x-2 md:space-x-3 mt-1">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center space-x-1 text-xs text-yellow-500">
-                          <Flame className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                          <span className="font-bold">{referrerStats.winStreak}W</span>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Win Streak: {referrerStats.winStreak} wins in a row</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center text-xs text-muted-foreground">
-                          <Coins className="w-3 h-3 md:w-4 md:h-4 mr-1 text-green-500" />
-                          <span className="font-bold">{referrerStats.totalWinnings.split(' ')[0]}</span>
-                          <span className="ml-0.5">{referrerStats.totalWinnings.split(' ')[1]}</span>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Total Won: {referrerStats.totalWinnings}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center text-xs text-muted-foreground">
-                          <Crown className="w-3 h-3 md:w-4 md:h-4 mr-1 text-purple-500" />
-                          <span className="font-bold">{referrerStats.predictionRank}</span>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Prediction Rank: {referrerStats.predictionRank}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <p className="text-xs md:text-sm text-muted-foreground italic mt-1.5 text-center sm:text-left">
-                  {egoHookMessage}
-                </p>
-              </>
-            )}
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4 p-4 md:p-6">
-        <p className="italic text-lg md:text-xl font-semibold text-foreground leading-tight">
-          “{predictionQuestion}”
-        </p>
-
-        <div className="my-3 space-y-2 py-2 border-y border-border/30">
-          <div className="text-center">
-            <p className="text-xs font-medium text-muted-foreground mb-1.5">Live Activity</p>
-            <div className="flex justify-around items-start">
-              <div className="text-center relative px-1">
-                <div className="relative inline-block">
-                  <span className="text-2xl md:text-3xl font-bold text-green-500">{yesBettors}</span>
-                  {showPlusOneYes && (
-                    <span className="absolute -top-1.5 -right-3 text-xs md:text-sm text-green-500 animate-fade-in-out-briefly font-semibold">+1</span>
-                  )}
-                </div>
-                <p className="text-xxs md:text-xs text-muted-foreground mt-0.5">Betting YES</p>
-              </div>
-              <div className="text-center relative px-1">
-                 <div className="relative inline-block">
-                  <span className="text-2xl md:text-3xl font-bold text-red-500">{noBettors}</span>
-                  {showPlusOneNo && (
-                    <span className="absolute -top-1.5 -right-3 text-xs md:text-sm text-red-500 animate-fade-in-out-briefly font-semibold">+1</span>
-                  )}
-                </div>
-                <p className="text-xxs md:text-xs text-muted-foreground mt-0.5">Betting NO</p>
-              </div>
+    <>
+      <Card className="w-full max-w-md mx-auto shadow-xl rounded-lg text-center overflow-hidden">
+        <CardHeader className="bg-muted/30 p-3 md:p-4 space-y-1">
+          <div className="flex items-center space-x-3">
+            <Avatar className="w-12 h-12 md:w-16 md:h-16 border-2 border-primary">
+              <AvatarImage src={referrerAvatar} alt={referrerName} data-ai-hint="person avatar" />
+              <AvatarFallback>{referrerName.substring(0, 2).toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div className="text-left">
+              <h2 className="text-base md:text-lg font-semibold text-foreground">
+                {referrerName === mockOpponentUser.username && "👑 "}@{referrerName}
+                <span className="text-sm md:text-base font-normal text-muted-foreground"> bet <span className={referrerOriginalChoice === 'YES' ? 'text-green-500 font-bold' : 'text-red-500 font-bold'}>{referrerOriginalChoice}</span></span>
+              </h2>
+              {referrerStats && (
+                <>
+                  <div className="flex items-center space-x-2 md:space-x-3 mt-1">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center space-x-1 text-xs text-yellow-500">
+                            <Flame className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                            <span className="font-bold">{referrerStats.winStreak}W</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Win Streak: {referrerStats.winStreak} wins in a row</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center text-xs text-muted-foreground">
+                            <Coins className="w-3 h-3 md:w-4 md:h-4 mr-1 text-green-500" />
+                            <span className="font-bold">{referrerStats.totalWinnings.split(' ')[0]}</span>
+                            <span className="ml-0.5">{referrerStats.totalWinnings.split(' ')[1]}</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Total Won: {referrerStats.totalWinnings}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center text-xs text-muted-foreground">
+                            <Crown className="w-3 h-3 md:w-4 md:h-4 mr-1 text-purple-500" />
+                            <span className="font-bold">{referrerStats.predictionRank}</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Prediction Rank: {referrerStats.predictionRank}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  <p className="text-xs md:text-sm text-muted-foreground italic mt-1.5 text-center sm:text-left">
+                    {egoHookMessage}
+                  </p>
+                </>
+              )}
             </div>
           </div>
-          <div
-            className={`text-center p-1.5 rounded-md transition-all duration-300 ${oddsPulse ? 'animate-pulse-once bg-primary/10' : 'bg-muted/30'}`}
-          >
-            <p className="text-xs text-muted-foreground">Current Odds:</p>
-            <p className="text-base md:text-lg font-semibold">
-              <span className="text-green-500">YES {oddsYes.toFixed(0)}%</span> / <span className="text-red-500">NO {(100 - oddsYes).toFixed(0)}%</span>
-            </p>
-          </div>
-        </div>
-        
+        </CardHeader>
+        <CardContent className="space-y-4 p-4 md:p-6">
+          <p className="italic text-lg md:text-xl font-semibold text-foreground leading-tight">
+            “{predictionQuestion}”
+          </p>
 
-        {showBonusSection && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            transition={{ duration: 0.5 }}
-            className="w-full"
-          >
-            <AnimatePresence mode="wait">
-              {isBonusOfferActive && !bonusSuccessfullyClaimed && (
-                <motion.div
-                  key="bonus-active"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
-                  transition={{ duration: 0.3 }}
-                  className={`flex items-center justify-between w-full p-2 my-2 rounded-lg border ${
-                    bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'animate-pulse-glow border-yellow-500 bg-yellow-500/10' : 'border-primary/50 bg-primary/5'
-                  }`}
-                  style={{ minHeight: '50px' }} 
-                >
-                  <div className="flex items-center space-x-2">
-                    <Zap 
-                        color="orange" 
-                        size={20} 
-                        className={`w-5 h-5 md:w-6 md:h-6 ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'text-yellow-500' : 'text-primary'}`} />
-                    <span 
-                        style={{ 
-                          fontFamily: 'Arial, sans-serif !important',
-                          fontSize: '20px !important',
-                          lineHeight: 'normal !important',
-                          color: 'black !important',
-                          backgroundColor: 'yellow !important',
-                          border: '2px solid red !important',
-                          padding: '5px !important',
-                          display: 'block !important',
-                          visibility: 'visible !important',
-                          opacity: '1 !important',
-                          zIndex: '99999 !important',
-                          textIndent: '0 !important',
-                          overflow: 'visible !important',
-                          whiteSpace: 'normal !important'
-                        }}
-                        // Removed Tailwind text color classes to ensure inline styles dominate
-                        className={`font-semibold ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? '' : ''}`}>
-                      +${BONUS_PERCENTAGE}% Bonus!
-                    </span>
+          <div className="my-3 space-y-2 py-2 border-y border-border/30">
+            <div className="text-center">
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">Live Activity</p>
+              <div className="flex justify-around items-start">
+                <div className="text-center relative px-1">
+                  <div className="relative inline-block">
+                    <span className="text-2xl md:text-3xl font-bold text-green-500">{yesBettors}</span>
+                    {showPlusOneYes && (
+                      <span className="absolute -top-1.5 -right-3 text-xs md:text-sm text-green-500 animate-fade-in-out-briefly font-semibold">+1</span>
+                    )}
                   </div>
-                  <div 
-                    className="flex flex-col items-end w-1/2" 
-                    style={{ border: '1px solid green', backgroundColor: 'lightcyan', padding: '3px' }} // Added different debug style
+                  <p className="text-xxs md:text-xs text-muted-foreground mt-0.5">Betting YES</p>
+                </div>
+                <div className="text-center relative px-1">
+                  <div className="relative inline-block">
+                    <span className="text-2xl md:text-3xl font-bold text-red-500">{noBettors}</span>
+                    {showPlusOneNo && (
+                      <span className="absolute -top-1.5 -right-3 text-xs md:text-sm text-red-500 animate-fade-in-out-briefly font-semibold">+1</span>
+                    )}
+                  </div>
+                  <p className="text-xxs md:text-xs text-muted-foreground mt-0.5">Betting NO</p>
+                </div>
+              </div>
+            </div>
+            <div
+              className={`text-center p-1.5 rounded-md transition-all duration-300 ${oddsPulse ? 'animate-pulse-once bg-primary/10' : 'bg-muted/30'}`}
+            >
+              <p className="text-xs text-muted-foreground">Current Odds:</p>
+              <p className="text-base md:text-lg font-semibold">
+                <span className="text-green-500">YES {oddsYes.toFixed(0)}%</span> / <span className="text-red-500">NO {(100 - oddsYes).toFixed(0)}%</span>
+              </p>
+            </div>
+          </div>
+          
+          {/* Bonus UI removed from here */}
+
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 mt-3">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <motion.button
+                    whileHover={{ scale: 1.03, y: -1 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                    className="flex-1 py-3 px-3 bg-gradient-to-br from-green-500 to-green-600 text-white font-bold rounded-lg shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 flex items-center justify-center space-x-1.5 text-sm md:text-base"
+                    onClick={() => handleBetAction('with')}
                   >
-                    <Progress 
-                      value={(bonusTimeLeft / BONUS_DURATION_SECONDS) * 100} 
-                      className="w-full h-1.5 md:h-2 my-0.5 [&>span]:bg-primary"
-                      style={{ display: 'block', opacity: 1, border: '1px solid blue' }} // Debug style
-                    />
-                    <div
-                        style={{ 
-                          fontFamily: 'Arial, sans-serif !important',
-                          fontSize: '20px !important',
-                          lineHeight: 'normal !important',
-                          color: 'black !important',
-                          backgroundColor: 'pink !important', // Different background for time
-                          border: '2px solid purple !important',
-                          padding: '5px !important',
-                          display: 'block !important',
-                          visibility: 'visible !important',
-                          opacity: '1 !important',
-                          zIndex: '99999 !important',
-                          textIndent: '0 !important',
-                          overflow: 'visible !important',
-                          whiteSpace: 'normal !important'
-                        }}
-                        // Removed Tailwind text color classes
-                        className={`flex items-center font-semibold ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? '' : ''}`}>
-                      <Clock color="darkblue" size={18} className="w-3 h-3 md:w-3.5 md:h-3.5 mr-1" />
-                      {formatTime(bonusTimeLeft)}
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-              {!isBonusOfferActive && !bonusSuccessfullyClaimed && (
-                 <motion.div
-                  key="bonus-expired"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
-                  transition={{ duration: 0.3 }}
-                  className="text-center p-2 my-2 rounded-lg bg-muted/70 text-xs md:text-sm flex items-center justify-center border border-muted"
-                  style={{ minHeight: '50px' }}
-                >
-                  <p className="font-semibold flex items-center">
-                    <AlertTriangle className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 text-muted-foreground" /> ⏱ Bonus expired.
-                  </p>
-                </motion.div>
-              )}
-              {bonusSuccessfullyClaimed && (
-                <motion.div
-                  key="bonus-claimed"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0, height: 0, transition: { duration: 0.2 } }}
-                  transition={{ duration: 0.3 }}
-                  className="text-center p-2 my-2 rounded-lg bg-green-500/10 border border-green-600 text-xs md:text-sm flex items-center justify-center"
-                  style={{ minHeight: '50px' }}
-                >
-                  <p className="font-semibold text-green-700 dark:text-green-400 flex items-center">
-                    <ShieldCheck className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5" /> ✅ Bonus Locked In! +${BONUS_PERCENTAGE}% if you win.
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        )}
+                    <CheckCircle className="w-4 h-4 md:w-5 md:h-5" />
+                    <span>I'm In</span>
+                  </motion.button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Bet {referrerOriginalChoice} with @{referrerName}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <motion.button
+                    whileHover={{ scale: 1.03, y: -1 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                    className="flex-1 py-3 px-3 bg-gradient-to-br from-red-500 to-red-600 text-white font-bold rounded-lg shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 flex items-center justify-center space-x-1.5 text-sm md:text-base"
+                    onClick={() => handleBetAction('against')}
+                  >
+                    <Swords className="w-4 h-4 md:w-5 md:h-5" />
+                    <span>Challenge</span>
+                  </motion.button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Bet {oppositeChoice} & Challenge @{referrerName}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <div className="text-xs text-muted-foreground mt-3 space-y-1">
+            <p>🛡️ Fast, secure bets – Powered by smart contracts</p>
+            <p>Go viral! Share your bet to X and earn ViralPoints.</p>
+          </div>
+        </CardContent>
+        <CardFooter className="flex items-center justify-between p-3 bg-muted/20 border-t text-xs text-muted-foreground">
+          
+          <div className="flex items-center space-x-3">
+              <div className="flex items-center">
+                  <Users className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 text-blue-500" /> 12k+ Bettors
+              </div>
+              <div className="flex items-center">
+                  <BarChartHorizontalBig className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 text-purple-500" /> 500+ Markets
+              </div>
+          </div>
+        </CardFooter>
+      </Card>
 
-        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 mt-3">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <motion.button
-                  whileHover={{ scale: 1.03, y: -1 }}
-                  whileTap={{ scale: 0.97 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                  className="flex-1 py-3 px-3 bg-gradient-to-br from-green-500 to-green-600 text-white font-bold rounded-lg shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 flex items-center justify-center space-x-1.5 text-sm md:text-base"
-                  onClick={() => handleBetAction('with')}
-                >
-                  <CheckCircle className="w-4 h-4 md:w-5 md:h-5" />
-                  <span>I'm In</span>
-                </motion.button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Bet {referrerOriginalChoice} with @{referrerName}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <motion.button
-                  whileHover={{ scale: 1.03, y: -1 }}
-                  whileTap={{ scale: 0.97 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                  className="flex-1 py-3 px-3 bg-gradient-to-br from-red-500 to-red-600 text-white font-bold rounded-lg shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 flex items-center justify-center space-x-1.5 text-sm md:text-base"
-                  onClick={() => handleBetAction('against')}
-                >
-                  <Swords className="w-4 h-4 md:w-5 md:h-5" />
-                  <span>Challenge</span>
-                </motion.button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Bet {oppositeChoice} & Challenge @{referrerName}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+      {/* Conditionally render BonusDisplay outside the card */}
+      {showBonusSection && (
+        <div className="fixed bottom-4 right-4 z-50 md:bottom-6 md:right-6">
+          <BonusDisplay
+            isActive={isBonusOfferActive}
+            isClaimed={bonusSuccessfullyClaimed}
+            timeLeftSeconds={bonusTimeLeft}
+            durationSeconds={BONUS_DURATION_SECONDS}
+            lowTimeThreshold={BONUS_LOW_TIME_THRESHOLD}
+            percentage={BONUS_PERCENTAGE}
+            formatTime={formatTime}
+          />
         </div>
-         <div className="text-xs text-muted-foreground mt-3 space-y-1">
-          <p>🛡️ Fast, secure bets – Powered by smart contracts</p>
-          <p>Go viral! Share your bet to X and earn ViralPoints.</p>
-        </div>
-      </CardContent>
-      <CardFooter className="flex items-center justify-between p-3 bg-muted/20 border-t text-xs text-muted-foreground">
-        
-        <div className="flex items-center space-x-3">
-            <div className="flex items-center">
-                <Users className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 text-blue-500" /> 12k+ Bettors
-            </div>
-            <div className="flex items-center">
-                <BarChartHorizontalBig className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 text-purple-500" /> 500+ Markets
-            </div>
-        </div>
-      </CardFooter>
-    </Card>
+      )}
+    </>
   );
 }
-    
-
-    
-
