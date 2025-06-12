@@ -31,10 +31,10 @@ export default function BonusDisplay({
       borderRadius: '8px',
       boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
       minWidth: '280px',
-      border: '3px solid darkorange', // Changed parent border for clarity
-      backgroundColor: 'rgba(255, 248, 220, 0.95)', // Light corn silk, slightly transparent
-      color: '#333', 
-      zIndex: 1000, 
+      border: '3px solid darkorange',
+      backgroundColor: 'rgba(255, 248, 220, 0.95)',
+      color: '#333',
+      zIndex: 1000,
     }}>
       <AnimatePresence mode="wait">
         {isActive && !isClaimed && (
@@ -47,37 +47,34 @@ export default function BonusDisplay({
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
+              justifyContent: 'center', // Center items like in 'bonus-expired'
+              gap: '8px', // Add gap between items
               padding: '8px 12px',
               borderRadius: '6px',
-              border: timeLeftSeconds < lowTimeThreshold ? '2px solid #F59E0B' : '2px solid #A020F0', 
-              backgroundColor: timeLeftSeconds < lowTimeThreshold ? 'rgba(251, 239, 213, 0.9)' : 'rgba(240, 229, 245, 0.9)', 
-              minHeight: '50px', 
-              color: 'black', 
-              fontSize: '14px', 
+              border: timeLeftSeconds < lowTimeThreshold ? '2px solid #F59E0B' : '2px solid #A020F0',
+              backgroundColor: timeLeftSeconds < lowTimeThreshold ? 'rgba(251, 239, 213, 0.9)' : 'rgba(240, 229, 245, 0.9)',
+              minHeight: '50px',
+              color: 'black', // Default text color
+              fontSize: '14px', // Default font size
             }}
             className={timeLeftSeconds < lowTimeThreshold ? 'animate-pulse-glow' : ''}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Zap
-                size={24}
-                style={{ color: timeLeftSeconds < lowTimeThreshold ? '#D97706' : '#8B5CF6', display: 'inline-block !important', visibility: 'visible !important', opacity: '1 !important', border: '1px dotted red' }} 
-              />
-              <span style={{ fontWeight: 'bold', fontSize: '16px', color: 'red', backgroundColor: 'lightyellow', border: '1px solid blue', padding: '2px', display: 'inline-block !important', visibility: 'visible !important', opacity: '1 !important' }}>
-                +{percentage}% Bonus!
-              </span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', width: '45%', border: '1px dotted green', padding: '2px' }}>
-              <Progress
-                value={(timeLeftSeconds / durationSeconds) * 100}
-                style={{ width: '100%', height: '6px', marginBottom: '4px', backgroundColor: '#E5E7EB', display: 'block !important', visibility: 'visible !important', opacity: '1 !important', border: '1px solid orange' }}
-                className="[&>span]:bg-primary"
-              />
-              <div style={{ display: 'flex', alignItems: 'center', fontWeight: 'semibold', fontSize: '14px', color: 'green', backgroundColor: 'lightcyan', border: '1px solid orange', padding: '2px', display: 'inline-block !important', visibility: 'visible !important', opacity: '1 !important' }}>
-                <Clock size={16} style={{ marginRight: '4px', color: timeLeftSeconds < lowTimeThreshold ? '#D97706' : '#6B7280', display: 'inline-block !important', visibility: 'visible !important', opacity: '1 !important', border: '1px dotted blue' }} />
-                {formatTime(timeLeftSeconds)}
-              </div>
-            </div>
+            <Zap
+              size={22}
+              style={{ color: timeLeftSeconds < lowTimeThreshold ? '#D97706' : '#8B5CF6', border: '1px dotted red', display: 'inline-block' }}
+            />
+            <span style={{ fontWeight: 'bold', fontSize: '15px', color: 'magenta', backgroundColor: 'lightyellow', border: '1px solid blue', padding: '2px', display: 'inline-block' }}>
+              +{percentage}% Bonus!
+            </span>
+            <Progress
+              value={(timeLeftSeconds / durationSeconds) * 100}
+              style={{ width: '60px', height: '8px', backgroundColor: '#E5E7EB', border: '1px solid orange', display: 'inline-block' }}
+              className="[&>span]:bg-primary"
+            />
+            <Clock size={16} style={{ color: timeLeftSeconds < lowTimeThreshold ? '#D97706' : '#6B7280', border: '1px dotted blue', display: 'inline-block' }} />
+            <span style={{ fontWeight: 'semibold', fontSize: '13px', color: 'green', backgroundColor: 'lightcyan', border: '1px solid darkgreen', padding: '2px', display: 'inline-block' }}>
+              {formatTime(timeLeftSeconds)}
+            </span>
           </motion.div>
         )}
 
@@ -92,9 +89,9 @@ export default function BonusDisplay({
               textAlign: 'center',
               padding: '12px',
               borderRadius: '6px',
-              backgroundColor: 'rgba(229, 231, 235, 0.9)', 
-              color: 'black', 
-              border: '1px solid #D1D5DB', 
+              backgroundColor: 'rgba(229, 231, 235, 0.9)',
+              color: 'black',
+              border: '1px solid #D1D5DB',
               minHeight: '50px',
               display: 'flex',
               alignItems: 'center',
@@ -102,8 +99,8 @@ export default function BonusDisplay({
               fontSize: '14px',
             }}
           >
-            <AlertTriangle size={20} style={{ marginRight: '6px', color: '#4B5563', display: 'inline-block !important', visibility: 'visible !important', opacity: '1 !important' }} />
-            <span style={{ fontWeight: 'semibold', color: 'red', backgroundColor: 'lightyellow', padding: '2px', border: '1px solid blue', display: 'inline-block !important', visibility: 'visible !important', opacity: '1 !important' }}>
+            <AlertTriangle size={20} style={{ marginRight: '6px', color: '#4B5563', display: 'inline-block', visibility: 'visible', opacity: '1' }} />
+            <span style={{ fontWeight: 'semibold', color: 'red', backgroundColor: 'lightyellow', padding: '2px', border: '1px solid blue', display: 'inline-block', visibility: 'visible', opacity: '1' }}>
               ⏱ Bonus expired.
             </span>
           </motion.div>
@@ -120,9 +117,9 @@ export default function BonusDisplay({
               textAlign: 'center',
               padding: '12px',
               borderRadius: '6px',
-              backgroundColor: 'rgba(220, 252, 231, 0.9)', 
-              color: 'black', 
-              border: '1px solid #10B981', 
+              backgroundColor: 'rgba(220, 252, 231, 0.9)',
+              color: 'black',
+              border: '1px solid #10B981',
               minHeight: '50px',
               display: 'flex',
               alignItems: 'center',
@@ -130,8 +127,8 @@ export default function BonusDisplay({
               fontSize: '14px',
             }}
           >
-            <ShieldCheck size={20} style={{ marginRight: '6px', color: '#059669', display: 'inline-block !important', visibility: 'visible !important', opacity: '1 !important' }} />
-            <span style={{ fontWeight: 'semibold', color: 'green', backgroundColor: 'lightyellow', padding: '2px', border: '1px solid blue', display: 'inline-block !important', visibility: 'visible !important', opacity: '1 !important' }}>
+            <ShieldCheck size={20} style={{ marginRight: '6px', color: '#059669', display: 'inline-block', visibility: 'visible', opacity: '1' }} />
+            <span style={{ fontWeight: 'semibold', color: 'green', backgroundColor: 'lightyellow', padding: '2px', border: '1px solid blue', display: 'inline-block', visibility: 'visible', opacity: '1' }}>
               ✅ Bonus Locked In! +{percentage}% if you win.
             </span>
           </motion.div>
@@ -140,4 +137,3 @@ export default function BonusDisplay({
     </div>
   );
 }
-
