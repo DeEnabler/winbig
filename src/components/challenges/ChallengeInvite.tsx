@@ -251,6 +251,8 @@ export default function ChallengeInvite({
     }
   }
 
+  console.log("ChallengeInvite RENDER: showBonusSection:", showBonusSection, "isBonusOfferActive:", isBonusOfferActive, "bonusSuccessfullyClaimed:", bonusSuccessfullyClaimed, "bonusTimeLeft:", bonusTimeLeft);
+
 
   return (
     <Card className="w-full max-w-md mx-auto shadow-xl rounded-lg text-center overflow-hidden">
@@ -363,51 +365,43 @@ export default function ChallengeInvite({
         )}
 
         {showBonusSection && (
-          <motion.div /* Removed animation props for debug */ >
-            <div className="text-blue-500 font-bold p-2 border border-blue-500 my-2">
-              DEBUG: INSIDE PARENT MOTION.DIV. AnimatePresence is next.
+          <motion.div /* Parent motion.div for delayed reveal - animations removed for debug */ >
+            <div className="text-blue-500 font-bold p-2 border border-blue-500 my-2" style={{opacity: 1, marginBottom: '5px'}}>
+              DEBUG: INSIDE PARENT MOTION.DIV. AnimatePresence/Direct Test is next.
             </div>
+            
+            {/* AnimatePresence block - keep for other states */}
             <AnimatePresence mode="wait">
+              {/* Commented out original bonus-active for the direct test below
               {isBonusOfferActive && !bonusSuccessfullyClaimed && (
                 <motion.div
                   key="bonus-active"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
+                  initial={{ opacity: 1 }} // Forcing initial opacity
+                  animate={{ opacity: 1 }} // Forcing animate opacity
                   transition={{ duration: 0.3 }}
-                  className={`flex items-center justify-between w-full p-2 my-2 rounded-lg ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'animate-pulse-glow' : ''}`}
-                  style={{ border: '3px solid orange', padding: '10px', backgroundColor: 'lightyellow', opacity: 1 }}
+                  // className={`flex items-center justify-between w-full p-2 my-2 rounded-lg ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'animate-pulse-glow' : ''}`}
+                  // Removed className for maximum simplicity
+                  style={{
+                    border: '5px solid darkorange',
+                    backgroundColor: 'orange',
+                    padding: '10px',
+                    margin: '10px 0',
+                    minHeight: '50px',
+                    opacity: 1, // Forced opacity
+                    position: 'relative',
+                    zIndex: 99999, // Extremely high z-index
+                    color: 'black', // Default text color for this div
+                    fontSize: '16px',
+                  }}
                 >
-                  <div style={{ border: '2px solid blue', padding: '5px', backgroundColor: 'lightblue', width: '100%', minHeight: '50px', opacity: 1 }}>
-                      <div style={{ border: '2px solid purple', padding: '3px', backgroundColor: 'rgba(220, 160, 220, 0.7)', zIndex: 10000, position: 'relative', opacity: 1, minHeight: '20px' }}>
-                          <span
-                              style={{
-                                color: 'black', // Changed from magenta for better default visibility
-                                fontSize: '18px',
-                                display: 'block', // Removed !important, React handles it
-                                backgroundColor: 'rgba(255, 192, 203, 0.7)', // pink with alpha
-                                padding: '2px',
-                                zIndex: 10001, // Higher than parent
-                                position: 'relative', // Ensure z-index applies
-                                opacity: 1,
-                                visibility: 'visible',
-                              }}
-                          >
-                              +20% Bonus! VISIBLE NOW?
-                          </span>
-                      </div>
-                       <div style={{ border: '2px solid teal', padding: '3px', backgroundColor: 'rgba(175, 238, 238, 0.7)', zIndex: 10000, position: 'relative', opacity: 1, minHeight: '20px', marginTop: '5px' }}>
-                          <div style={{color: 'black', fontSize: '18px', opacity: 1, visibility: 'visible', display: 'block', zIndex: 10001, position: 'relative'}}>Time Left: {formatTime(bonusTimeLeft)}</div>
-                       </div>
-                       {/* Original Progress and Clock icon section - temporarily commented out for extreme focus on text visibility
-                       <Progress value={(bonusTimeLeft / BONUS_DURATION_SECONDS) * 100} className="w-full h-1.5 flex-grow mx-2 [&>span]:bg-yellow-500" />
-                       <div className="flex items-center font-mono text-xs md:text-sm font-semibold tabular-nums whitespace-nowrap text-yellow-700 dark:text-yellow-400">
-                           <Clock className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1" />
-                           {formatTime(bonusTimeLeft)}
-                       </div>
-                       */}
-                  </div>
+                    <span style={{ color: 'magenta !important', backgroundColor: 'pink !important', padding: '5px', fontSize: '20px !important', display: 'block !important', visibility: 'visible !important', opacity: '1 !important', border: '2px dotted red', position: 'relative', zIndex: 100000 }}>
+                        ANIM-PRES-TEXT
+                    </span>
+                    <div style={{ color: 'blue !important', backgroundColor: 'lightblue !important', padding: '5px', marginTop: '5px', fontSize: '20px !important', display: 'block !important', visibility: 'visible !important', opacity: '1 !important', border: '2px dotted green', position: 'relative', zIndex: 100000 }}>
+                        ANIM-PRES-TIME: {formatTime(bonusTimeLeft)}
+                    </div>
                 </motion.div>
-              )}
+              )} */}
               {!isBonusOfferActive && !bonusSuccessfullyClaimed && (
                  <motion.div
                   key="bonus-expired"
@@ -437,6 +431,35 @@ export default function ChallengeInvite({
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* DIRECT TEST BLOCK - Outside AnimatePresence */}
+            {isBonusOfferActive && !bonusSuccessfullyClaimed && (
+              <div
+                style={{
+                  border: '10px solid limegreen !important', // Hyper visible border
+                  backgroundColor: 'yellow !important',   // Hyper visible background
+                  padding: '15px !important',
+                  margin: '15px 0 !important',
+                  minHeight: '70px !important',
+                  opacity: '1 !important',
+                  visibility: 'visible !important',
+                  position: 'relative !important', // Ensure it's in normal flow or stacks high
+                  zIndex: '999999 !important', // Absurdly high z-index
+                  fontSize: '24px !important', // Large font
+                  color: 'black !important', // Ensure text color contrasts
+                  textAlign: 'center',
+                  display: 'block' // Ensure it's block
+                }}
+              >
+                DIRECT TEXT IS VISIBLE?
+                <br />
+                DIRECT TIME: {formatTime(bonusTimeLeft)}
+                <br />
+                <Zap className="w-6 h-6 inline-block" style={{color: 'orange !important', stroke: 'black !important', strokeWidth: '2px !important'}} />
+                <Progress value={(bonusTimeLeft / BONUS_DURATION_SECONDS) * 100} className="w-full h-3 my-1 [&>span]:bg-primary" style={{opacity: '1 !important', display: 'block !important'}} />
+
+              </div>
+            )}
           </motion.div>
         )}
 
@@ -499,5 +522,4 @@ export default function ChallengeInvite({
     </Card>
   );
 }
-
-  
+    
