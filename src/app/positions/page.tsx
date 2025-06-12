@@ -7,7 +7,7 @@ import { mockOpenPositions } from '@/lib/mockData';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, TrendingUp, TrendingDown, Clock, AlertCircle, Sparkles, ExternalLink } from 'lucide-react';
+import { ArrowRight, TrendingUp, TrendingDown, Clock, AlertCircle, Sparkles, ExternalLink, DollarSign } from 'lucide-react';
 import NextImage from 'next/image';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
@@ -69,7 +69,7 @@ export default function PositionsPage() {
             >
               <Card className="flex flex-col h-full overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
                 {position.imageUrl && (
-                  <div className="relative w-full h-36"> {/* Reduced height slightly */}
+                  <div className="relative w-full h-36">
                     <NextImage
                       src={position.imageUrl}
                       alt={position.predictionText}
@@ -86,25 +86,28 @@ export default function PositionsPage() {
                   </div>
                 )}
                 <CardHeader className="pb-2 pt-3">
-                  <CardTitle className="text-base leading-tight line-clamp-2">{position.predictionText}</CardTitle> {/* Smaller title, line-clamp */}
+                  <CardTitle className="text-base leading-tight line-clamp-2">{position.predictionText}</CardTitle>
                   <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
                     <Badge variant="outline" className="text-xs px-1.5 py-0.5">{position.category}</Badge>
                     <div className="flex items-center">
                       <Clock className="w-3 h-3 mr-1" />
-                      {formatDistanceToNow(position.endsAt, { addSuffix: true })}
+                      Ends {formatDistanceToNow(position.endsAt, { addSuffix: true })}
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="flex-grow space-y-2 py-2 px-4">
-                  <div className="text-xs">
+                <CardContent className="flex-grow space-y-1.5 py-2 px-4 text-xs">
+                  <div>
                     Your Bet: <span className={`font-semibold ${position.userChoice === 'YES' ? 'text-green-600' : 'text-red-600'}`}>{position.userChoice}</span> for {formatCurrency(position.betAmount)}
                   </div>
-                  <div className="text-xs">
+                  <div>
                     Potential Payout: <span className="font-semibold text-primary">{formatCurrency(position.potentialPayout)}</span>
                   </div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="flex items-center">
+                     <DollarSign className="w-3 h-3 mr-1 text-green-500" /> Current Sell Value: <span className="font-semibold text-green-600 ml-1">{formatCurrency(position.currentValue)}</span>
+                  </div>
+                  <div className="text-muted-foreground">
                     Status: <span className={`font-semibold ${statusColor}`}>{statusText}</span>
-                    {position.opponentUsername && <span className="block text-xxs truncate">vs @{position.opponentUsername}</span>} {/* Truncate opponent name if too long */}
+                    {position.opponentUsername && <span className="block text-xxs truncate">vs @{position.opponentUsername}</span>}
                   </div>
                 </CardContent>
                 <CardFooter className="pt-2 pb-3 px-4">
