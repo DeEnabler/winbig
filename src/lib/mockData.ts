@@ -138,22 +138,7 @@ export const mockOpenPositions: OpenPosition[] = [
     aiHint: mockPredictions[1].aiHint,
     opponentUsername: 'System Pool',
     bonusApplied: true,
-  },
-  {
-    id: 'pos_3',
-    predictionId: mockPredictions[2].id,
-    predictionText: mockPredictions[2].text,
-    category: mockPredictions[2].category,
-    userChoice: 'YES',
-    betAmount: 5,
-    potentialPayout: 9.5,
-    currentValue: 8.0,
-    endsAt: mockPredictions[2].endsAt || new Date(),
-    status: 'LIVE',
-    matchId: `match_lakers_nba_currentUser_${Date.now()}`,
-    imageUrl: mockPredictions[2].imageUrl,
-    aiHint: mockPredictions[2].aiHint,
-    opponentUsername: 'AnotherBettor',
-    bonusApplied: false,
-  },
+  }
+  // Removed the third position to ensure exactly two are shown
 ];
+
