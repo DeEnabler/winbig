@@ -369,20 +369,22 @@ export default function ChallengeInvite({
                 {isBonusOfferActive && !bonusSuccessfullyClaimed && (
                   <motion.div
                     key="bonus-active"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3 }}
-                    style={{ opacity: 1, color: 'red', border: '2px solid limegreen', padding: '5px' }} // FORCED VISIBILITY
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }}   
+                    transition={{ duration: 0.3 }} 
                     className={`flex items-center justify-between w-full p-2 my-2 rounded-lg border-yellow-500 bg-yellow-500/10 text-xs md:text-sm ${bonusTimeLeft < BONUS_LOW_TIME_THRESHOLD ? 'animate-pulse-glow' : ''}`}
+                    style={{ opacity: 1, border: '3px solid orange', padding: '10px', backgroundColor: 'lightyellow' }} 
                   >
-                    <div className="flex items-center shrink-0">
-                      <Zap className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 text-yellow-600" />
-                      <span className="font-semibold text-yellow-700 dark:text-yellow-400 whitespace-nowrap">+{BONUS_PERCENTAGE}% Bonus!</span>
-                    </div>
-                    <Progress value={(bonusTimeLeft / BONUS_DURATION_SECONDS) * 100} className="h-1.5 md:h-2 mx-2 md:mx-3 w-full flex-grow min-w-[50px] [&>div]:bg-yellow-500" />
-                    <div className="flex items-center shrink-0">
-                       <Clock className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 text-yellow-600" />
-                       <span className="font-bold text-yellow-600 dark:text-yellow-300 tabular-nums">{formatTime(bonusTimeLeft)}</span>
+                    {/* SIMPLIFIED CONTENT FOR DEBUGGING THE TEXT VISIBILITY */}
+                    <div style={{ border: '2px solid blue', padding: '5px', backgroundColor: 'lightblue', width: '100%', minHeight: '30px' }}>
+                        <Zap className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 text-yellow-600" style={{ display: 'inline-block', verticalAlign: 'middle', color: 'black' }} />
+                        <span 
+                            className="font-semibold whitespace-nowrap" // Removed text-yellow-700 dark:text-yellow-400
+                            style={{ color: 'magenta', fontSize: '18px', display: 'inline-block', verticalAlign: 'middle', backgroundColor: 'pink', padding: '2px' }} 
+                        >
+                            +{BONUS_PERCENTAGE}% Bonus! VISIBLE NOW?
+                        </span>
+                        <div style={{color: 'black', marginTop: '5px', fontSize: '18px'}}>Time Left: {formatTime(bonusTimeLeft)}</div>
                     </div>
                   </motion.div>
                 )}
@@ -479,3 +481,5 @@ export default function ChallengeInvite({
   );
 }
 
+
+    
