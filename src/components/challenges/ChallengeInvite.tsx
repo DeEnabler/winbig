@@ -17,7 +17,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { networks } from '@/config/index';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import BonusDisplay from './BonusDisplay'; // Import the new component
+import BonusDisplay from './BonusDisplay';
 
 const REWARD_AMOUNT = 100;
 const REWARD_CURRENCY = "ViralPoints";
@@ -361,8 +361,6 @@ export default function ChallengeInvite({
             </div>
           </div>
           
-          {/* Bonus UI removed from here */}
-
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 mt-3">
             <TooltipProvider>
               <Tooltip>
@@ -422,11 +420,11 @@ export default function ChallengeInvite({
       </Card>
 
       {/* Conditionally render BonusDisplay outside the card */}
-      {showBonusSection && (
+      {showBonusSection && isBonusOfferActive && !bonusSuccessfullyClaimed && (
         <div className="fixed bottom-4 right-4 z-50 md:bottom-6 md:right-6">
           <BonusDisplay
-            isActive={isBonusOfferActive}
-            isClaimed={bonusSuccessfullyClaimed}
+            isActive={isBonusOfferActive} // This will always be true here due to parent condition
+            isClaimed={bonusSuccessfullyClaimed} // This will always be false here
             timeLeftSeconds={bonusTimeLeft}
             durationSeconds={BONUS_DURATION_SECONDS}
             lowTimeThreshold={BONUS_LOW_TIME_THRESHOLD}
