@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Copy, Twitter, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react'; // Added useMemo here
 
 interface InternalShareDialogProps extends ShareDialogProps {
   isOpen: boolean;
@@ -22,7 +22,7 @@ export default function ShareDialog({
   onOpenChange,
   matchId,
   ogImageUrl,
-  tweetTemplates, 
+  tweetTemplates,
   rewardIncentive,
   currentShareMessage,
   onShareMessageChange,
@@ -73,7 +73,7 @@ export default function ShareDialog({
           <div className="border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
             {isPreviewOgImageLoading && <Skeleton className="w-full aspect-[1200/630]" />}
             <NextImage
-              src={ogImageUrl} 
+              src={ogImageUrl}
               alt="Share Preview for X"
               width={1200}
               height={630}
@@ -104,9 +104,9 @@ export default function ShareDialog({
                 <Copy className="w-4 h-4 mr-2" /> Copy Text
             </Button>
             <Button asChild className="bg-blue-500 hover:bg-blue-600 text-white">
-              <a 
-                href={`https://x.com/intent/tweet?text=${encodeURIComponent(currentShareMessage)}&url=${encodeURIComponent(finalShareUrlString)}`} 
-                target="_blank" 
+              <a
+                href={`https://x.com/intent/tweet?text=${encodeURIComponent(currentShareMessage)}&url=${encodeURIComponent(finalShareUrlString)}`}
+                target="_blank"
                 rel="noopener noreferrer"
               >
                 <Twitter className="w-4 h-4 mr-2" /> Share to X
