@@ -2,22 +2,23 @@
 // src/app/positions/page.tsx
 'use client';
 
-import type { OpenPosition, ShareMessageDetails } from '@/types';
+import type { OpenPosition, OpenPositionStatus, ShareMessageDetails } from '@/types';
 import { mockOpenPositions, mockCurrentUser } from '@/lib/mockData';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Clock, Sparkles, DollarSign, ShoppingCart, Gift, Share2, X as LucideXIcon } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Clock, Sparkles, DollarSign, ShoppingCart, Gift, Share2, X as LucideXIcon, BookOpenText, Info } from 'lucide-react';
 import NextImage from 'next/image';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import { motion } from 'framer-motion';
 import { useEntryContext } from '@/contexts/EntryContext';
 import { useToast } from '@/hooks/use-toast';
 import { useAccount } from 'wagmi';
 import { appKitModal } from '@/context/index';
 import ShareDialog from '@/components/sharing/ShareDialog';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { generateXShareMessage } from '@/ai/flows/generate-x-share-message';
 
 function formatCurrency(amount: number, includeSign = true) {
@@ -27,7 +28,7 @@ function formatCurrency(amount: number, includeSign = true) {
 export default function PositionsPage() {
   const { toast } = useToast();
   const { isConnected } = useAccount();
-  const [openPositions, setOpenPositions] = useState<OpenPosition[]>(mockOpenPositions);
+  const [allPositions, setAllPositions] = useState<OpenPosition[]>(mockOpenPositions);
   const { appendEntryParams } = useEntryContext();
 
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
@@ -36,17 +37,25 @@ export default function PositionsPage() {
   const [currentShareUrl, setCurrentShareUrl] = useState('');
   const [isLoadingShareMessage, setIsLoadingShareMessage] = useState(false);
 
+  const activePositions = useMemo(() => 
+    allPositions.filter(p => p.status === 'LIVE' || p.status === 'ENDING_SOON'), 
+    [allPositions]
+  );
+
+  const pastPositions = useMemo(() => 
+    allPositions.filter(p => p.status !== 'LIVE' && p.status !== 'ENDING_SOON').sort((a,b) => b.endsAt.getTime() - a.endsAt.getTime()),
+    [allPositions]
+  );
+
   const handleSellPosition = (positionId: string, sellValue: number) => {
-    // In a real app, this would involve a wallet transaction and API call
     if (!isConnected) {
       toast({ title: "Connect Wallet", description: "Please connect your wallet to sell your position." });
       if (appKitModal && typeof appKitModal.open === 'function') appKitModal.open();
       return;
     }
     toast({ title: "Selling Position...", description: `Attempting to sell for ${formatCurrency(sellValue)}` });
-    // Simulate API call
     setTimeout(() => {
-      setOpenPositions(prevPositions =>
+      setAllPositions(prevPositions =>
         prevPositions.map(p =>
           p.id === positionId ? { ...p, status: 'SOLD', settledAmount: sellValue } : p
         )
@@ -62,11 +71,10 @@ export default function PositionsPage() {
       return;
     }
     toast({ title: "Collecting Winnings...", description: `Attempting to collect ${formatCurrency(winnings)}` });
-    // Simulate API call
     setTimeout(() => {
-      setOpenPositions(prevPositions =>
+      setAllPositions(prevPositions =>
         prevPositions.map(p =>
-          p.id === positionId ? { ...p, status: 'PENDING_COLLECTION' } : p // Or directly to a "Collected" status if desired
+          p.id === positionId ? { ...p, status: 'COLLECTED' } : p
         )
       );
       toast({ title: "Winnings Collected!", description: `${formatCurrency(winnings)} added to your balance.` });
@@ -79,63 +87,56 @@ export default function PositionsPage() {
 
     const appUrl = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002');
     
-    // Construct the share URL to point to the match page
     const matchShareParams = new URLSearchParams();
     matchShareParams.set('predictionId', position.predictionId);
     matchShareParams.set('userChoice', position.userChoice);
-    matchShareParams.set('outcome', position.status); // The status of the position being shared
+    matchShareParams.set('outcome', position.status); 
     if (position.bonusApplied) {
       matchShareParams.set('bonusApplied', 'true');
     }
-    matchShareParams.set('utm_source', 'viralbet');
-    matchShareParams.set('utm_medium', 'social_share');
-    matchShareParams.set('utm_campaign', 'position_outcome');
+    matchShareParams.set('utm_source', 'viralbet_share');
+    matchShareParams.set('utm_medium', 'social');
+    matchShareParams.set('utm_campaign', 'position_share');
+    
+    const shareUrlPath = `/match/${position.matchId}?${matchShareParams.toString()}`;
+    setCurrentShareUrl(appendEntryParams(shareUrlPath));
 
-    const shareUrl = appendEntryParams(`${appUrl}/match/${position.matchId}?${matchShareParams.toString()}`);
-    setCurrentShareUrl(shareUrl);
-
-    // OG image generation for positions
     const ogParams = new URLSearchParams();
     ogParams.set('v', Date.now().toString());
     ogParams.set('predictionText', position.predictionText.substring(0,50) + '...');
     ogParams.set('username', mockCurrentUser.username === 'You' ? 'I' : mockCurrentUser.username);
     ogParams.set('userAvatar', mockCurrentUser.avatarUrl || 'https://placehold.co/128x128.png?text=VB');
-    ogParams.set('ogType', 'position_outcome'); // Crucial for OG template
+    ogParams.set('ogType', 'position_outcome');
     
     let outcomeDescriptionForShare = '';
     let finalAmountForShare: number | undefined;
-    let ogOutcomeParam = 'PENDING';
+    let ogOutcomeParam: OgData['outcome'] = 'PENDING';
 
     switch (position.status) {
         case 'LIVE':
         case 'ENDING_SOON':
-            outcomeDescriptionForShare = `I'm betting ${position.userChoice} on this! Potential: ${formatCurrency(position.potentialPayout, false)}`;
+            outcomeDescriptionForShare = `My bet on "${position.predictionText.substring(0,25)}..." is LIVE! Potential payout: ${formatCurrency(position.potentialPayout, false)}.`;
             finalAmountForShare = position.potentialPayout;
             ogOutcomeParam = 'PENDING';
             ogParams.set('betAmount', position.betAmount.toString());
             break;
         case 'SETTLED_WON':
-            outcomeDescriptionForShare = `I WON ${formatCurrency(position.settledAmount || 0, false)}!`;
+        case 'COLLECTED': // Treat COLLECTED same as SETTLED_WON for share message
+             outcomeDescriptionForShare = `I WON ${formatCurrency(position.settledAmount || 0, false)} on my bet: "${position.predictionText.substring(0,25)}..."!`;
             finalAmountForShare = position.settledAmount;
             ogOutcomeParam = 'WON';
             ogParams.set('betAmount', (position.settledAmount || 0).toString());
             break;
         case 'SETTLED_LOST':
-            outcomeDescriptionForShare = `I lost this one.`;
-            finalAmountForShare = position.betAmount; // Show what was lost
+            outcomeDescriptionForShare = `Took an L on this one: "${position.predictionText.substring(0,25)}...". Bet ${formatCurrency(position.betAmount, false)}.`;
+            finalAmountForShare = position.betAmount; 
             ogOutcomeParam = 'LOST';
             ogParams.set('betAmount', position.betAmount.toString());
             break;
         case 'SOLD':
-            outcomeDescriptionForShare = `I sold my bet for ${formatCurrency(position.settledAmount || 0, false)}.`;
+            outcomeDescriptionForShare = `Cashed out my bet on "${position.predictionText.substring(0,25)}..." for ${formatCurrency(position.settledAmount || 0, false)}.`;
             finalAmountForShare = position.settledAmount;
             ogOutcomeParam = 'SOLD';
-            ogParams.set('betAmount', (position.settledAmount || 0).toString());
-            break;
-        case 'PENDING_COLLECTION': // Assuming collected means won for OG purposes
-             outcomeDescriptionForShare = `I collected my winnings of ${formatCurrency(position.settledAmount || 0, false)}!`;
-            finalAmountForShare = position.settledAmount;
-            ogOutcomeParam = 'WON'; // Treat as WON for OG
             ogParams.set('betAmount', (position.settledAmount || 0).toString());
             break;
         default:
@@ -143,7 +144,6 @@ export default function PositionsPage() {
     }
     ogParams.set('outcome', ogOutcomeParam);
     ogParams.set('userChoice', position.userChoice);
-
 
     if (position.bonusApplied) {
       ogParams.set('bonus', 'true');
@@ -156,13 +156,14 @@ export default function PositionsPage() {
         betAmount: position.betAmount,
         outcomeDescription: outcomeDescriptionForShare,
         finalAmount: finalAmountForShare,
-        currency: '$', // Assuming USD for now
-        callToAction: "What do you think? #ViralBet"
+        currency: '$', 
+        callToAction: "What's your take? #ViralBet"
       };
       const result = await generateXShareMessage(shareDetails);
       let finalMessage = result.shareMessage;
-      if (position.bonusApplied && (position.status === 'SETTLED_WON' || position.status === 'LIVE' || position.status === 'ENDING_SOON' || position.status === 'PENDING_COLLECTION')) {
-        finalMessage += ` (+${(position.status === 'SETTLED_WON' || position.status === 'PENDING_COLLECTION' ? (position.settledAmount || 0) * 0.2 : position.potentialPayout * 0.2 / 1.2).toFixed(0)} Bonus!)`;
+      if (position.bonusApplied && (position.status === 'SETTLED_WON' || position.status === 'COLLECTED' || position.status === 'LIVE' || position.status === 'ENDING_SOON')) {
+        const bonusAmount = (position.status === 'SETTLED_WON' || position.status === 'COLLECTED' ? (position.settledAmount || 0) * 0.2 / 1.2 : position.potentialPayout * 0.2 / 1.2).toFixed(0);
+        if (parseFloat(bonusAmount) > 0) finalMessage += ` (+${bonusAmount} Bonus!)`;
       }
       setCurrentShareMessage(finalMessage);
     } catch (error) {
@@ -174,20 +175,6 @@ export default function PositionsPage() {
     }
   };
 
-
-  if (openPositions.length === 0) {
-    return (
-      <div className="container mx-auto py-8 text-center">
-        <ShoppingCart className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-        <h1 className="text-3xl font-bold mb-4">No Open Positions</h1>
-        <p className="text-muted-foreground mb-6">You haven't placed any bets yet, or all your bets are settled and collected.</p>
-        <Button asChild size="lg">
-          <a href={appendEntryParams('/')}>Find Predictions to Bet On</a>
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <>
       <div className="container mx-auto py-6 md:py-10">
@@ -198,145 +185,177 @@ export default function PositionsPage() {
           className="mb-8 text-center"
         >
           <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl">
-            My Active Positions
+            My Positions
           </h1>
           <p className="mt-3 text-lg text-muted-foreground">
-            Track your bets, sell early, or collect your winnings.
+            Track your active bets, sell early, or collect your winnings.
           </p>
         </motion.div>
 
-        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
-          {openPositions.map((position, index) => {
-            const timeDiff = position.endsAt.getTime() - Date.now();
-            const isEndingSoon = position.status === 'LIVE' && timeDiff > 0 && timeDiff < 24 * 60 * 60 * 1000;
-            const isLive = position.status === 'LIVE' || position.status === 'ENDING_SOON';
-            const isSettledWon = position.status === 'SETTLED_WON';
-            const isSold = position.status === 'SOLD';
-            const isSettledLost = position.status === 'SETTLED_LOST';
-
-            let statusText = position.status.replace('_', ' ');
-            let statusColor = 'text-gray-500';
-            if (isLive) statusColor = 'text-blue-500';
-            if (isEndingSoon) statusText = 'Ending Soon';
-            if (isSettledWon) { statusText = 'WON'; statusColor = 'text-green-500'; }
-            if (isSold) { statusText = 'SOLD'; statusColor = 'text-yellow-600'; }
-            if (isSettledLost) { statusText = 'LOST'; statusColor = 'text-red-500'; }
-            if (position.status === 'PENDING_COLLECTION') { statusText = 'COLLECTED'; statusColor = 'text-purple-500'; }
-
-
-            return (
-              <motion.div
-                key={position.id}
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: index * 0.1 }}
-              >
-                <Card className="flex flex-col h-full overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
-                  {position.imageUrl && (
-                    <div className="relative w-full h-36">
-                      <NextImage
-                        src={position.imageUrl}
-                        alt={position.predictionText}
-                        fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        style={{ objectFit: 'cover' }}
-                        data-ai-hint={position.aiHint || position.category}
-                      />
-                      {position.bonusApplied && (
-                          <Badge className="absolute top-2 right-2 bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90 shadow-md text-xs px-2 py-0.5">
+        {/* Active Positions Section */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold mb-4 flex items-center">
+            <Sparkles className="w-6 h-6 mr-2 text-primary" /> Active Bets
+          </h2>
+          {activePositions.length === 0 ? (
+            <Card className="text-center p-8 bg-muted/50">
+              <ShoppingCart className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+              <p className="text-xl font-semibold mb-2">No Active Bets Right Now</p>
+              <p className="text-muted-foreground mb-4">Time to find some predictions and get in the game!</p>
+              <Button asChild size="lg">
+                <a href={appendEntryParams('/')}>Find Predictions</a>
+              </Button>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
+              {activePositions.map((position, index) => {
+                const timeDiff = position.endsAt.getTime() - Date.now();
+                const isEndingSoon = position.status === 'LIVE' && timeDiff > 0 && timeDiff < 24 * 60 * 60 * 1000;
+                let statusText = position.status === 'ENDING_SOON' || isEndingSoon ? 'Ending Soon' : 'LIVE';
+                
+                return (
+                  <motion.div
+                    key={position.id}
+                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: index * 0.1 }}
+                  >
+                    <Card className="flex flex-col h-full overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
+                      {position.imageUrl && (
+                        <div className="relative w-full h-36">
+                          <NextImage src={position.imageUrl} alt={position.predictionText} fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" style={{ objectFit: 'cover' }} data-ai-hint={position.aiHint || position.category} />
+                          {position.bonusApplied && (
+                            <Badge className="absolute top-2 right-2 bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90 shadow-md text-xs px-2 py-0.5">
                               <Sparkles className="w-3 h-3 mr-1" /> Bonus
-                          </Badge>
+                            </Badge>
+                          )}
+                        </div>
                       )}
-                    </div>
-                  )}
-                  <CardHeader className="pb-2 pt-3">
-                    <CardTitle className="text-base leading-tight line-clamp-2">{position.predictionText}</CardTitle>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
-                      <Badge variant="outline" className="text-xs px-1.5 py-0.5">{position.category}</Badge>
-                       { (isLive || isEndingSoon || (!isSold && !isSettledLost && !isSettledWon && position.status !== 'PENDING_COLLECTION')) && (
-                        <div className="flex items-center">
+                      <CardHeader className="pb-2 pt-3">
+                        <CardTitle className="text-base leading-tight line-clamp-2">{position.predictionText}</CardTitle>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                          <Badge variant="outline" className="text-xs px-1.5 py-0.5">{position.category}</Badge>
+                          <div className="flex items-center">
                             <Clock className="w-3 h-3 mr-1" />
                             Ends {formatDistanceToNow(position.endsAt, { addSuffix: true })}
+                          </div>
                         </div>
-                       )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex-grow space-y-1.5 py-2 px-4 text-xs">
-                    <div>
-                      Your Bet: <span className={`font-semibold ${position.userChoice === 'YES' ? 'text-green-600' : 'text-red-600'}`}>{position.userChoice}</span> for {formatCurrency(position.betAmount)}
-                    </div>
-                    
-                    {isLive || isEndingSoon ? (
-                        <>
-                         <div>
-                            Potential Payout: <span className="font-semibold text-primary">{formatCurrency(position.potentialPayout)}</span>
-                         </div>
-                         <div className="flex items-center">
-                            <DollarSign className="w-3 h-3 mr-1 text-green-500" /> Current Sell Value: <span className="font-semibold text-green-600 ml-1">{formatCurrency(position.currentValue)}</span>
-                         </div>
-                        </>
-                    ): null}
+                      </CardHeader>
+                      <CardContent className="flex-grow space-y-1.5 py-2 px-4 text-xs">
+                        <div>Your Bet: <span className={`font-semibold ${position.userChoice === 'YES' ? 'text-green-600' : 'text-red-600'}`}>{position.userChoice}</span> for {formatCurrency(position.betAmount)}</div>
+                        <div>Potential Payout: <span className="font-semibold text-primary">{formatCurrency(position.potentialPayout)}</span></div>
+                        <div className="flex items-center">
+                          <DollarSign className="w-3 h-3 mr-1 text-green-500" /> Current Sell Value: <span className="font-semibold text-green-600 ml-1">{formatCurrency(position.currentValue)}</span>
+                        </div>
+                        <div className="text-muted-foreground">Status: <span className={`font-semibold ${statusText === 'LIVE' ? 'text-blue-500' : 'text-orange-500'}`}>{statusText}</span>
+                          {position.opponentUsername && <span className="block text-xxs truncate">vs @{position.opponentUsername}</span>}
+                        </div>
+                      </CardContent>
+                      <CardFooter className="pt-2 pb-3 px-4 flex flex-col gap-2">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button className="w-full bg-yellow-500 hover:bg-yellow-600 text-yellow-900" size="sm" disabled={position.currentValue <= 0}>
+                              <ShoppingCart className="w-3.5 h-3.5 mr-1.5" /> Sell for {formatCurrency(position.currentValue)}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader><AlertDialogTitle>Confirm Sell</AlertDialogTitle>
+                              <AlertDialogDescription>Are you sure you want to sell this position for {formatCurrency(position.currentValue)}? This action cannot be undone.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleSellPosition(position.id, position.currentValue)} className="bg-yellow-500 hover:bg-yellow-600 text-yellow-900">Yes, Sell</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                        <Button onClick={() => handleSharePosition(position)} variant="outline" size="sm" className="w-full">
+                          <LucideXIcon className="w-3.5 h-3.5 mr-1.5" /> Share
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
-                    { (isSettledWon || isSold || position.status === 'PENDING_COLLECTION') && position.settledAmount !== undefined && (
-                        <div>
-                            Outcome: <span className={`font-bold ${isSettledWon || position.status === 'PENDING_COLLECTION' ? 'text-green-600' : 'text-yellow-700'}`}>
-                                {position.status === 'SETTLED_WON' || position.status === 'PENDING_COLLECTION' ? `Won ${formatCurrency(position.settledAmount)}` : `Sold for ${formatCurrency(position.settledAmount)}`}
-                            </span>
-                        </div>
-                    )}
-                     {isSettledLost && (
-                        <div>
-                            Outcome: <span className="font-bold text-red-600">Lost {formatCurrency(position.betAmount)}</span>
-                        </div>
-                    )}
-
-                    <div className="text-muted-foreground">
-                      Status: <span className={`font-semibold ${statusColor}`}>{statusText}</span>
-                      {position.opponentUsername && <span className="block text-xxs truncate">vs @{position.opponentUsername}</span>}
-                    </div>
-                  </CardContent>
-                  <CardFooter className="pt-2 pb-3 px-4 flex flex-col gap-2">
-                    {(isLive || isEndingSoon) && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button className="w-full bg-yellow-500 hover:bg-yellow-600 text-yellow-900" size="sm">
-                            <ShoppingCart className="w-3.5 h-3.5 mr-1.5" /> Sell for {formatCurrency(position.currentValue)}
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Confirm Sell</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to sell this position for {formatCurrency(position.currentValue)}? This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleSellPosition(position.id, position.currentValue)} className="bg-yellow-500 hover:bg-yellow-600 text-yellow-900">
-                              Yes, Sell
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
-                    {isSettledWon && (
-                      <Button onClick={() => handleCollectWinnings(position.id, position.settledAmount || 0)} className="w-full bg-green-500 hover:bg-green-600 text-white" size="sm">
-                        <Gift className="w-3.5 h-3.5 mr-1.5" /> Collect {formatCurrency(position.settledAmount || 0)}
-                      </Button>
-                    )}
-                    {(isSettledLost || isSold || position.status === 'PENDING_COLLECTION' ) && (
-                       <Button className="w-full" variant="outline" size="sm" disabled>
-                         Position Closed
-                       </Button>
-                    )}
-                    <Button onClick={() => handleSharePosition(position)} variant="outline" size="sm" className="w-full">
-                      <LucideXIcon className="w-3.5 h-3.5 mr-1.5" /> Share
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </motion.div>
-            );
-          })}
+        {/* Past Positions Section */}
+        <div>
+          <h2 className="text-2xl font-bold mb-4 flex items-center">
+            <BookOpenText className="w-6 h-6 mr-2 text-muted-foreground" /> Past Positions
+          </h2>
+          {pastPositions.length === 0 ? (
+             <Card className="text-center p-8 bg-muted/50">
+              <Info className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+              <p className="text-xl font-semibold">No Past Positions Yet</p>
+              <p className="text-muted-foreground">Your settled bets will appear here.</p>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Prediction</TableHead>
+                      <TableHead className="text-center">Choice</TableHead>
+                      <TableHead className="text-right">Bet</TableHead>
+                      <TableHead className="text-right">Outcome</TableHead>
+                      <TableHead className="text-right">Settled</TableHead>
+                      <TableHead className="text-center">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pastPositions.map(position => {
+                      let outcomeText = '';
+                      let outcomeColor = 'text-foreground';
+                      switch(position.status) {
+                        case 'SETTLED_WON':
+                        case 'COLLECTED':
+                        case 'PENDING_COLLECTION':
+                          outcomeText = `Won ${formatCurrency(position.settledAmount || 0)}`;
+                          outcomeColor = 'text-green-600 dark:text-green-400';
+                          break;
+                        case 'SETTLED_LOST':
+                          outcomeText = `Lost ${formatCurrency(position.betAmount)}`;
+                          outcomeColor = 'text-red-600 dark:text-red-400';
+                          break;
+                        case 'SOLD':
+                          outcomeText = `Sold for ${formatCurrency(position.settledAmount || 0)}`;
+                          outcomeColor = 'text-yellow-600 dark:text-yellow-400';
+                          break;
+                      }
+                      return (
+                        <TableRow key={position.id}>
+                          <TableCell className="font-medium max-w-xs truncate" title={position.predictionText}>{position.predictionText}</TableCell>
+                          <TableCell className={`text-center font-semibold ${position.userChoice === 'YES' ? 'text-green-600' : 'text-red-600'}`}>{position.userChoice}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(position.betAmount)}</TableCell>
+                          <TableCell className={`text-right font-semibold ${outcomeColor}`}>{outcomeText}</TableCell>
+                          <TableCell className="text-right text-xs text-muted-foreground">{format(position.endsAt, 'MMM d, yyyy')}</TableCell>
+                          <TableCell className="text-center space-x-1">
+                            {position.status === 'SETTLED_WON' && (
+                              <Button onClick={() => handleCollectWinnings(position.id, position.settledAmount || 0)} size="icon" variant="ghost" className="h-8 w-8 hover:bg-green-100 dark:hover:bg-green-800">
+                                <Gift className="w-4 h-4 text-green-600" />
+                              </Button>
+                            )}
+                            {(position.status === 'COLLECTED' || position.status === 'PENDING_COLLECTION') && (
+                                <Badge variant="outline" className="text-green-600 border-green-600">Collected</Badge>
+                            )}
+                             {(position.status === 'SETTLED_LOST' || position.status === 'SOLD') && (
+                                <Badge variant="outline">Closed</Badge>
+                            )}
+                            <Button onClick={() => handleSharePosition(position)} size="icon" variant="ghost" className="h-8 w-8">
+                              <LucideXIcon className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
       <ShareDialog

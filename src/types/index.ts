@@ -121,7 +121,7 @@ export interface ShareDialogProps {
   currentShareMessage: string;
   onShareMessageChange: (message: string) => void;
   shareUrl: string; // The URL to be appended to the tweet
-  entityContext?: 'match_challenge' | 'position_outcome'; // To help OG image generation
+  entityContext?: 'match_challenge' | 'position_outcome' | 'generic_prediction';
   entityDetails?: Record<string, any>; // General purpose details for OG or Share Message
 }
 
@@ -153,7 +153,7 @@ export interface OgData {
   ogType?: 'match_challenge' | 'position_outcome' | 'generic_prediction';
 }
 
-export type OpenPositionStatus = 'LIVE' | 'ENDING_SOON' | 'SETTLED_WON' | 'SETTLED_LOST' | 'SOLD' | 'PENDING_COLLECTION';
+export type OpenPositionStatus = 'LIVE' | 'ENDING_SOON' | 'SETTLED_WON' | 'SETTLED_LOST' | 'SOLD' | 'PENDING_COLLECTION' | 'COLLECTED';
 
 export interface OpenPosition {
   id: string; // Unique ID for this specific bet/position
@@ -165,7 +165,7 @@ export interface OpenPosition {
   potentialPayout: number; // Max possible win if user's choice is correct
   currentValue: number; // Current estimated value of the position before settlement
   settledAmount?: number; // Actual amount won or sold for
-  endsAt: Date;
+  endsAt: Date; // For active positions, this is expiry. For past, this is settlement time.
   status: OpenPositionStatus;
   matchId: string; // To link back to the specific match instance (could be challenge ID)
   imageUrl?: string;

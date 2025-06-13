@@ -112,9 +112,9 @@ export const mockOpenPositions: OpenPosition[] = [
     category: mockPredictions[0].category,
     userChoice: 'YES',
     betAmount: 10,
-    potentialPayout: 19.0, // Standard 1.9x payout
-    currentValue: 15.0, // Simulating market fluctuation
-    endsAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // Ends in 2 days
+    potentialPayout: 19.0,
+    currentValue: 15.0,
+    endsAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), 
     status: 'LIVE',
     matchId: `match_trump_election_currentUser_${Date.now()}`,
     imageUrl: mockPredictions[0].imageUrl,
@@ -123,17 +123,33 @@ export const mockOpenPositions: OpenPosition[] = [
     bonusApplied: false,
   },
   {
-    id: 'pos_2',
+    id: 'pos_5_live_bonus',
+    predictionId: mockPredictions[1].id, // Different prediction
+    predictionText: "Will Ethereum break $5k by next month?",
+    category: 'Crypto',
+    userChoice: 'NO',
+    betAmount: 50,
+    potentialPayout: 114.0, // (50 * 1.9) * 1.2
+    currentValue: 65.0,
+    endsAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // Ends in 1 day
+    status: 'ENDING_SOON',
+    matchId: `match_eth_5k_currentUser_${Date.now()}`,
+    imageUrl: 'https://placehold.co/600x400.png',
+    aiHint: 'ethereum crypto',
+    bonusApplied: true,
+  },
+  {
+    id: 'pos_2_won_collect',
     predictionId: mockPredictions[1].id,
     predictionText: mockPredictions[1].text,
     category: mockPredictions[1].category,
     userChoice: 'YES',
     betAmount: 25,
-    potentialPayout: 57.0, // (25 * 1.9) * 1.2 for bonus
-    currentValue: 30.0, // irrelevant for settled
+    potentialPayout: 57.0, 
+    currentValue: 0, 
     settledAmount: 57.0,
-    endsAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // Ended yesterday
-    status: 'SETTLED_WON',
+    endsAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+    status: 'SETTLED_WON', // Ready to collect
     matchId: `match_btc_100k_currentUser_${Date.now()}`,
     imageUrl: mockPredictions[1].imageUrl,
     aiHint: mockPredictions[1].aiHint,
@@ -141,16 +157,33 @@ export const mockOpenPositions: OpenPosition[] = [
     bonusApplied: true,
   },
   {
-    id: 'pos_3',
+    id: 'pos_6_collected',
+    predictionId: mockPredictions[0].id, 
+    predictionText: "Will the next SpaceX launch be successful?",
+    category: 'Technology',
+    userChoice: 'YES',
+    betAmount: 20,
+    potentialPayout: 38.0,
+    currentValue: 0,
+    settledAmount: 38.0,
+    endsAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // Ended 3 days ago
+    status: 'COLLECTED', // Already collected
+    matchId: `match_spacex_currentUser_${Date.now()}`,
+    imageUrl: 'https://placehold.co/600x400.png',
+    aiHint: 'spacex launch',
+    bonusApplied: false,
+  },
+  {
+    id: 'pos_3_lost',
     predictionId: mockPredictions[2].id,
     predictionText: mockPredictions[2].text,
     category: mockPredictions[2].category,
     userChoice: 'NO',
     betAmount: 50,
-    potentialPayout: 95.0, // 50 * 1.9
-    currentValue: 40.0, // irrelevant for settled
-    settledAmount: 0, // Lost
-    endsAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // Ended 2 days ago
+    potentialPayout: 95.0,
+    currentValue: 0,
+    settledAmount: 0, 
+    endsAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
     status: 'SETTLED_LOST',
     matchId: `match_lakers_currentUser_${Date.now()}`,
     imageUrl: mockPredictions[2].imageUrl,
@@ -158,16 +191,16 @@ export const mockOpenPositions: OpenPosition[] = [
     bonusApplied: false,
   },
   {
-    id: 'pos_4',
+    id: 'pos_4_sold',
     predictionId: mockPredictions[3].id,
     predictionText: mockPredictions[3].text,
     category: mockPredictions[3].category,
     userChoice: 'YES',
     betAmount: 5,
     potentialPayout: 9.5,
-    currentValue: 7.0, // Sold for 7.0
-    settledAmount: 7.0,
-    endsAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // Still active but sold
+    currentValue: 0, 
+    settledAmount: 7.0, // Sold for 7.0
+    endsAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // Ended 4 days ago (after being sold)
     status: 'SOLD',
     matchId: `match_agi_currentUser_${Date.now()}`,
     imageUrl: mockPredictions[3].imageUrl,
