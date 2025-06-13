@@ -65,12 +65,7 @@ export interface Match {
   originalReferrer?: string; // To pass along who initiated the challenge
 }
 
-export interface LeaderboardEntry {
-  rank: number;
-  user: User;
-  totalWinnings: number; // Assuming this is a numerical value for sorting, display might format it
-  longestStreak: number;
-}
+// LeaderboardEntry removed
 
 // For AI Share Message
 export type ShareMessageDetails = {

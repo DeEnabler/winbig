@@ -1,5 +1,5 @@
 
-import type { Prediction, User, LeaderboardEntry, Match, OpenPosition, OpenPositionStatus } from '@/types';
+import type { Prediction, User, Match, OpenPosition, OpenPositionStatus } from '@/types';
 
 export const mockPredictions: Prediction[] = [
   {
@@ -54,38 +54,7 @@ export const mockOpponentUser: User = {
   predictionRank: "Top 2%",
 };
 
-export const mockLeaderboardData: LeaderboardEntry[] = [
-  {
-    rank: 1,
-    user: { id: 'user1', username: 'BetGod', avatarUrl: 'https://placehold.co/40x40.png', xp: 10000, betStreak: 25, totalWinnings: "$50,000", predictionRank: "Top 1%" },
-    totalWinnings: 50000, // numerical for sorting
-    longestStreak: 25,
-  },
-  {
-    rank: 2,
-    user: mockOpponentUser,
-    totalWinnings: 35000, // numerical for sorting
-    longestStreak: 12,
-  },
-  {
-    rank: 3,
-    user: { id: 'user3', username: 'LuckyLucy', avatarUrl: 'https://placehold.co/40x40.png', xp: 4500, betStreak: 8, totalWinnings: "$20,000", predictionRank: "Top 10%" },
-    totalWinnings: 20000, // numerical for sorting
-    longestStreak: 10,
-  },
-  {
-    rank: 4,
-    user: { id: 'user4', username: 'PredictionPro', avatarUrl: 'https://placehold.co/40x40.png', xp: 3000, betStreak: 3, totalWinnings: "$15,000", predictionRank: "Top 15%" },
-    totalWinnings: 15000, // numerical for sorting
-    longestStreak: 7,
-  },
-  {
-    rank: 5,
-    user: mockCurrentUser, // Current user might not be on top
-    totalWinnings: 5000, // numerical for sorting
-    longestStreak: 5,
-  },
-];
+// mockLeaderboardData removed
 
 export const getMockMatch = (predictionId: string): Match => {
   const prediction = mockPredictions.find(p => p.id === predictionId) || mockPredictions[0];
