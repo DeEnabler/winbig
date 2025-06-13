@@ -30,15 +30,22 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // const headersList = headers(); // Old way
-  // const cookie = headersList.get('cookie'); // Old way that caused the error
-
-  const cookieString = cookies().toString(); // New way using cookies().toString()
+  const cookieStore = cookies();
+  const allCookiesArray = cookieStore.getAll();
+  
+  let rawCookieHeader = "";
+  if (allCookiesArray && allCookiesArray.length > 0) {
+    // Reconstruct the cookie string in the format "name1=value1; name2=value2"
+    rawCookieHeader = allCookiesArray
+      .map(cookie => `${cookie.name}=${encodeURIComponent(cookie.value)}`) // Ensure cookie values are properly encoded
+      .join('; ');
+  }
+  const cookieStringForProvider = rawCookieHeader || null; // Pass null if no cookies, as expected by cookieToInitialState
 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}>
-        <ContextProvider cookies={cookieString || null}> {/* Use the new cookieString */}
+        <ContextProvider cookies={cookieStringForProvider}> {/* Use the reconstructed cookie string */}
           <Suspense fallback={<div>Loading context...</div>}>
             <EntryContextProvider>
                 <AppLayout>
