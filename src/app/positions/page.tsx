@@ -2,7 +2,7 @@
 // src/app/positions/page.tsx
 'use client';
 
-import type { OpenPosition, OpenPositionStatus, ShareMessageDetails } from '@/types';
+import type { OpenPosition, OpenPositionStatus, ShareMessageDetails, OgData } from '@/types';
 import { mockOpenPositions, mockCurrentUser } from '@/lib/mockData';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -121,7 +121,7 @@ export default function PositionsPage() {
             ogParams.set('betAmount', position.betAmount.toString());
             break;
         case 'SETTLED_WON':
-        case 'COLLECTED': // Treat COLLECTED same as SETTLED_WON for share message
+        case 'COLLECTED': 
              outcomeDescriptionForShare = `I WON ${formatCurrency(position.settledAmount || 0, false)} on my bet: "${position.predictionText.substring(0,25)}..."!`;
             finalAmountForShare = position.settledAmount;
             ogOutcomeParam = 'WON';
@@ -312,7 +312,6 @@ export default function PositionsPage() {
                       switch(position.status) {
                         case 'SETTLED_WON':
                         case 'COLLECTED':
-                        case 'PENDING_COLLECTION':
                           outcomeText = `Won ${formatCurrency(position.settledAmount || 0)}`;
                           outcomeColor = 'text-green-600 dark:text-green-400';
                           break;
@@ -322,8 +321,18 @@ export default function PositionsPage() {
                           break;
                         case 'SOLD':
                           outcomeText = `Sold for ${formatCurrency(position.settledAmount || 0)}`;
-                          outcomeColor = 'text-yellow-600 dark:text-yellow-400';
+                          if (position.settledAmount && position.settledAmount > position.betAmount) {
+                            outcomeColor = 'text-green-600 dark:text-green-400';
+                          } else if (position.settledAmount && position.settledAmount < position.betAmount) {
+                            outcomeColor = 'text-red-600 dark:text-red-400';
+                          } else {
+                            outcomeColor = 'text-yellow-600 dark:text-yellow-400'; // Or neutral
+                          }
                           break;
+                        case 'PENDING_COLLECTION': // Should ideally transition to COLLECTED after action
+                           outcomeText = `Collect ${formatCurrency(position.settledAmount || 0)}`;
+                           outcomeColor = 'text-blue-500 dark:text-blue-400';
+                           break;
                       }
                       return (
                         <TableRow key={position.id}>
@@ -333,12 +342,12 @@ export default function PositionsPage() {
                           <TableCell className={`text-right font-semibold ${outcomeColor}`}>{outcomeText}</TableCell>
                           <TableCell className="text-right text-xs text-muted-foreground">{format(position.endsAt, 'MMM d, yyyy')}</TableCell>
                           <TableCell className="text-center space-x-1">
-                            {position.status === 'SETTLED_WON' && (
+                            {(position.status === 'SETTLED_WON' || position.status === 'PENDING_COLLECTION') && (
                               <Button onClick={() => handleCollectWinnings(position.id, position.settledAmount || 0)} size="icon" variant="ghost" className="h-8 w-8 hover:bg-green-100 dark:hover:bg-green-800">
                                 <Gift className="w-4 h-4 text-green-600" />
                               </Button>
                             )}
-                            {(position.status === 'COLLECTED' || position.status === 'PENDING_COLLECTION') && (
+                            {position.status === 'COLLECTED' && (
                                 <Badge variant="outline" className="text-green-600 border-green-600">Collected</Badge>
                             )}
                              {(position.status === 'SETTLED_LOST' || position.status === 'SOLD') && (
@@ -370,3 +379,5 @@ export default function PositionsPage() {
     </>
   );
 }
+
+    
