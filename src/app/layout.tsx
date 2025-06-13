@@ -8,7 +8,7 @@ import { EntryContextProvider } from '@/contexts/EntryContext';
 import { Suspense } from 'react';
 // Removed ClientSideWeb3ProviderLoader, using ContextProvider from @/context now
 import ContextProvider from '@/context/index'; // Adjusted path
-import { headers } from 'next/headers';
+import { cookies } from 'next/headers'; // Import cookies
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -30,13 +30,15 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const headersList = headers();
-  const cookie = headersList.get('cookie');
+  // const headersList = headers(); // Old way
+  // const cookie = headersList.get('cookie'); // Old way that caused the error
+
+  const cookieString = cookies().toString(); // New way using cookies().toString()
 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}>
-        <ContextProvider cookies={cookie}> {/* Use the new ContextProvider */}
+        <ContextProvider cookies={cookieString || null}> {/* Use the new cookieString */}
           <Suspense fallback={<div>Loading context...</div>}>
             <EntryContextProvider>
                 <AppLayout>
