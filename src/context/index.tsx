@@ -55,7 +55,7 @@ if (!projectId || projectId === 'undefined' || projectId === PLACEHOLDER_PROJECT
       defaultNetwork: configNetworks[0] || undefined, 
       metadata,
       features: {
-        analytics: true, 
+        analytics: false, // Changed from true to false
       },
     });
     console.log("[Reown Context] Reown AppKit initialized successfully.");
@@ -84,3 +84,4 @@ export default function ContextProvider({ children, cookies }: { children: React
     </WagmiProvider>
   );
 }
+
