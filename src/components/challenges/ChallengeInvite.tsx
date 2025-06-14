@@ -20,8 +20,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import BonusDisplay from './BonusDisplay';
 
 const REWARD_AMOUNT = 100;
-const REWARD_CURRENCY = "ViralPoints";
-const REWARD_GIVEN_STORAGE_KEY = 'viralBetWalletConnectRewardGiven_v1_reown';
+const REWARD_CURRENCY = "ViralPoints"; // Keeping "ViralPoints" unless specified otherwise
+const REWARD_GIVEN_STORAGE_KEY = 'winBigWalletConnectRewardGiven_v1_reown'; // Updated key
 
 const BONUS_DURATION_SECONDS = 120; // 2 minutes
 const BONUS_PERCENTAGE = 20;
@@ -403,7 +403,7 @@ export default function ChallengeInvite({
           </div>
           <div className="text-xs text-muted-foreground mt-3 space-y-1">
             <p>🛡️ Fast, secure bets – Powered by smart contracts</p>
-            <p>Go viral! Share your bet to X and earn ViralPoints.</p>
+            <p>Go big! Share your bet to X and earn ViralPoints.</p>
           </div>
         </CardContent>
         <CardFooter className="flex items-center justify-between p-3 bg-muted/20 border-t text-xs text-muted-foreground">

@@ -49,7 +49,7 @@ const prompt = ai.definePrompt({
   name: 'generatePredictionsFromTrendsPrompt',
   input: {schema: GeneratePredictionsInputSchema},
   output: {schema: GeneratePredictionsOutputSchema},
-  prompt: `You are an expert in creating engaging, viral prediction questions for a betting app called ViralBet.
+  prompt: `You are an expert in creating engaging, viral prediction questions for a betting app called WinBig.
 Given a list of trending topics, generate a specified number of unique, bettable prediction cards.
 
 Each prediction MUST:
@@ -99,4 +99,3 @@ const generatePredictionsFlow = ai.defineFlow(
     return output!;
   }
 );
-

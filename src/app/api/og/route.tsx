@@ -11,9 +11,9 @@ export async function GET(req: NextRequest) {
 
   // Extract all params relevant to OgData
   const ogData: OgData = {
-    predictionText: searchParams.get('predictionText') || 'A Viral Prediction',
+    predictionText: searchParams.get('predictionText') || 'A WinBig Prediction',
     userChoice: searchParams.get('userChoice') as 'YES' | 'NO' | undefined,
-    userAvatar: searchParams.get('userAvatar') || 'https://placehold.co/128x128.png?text=VB',
+    userAvatar: searchParams.get('userAvatar') || 'https://placehold.co/128x128.png?text=WB',
     username: searchParams.get('username') || undefined, // Make username optional for more generic cards
     outcome: (searchParams.get('outcome')?.toUpperCase() as OgData['outcome']) || 'PENDING',
     betAmount: searchParams.get('betAmount') ? parseFloat(searchParams.get('betAmount')!) : undefined,
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
   }
 
 
-  let ctaText = "Bet with me on ViralBet!";
+  let ctaText = "Bet with me on WinBig!";
   if (ogData.ogType === 'match_challenge') {
     ctaText = "Bet against me?";
     if (ogData.outcome === 'WON') ctaText = "I called it. Can you?";
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
     else ctaText = "Check out my bet!";
   }
   
-  const tagline = ogData.ogType === 'match_challenge' ? 'Bet Like a Legend!' : 'ViralBet - Track Your Bets!';
+  const tagline = ogData.ogType === 'match_challenge' ? 'Bet Like a Legend!' : 'WinBig - Track Your Bets!';
 
   const mainTitle = ogData.titleOverride || (
     ogData.username && ogData.userChoice ?
@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
         {/* Header: App Logo + User Avatar + Username */}
         <div tw="flex w-full justify-between items-center">
           <div tw="flex items-center">
-             <div tw="text-5xl font-bold mr-3" style={{color: '#D8B4FE'}}>ViralBet</div>
+             <div tw="text-5xl font-bold mr-3" style={{color: '#D8B4FE'}}>WinBig</div>
              {ogData.bonusApplied && (
                 <div tw="flex items-center bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-xl font-semibold shadow-md">
                     ✨ +20% Bonus!

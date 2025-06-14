@@ -74,7 +74,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     url.searchParams.set('v', Date.now().toString());
     url.searchParams.set('predictionText', match.predictionText);
     url.searchParams.set('userChoice', match.userChoice || 'YES');
-    url.searchParams.set('userAvatar', match.user1AvatarUrl || mockCurrentUser.avatarUrl || 'https://placehold.co/128x128.png?text=VB');
+    url.searchParams.set('userAvatar', match.user1AvatarUrl || mockCurrentUser.avatarUrl || 'https://placehold.co/128x128.png?text=WB');
     url.searchParams.set('username', match.user1Username === 'You' ? 'I' : match.user1Username);
     url.searchParams.set('outcome', match.outcome || 'PENDING');
 
@@ -127,7 +127,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       }
 
       const details: ShareMessageDetails = {
-        prediction: match.predictionText,
+        predictionText: match.predictionText, // Corrected from prediction to predictionText
         betAmount: baseBetAmount,
         potentialWinnings: parseFloat(effectivePotentialWinnings.toFixed(2)),
         opponentUsername: typeof match.opponent === 'string' ? match.opponent : match.opponent?.username || 'a Rival',
@@ -140,7 +140,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       setShareMessage(finalMessage);
     } catch (error) {
       console.error("Failed to generate share message:", error);
-      let defaultMsg = `I just bet ${match.betSize || (match.userBet?.amount || betAmountState)} SOL that "${match.predictionText}" against @${typeof match.opponent === 'string' ? match.opponent : match.opponent?.username || 'a_Rival'}! Potential winnings: ${potentialPayout} SOL! #ViralBet`;
+      let defaultMsg = `I just bet ${match.betSize || (match.userBet?.amount || betAmountState)} SOL that "${match.predictionText}" against @${typeof match.opponent === 'string' ? match.opponent : match.opponent?.username || 'a_Rival'}! Potential winnings: ${potentialPayout} SOL! #WinBig`;
       if (match.bonusApplied || match.userBet?.bonusApplied) {
         defaultMsg += " (includes +20% Bonus!)";
       }
@@ -402,7 +402,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
         onOpenChange={setIsShareDialogOpen}
         matchId={match.id}
         ogImageUrl={ogImageUrl}
-        currentShareMessage={isLoadingShareMessage ? "Generating viral message..." : shareMessage}
+        currentShareMessage={isLoadingShareMessage ? "Generating share message..." : shareMessage}
         onShareMessageChange={setShareMessage}
         shareUrl={match.shareUrl || `${appUrl}/match/${match.id}?predictionId=${match.predictionId}${match.bonusApplied ? '&bonusApplied=true' : ''}`}
       />

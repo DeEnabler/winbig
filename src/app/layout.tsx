@@ -21,7 +21,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'ViralBet - Swipe, Bet, Share!',
+  title: 'WinBig - Swipe, Bet, Share!',
   description: 'Instantly challenge others on high-emotion predictions. Swipe, bet, and share virally on X!',
 };
 

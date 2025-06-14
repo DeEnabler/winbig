@@ -27,8 +27,8 @@ if (process.env.NODE_ENV === 'production' && appUrlForMetadata.startsWith('http:
 
 
 const metadata = {
-  name: 'ViralBet',
-  description: 'ViralBet - Swipe, Bet, Share!',
+  name: 'WinBig',
+  description: 'WinBig - Swipe, Bet, Share!',
   url: appUrlForMetadata, 
   icons: [`${appUrlForMetadata}/vb-icon-192.png`], 
 };
@@ -84,4 +84,3 @@ export default function ContextProvider({ children, cookies }: { children: React
     </WagmiProvider>
   );
 }
-

@@ -13,7 +13,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         {children}
       </main>
       <footer className="py-4 text-center text-sm text-muted-foreground">
-        © {new Date().getFullYear()} ViralBet. All rights reserved.
+        © {new Date().getFullYear()} WinBig. All rights reserved.
       </footer>
     </>
   );

@@ -94,7 +94,7 @@ export default function PositionsPage() {
     if (position.bonusApplied) {
       matchShareParams.set('bonusApplied', 'true');
     }
-    matchShareParams.set('utm_source', 'viralbet_share');
+    matchShareParams.set('utm_source', 'winbig_share');
     matchShareParams.set('utm_medium', 'social');
     matchShareParams.set('utm_campaign', 'position_share');
     
@@ -105,7 +105,7 @@ export default function PositionsPage() {
     ogParams.set('v', Date.now().toString());
     ogParams.set('predictionText', position.predictionText.substring(0,50) + '...');
     ogParams.set('username', mockCurrentUser.username === 'You' ? 'I' : mockCurrentUser.username);
-    ogParams.set('userAvatar', mockCurrentUser.avatarUrl || 'https://placehold.co/128x128.png?text=VB');
+    ogParams.set('userAvatar', mockCurrentUser.avatarUrl || 'https://placehold.co/128x128.png?text=WB');
     ogParams.set('ogType', 'position_outcome');
     
     let outcomeDescriptionForShare = '';
@@ -157,7 +157,7 @@ export default function PositionsPage() {
         outcomeDescription: outcomeDescriptionForShare,
         finalAmount: finalAmountForShare,
         currency: '$', 
-        callToAction: "What's your take? #ViralBet"
+        callToAction: "What's your take? #WinBig"
       };
       const result = await generateXShareMessage(shareDetails);
       let finalMessage = result.shareMessage;
@@ -168,7 +168,7 @@ export default function PositionsPage() {
       setCurrentShareMessage(finalMessage);
     } catch (error) {
       console.error("Failed to generate share message for position:", error);
-      setCurrentShareMessage(`Check out my position on "${position.predictionText}"! ${outcomeDescriptionForShare} #ViralBet`);
+      setCurrentShareMessage(`Check out my position on "${position.predictionText}"! ${outcomeDescriptionForShare} #WinBig`);
       toast({ variant: "destructive", title: "Error", description: "Could not generate AI share message. Using default." });
     } finally {
       setIsLoadingShareMessage(false);
@@ -326,10 +326,10 @@ export default function PositionsPage() {
                           } else if (position.settledAmount && position.settledAmount < position.betAmount) {
                             outcomeColor = 'text-red-600 dark:text-red-400';
                           } else {
-                            outcomeColor = 'text-yellow-600 dark:text-yellow-400'; // Or neutral
+                            outcomeColor = 'text-yellow-600 dark:text-yellow-400'; 
                           }
                           break;
-                        case 'PENDING_COLLECTION': // Should ideally transition to COLLECTED after action
+                        case 'PENDING_COLLECTION': 
                            outcomeText = `Collect ${formatCurrency(position.settledAmount || 0)}`;
                            outcomeColor = 'text-blue-500 dark:text-blue-400';
                            break;
@@ -371,7 +371,7 @@ export default function PositionsPage() {
         isOpen={isShareDialogOpen}
         onOpenChange={setIsShareDialogOpen}
         ogImageUrl={currentShareOgImageUrl}
-        currentShareMessage={isLoadingShareMessage ? "Generating viral message..." : currentShareMessage}
+        currentShareMessage={isLoadingShareMessage ? "Generating share message..." : currentShareMessage}
         onShareMessageChange={setCurrentShareMessage}
         shareUrl={currentShareUrl}
         entityContext="position_outcome"
@@ -379,5 +379,3 @@ export default function PositionsPage() {
     </>
   );
 }
-
-    

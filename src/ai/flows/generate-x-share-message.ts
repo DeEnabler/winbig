@@ -37,7 +37,7 @@ const prompt = ai.definePrompt({
   name: 'generateXShareMessagePrompt',
   input: {schema: GenerateXShareMessageInputSchema},
   output: {schema: GenerateXShareMessageOutputSchema},
-  prompt: `Generate a short, engaging, and viral share message for X (Twitter) based on a user's betting activity on ViralBet.
+  prompt: `Generate a short, engaging, and viral share message for X (Twitter) based on a user's betting activity on WinBig.
 
 Context:
 - Prediction: "{{{predictionText}}}"
@@ -56,23 +56,23 @@ Instructions:
 2. Make it sound exciting, fun, or a bit provocative depending on the context.
 3. If an opponent is mentioned, incorporate them naturally.
 4. If a 'finalAmount' (like winnings or sell value) is provided, highlight it.
-5. Include relevant hashtags like #ViralBet, #prediction, #bet, #crypto, #sports, etc., based on the prediction.
+5. Include relevant hashtags like #WinBig, #prediction, #bet, #crypto, #sports, etc., based on the prediction.
 6. Include 1-2 relevant emojis to enhance engagement.
-7. If a 'callToAction' is provided, try to weave it in. If not, create a general one like "Join the action on #ViralBet!" or "What do you predict?".
+7. If a 'callToAction' is provided, try to weave it in. If not, create a general one like "Join the action on #WinBig!" or "What do you predict?".
 
 Examples based on input:
 
 - If 'outcomeDescription' is "I WON" and 'finalAmount' is 50:
-  "BOOM! 🚀 Just WON 50 {{{currency}}} on ViralBet predicting: '{{{predictionText}}}'! Feeling like a legend. #ViralBet #Winner"
+  "BOOM! 🚀 Just WON 50 {{{currency}}} on WinBig predicting: '{{{predictionText}}}'! Feeling like a legend. #WinBig #Winner"
 
 - If 'outcomeDescription' is "I just SOLD my bet for" and 'finalAmount' is 30:
-  "Cashed out! 💰 Sold my bet on '{{{predictionText}}}' for 30 {{{currency}}} on ViralBet. Smart moves! #Trading #ViralBet"
+  "Cashed out! 💰 Sold my bet on '{{{predictionText}}}' for 30 {{{currency}}} on WinBig. Smart moves! #Trading #WinBig"
 
 - If 'outcomeDescription' is "I'm betting YES that" and 'betAmount' is 10 and 'opponentUsername' is 'RivalJoe':
-  "Locked in! 🎲 Betting 10 {{{currency}}} that '{{{predictionText}}}' against @RivalJoe on ViralBet. {{{callToAction}}} #Challenge #ViralBet"
+  "Locked in! 🎲 Betting 10 {{{currency}}} that '{{{predictionText}}}' against @RivalJoe on WinBig. {{{callToAction}}} #Challenge #WinBig"
   
 - If 'outcomeDescription' is "My bet is LIVE on" and 'potentialWinnings' is 19:
-  "My bet is LIVE on ViralBet! 🔥 '{{{predictionText}}}' - watching this one closely. Potential for 19 {{{currency}}}! What's your take? #ViralBet #LiveBet"
+  "My bet is LIVE on WinBig! 🔥 '{{{predictionText}}}' - watching this one closely. Potential for 19 {{{currency}}}! What's your take? #WinBig #LiveBet"
 
 Prioritize making the message engaging and natural-sounding for X.
 If '{{{callToAction}}}' is provided, use it. Otherwise, come up with a suitable one.

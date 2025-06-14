@@ -21,7 +21,7 @@ export default function HomePage() {
       <Card className="w-full max-w-lg mb-8">
         <CardHeader>
           <CardTitle className="text-center text-2xl font-bold text-primary">
-            ViralBet Diagnostic Page (Simplified)
+            WinBig Diagnostic Page (Simplified)
           </CardTitle>
         </CardHeader>
         <CardContent className="flex justify-center">

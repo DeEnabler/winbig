@@ -1,7 +1,7 @@
 md
-# ViralBet - A Next.js Prediction Betting App
+# WinBig - A Next.js Prediction Betting App
 
-This is a Next.js starter app for ViralBet, built in Firebase Studio.
+This is a Next.js starter app for WinBig, built in Firebase Studio.
 
 ## Getting Started
 
@@ -48,7 +48,7 @@ This project is optimized for deployment on [Vercel](https://vercel.com), the cr
 2.  **Import to Vercel:**
     *   Go to [vercel.com](https://vercel.com) and sign up or log in with your GitHub account.
     *   Click "Add New..." -> "Project".
-    *   Import your ViralBet GitHub repository.
+    *   Import your WinBig GitHub repository.
 
 3.  **Configure Vercel Project Settings (Crucial):**
     *   Vercel should automatically detect that this is a Next.js project and configure the build settings appropriately.
@@ -83,4 +83,3 @@ Your application should now be live! The application code consistently uses `pro
 *   Genkit (for AI features)
 *   Vercel OG (for dynamic Open Graph image generation)
 *   Wagmi & Web3Modal (for WalletConnect integration)
-
