@@ -13,7 +13,7 @@ app.use(cors({ origin: true }));
 app.use(express.json());
 
 // Wallet Generation Endpoint (primarily for setup/testing, not direct user calls in WinBig)
-app.post('/api/wallet/generate', async (req, res) => {
+app.post('/wallet/generate', async (req, res) => {
   try {
     const { network, privateKey } = req.body; 
     
@@ -55,7 +55,7 @@ app.post('/api/wallet/generate', async (req, res) => {
 });
 
 // Live Market Odds Endpoint
-app.get('/api/markets/live-odds/:category?', async (req, res) => {
+app.get('/markets/live-odds/:category?', async (req, res) => {
   try {
     const { category } = req.params;
     const limitQuery = req.query.limit;
@@ -102,7 +102,7 @@ app.get('/api/markets/live-odds/:category?', async (req, res) => {
 });
 
 // Credential Status Endpoint (for debugging/monitoring ephemeral credentials)
-app.get('/api/admin/credential-status', async (req, res) => {
+app.get('/admin/credential-status', async (req, res) => {
   try {
     // This should be protected in a real app (e.g., admin auth middleware)
     const marketService = new LiveMarketService(); // Instantiates EphemeralCredentialManager
@@ -115,7 +115,7 @@ app.get('/api/admin/credential-status', async (req, res) => {
 });
 
 // Endpoint to manually refresh credentials (for debugging)
-app.post('/api/admin/refresh-credentials', async (req, res) => {
+app.post('/admin/refresh-credentials', async (req, res) => {
   try {
     // This should be protected
     const { network } = req.body; // 'testnet' or 'mainnet'
@@ -132,7 +132,7 @@ app.post('/api/admin/refresh-credentials', async (req, res) => {
 });
 
 
-app.get('/api/health', (req, res) => {
+app.get('/health', (req, res) => {
   res.json({ 
     status: 'healthy', 
     timestamp: new Date().toISOString(),
@@ -141,3 +141,4 @@ app.get('/api/health', (req, res) => {
 });
 
 export const api = functions.https.onRequest(app);
+
