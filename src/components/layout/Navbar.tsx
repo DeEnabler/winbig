@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Home, Menu, X, Coins, DollarSign, ListChecks, Settings2 } from 'lucide-react'; // Added Settings2
+import { Home, Menu, X, Coins, DollarSign, ListChecks } from 'lucide-react'; // Removed Settings2
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/common/Logo';
 import { useState, useEffect } from 'react';
@@ -15,8 +15,7 @@ const navItems = [
   { href: '/', label: 'Bet', icon: Home },
   { href: '/positions', label: 'Positions', icon: ListChecks },
   { href: '/earn', label: 'Earn', icon: DollarSign },
-  { href: '/wallet-setup', label: 'Wallet Setup', icon: Settings2 }, // Added Wallet Setup
-  // { href: '/leaderboard', label: 'Leaderboard', icon: BarChart3 }, // Removed Leaderboard
+  // { href: '/wallet-setup', label: 'Wallet Setup', icon: Settings2 }, // Removed Wallet Setup
 ];
 
 export default function Navbar() {
