@@ -9,7 +9,7 @@ import { EphemeralCredentialManager } from './credential-manager';
 // getActiveMarkets and getMarketQuotes will be imported from './polymarket.ts'
 // These functions would ideally interact with a Polymarket SDK or make direct API calls.
 import { getActiveMarkets, getMarketQuotes } from './polymarket'; 
-import type { ApiCredentials } from './types'; // Assuming ApiCredentials might be needed if passed to SDK
+import type { ApiCredentials, WalletInfo } from './types'; // WalletInfo is needed for manager
 
 interface LiveMarket {
   id: string;
@@ -21,7 +21,7 @@ interface LiveMarket {
   deadline: string | null; // ISO string
   liquidity: number | null;
   description?: string;
-  imageUrl?: string; // Added for consistency with previous stubs
+  imageUrl?: string;
 }
 
 interface MarketFilters {
@@ -45,45 +45,47 @@ export class LiveMarketService {
     try {
       console.log('📊 Fetching live markets with filters:', filters);
 
-      // Get fresh credentials (automatically handles caching/regeneration)
-      // For Polymarket, 'testnet' usually means Amoy, 'mainnet' means Polygon.
-      const credentialData = await this.credentialManager.getCredentials('testnet'); 
-      console.log('Using API key (first 5 chars):', credentialData.credentials.key.substring(0,5));
+      const { credentials, wallet } = await this.credentialManager.getCredentials('testnet'); 
+      console.log('Using API key (first 8 chars):', credentials.key.substring(0,8));
+      console.log('Using Wallet Address:', wallet.address);
 
 
-      // Fetch active markets using function from polymarket.ts (currently stubbed)
-      const marketsFromApi = await getActiveMarkets();
+      // Fetch active markets using function from polymarket.ts (now expecting credentials)
+      const marketsFromApi = await getActiveMarkets(credentials, wallet.address);
       
       const liveMarketsPromises = marketsFromApi
         .slice(0, filters.limit || 20) // Apply limit early
         .map(async (marketApi) => {
           try {
-            // Get live quotes for each market (currently stubbed)
-            const quotes = await getMarketQuotes(marketApi.id);
+            // Get live quotes for each market (now expecting credentials)
+            // If marketsFromApi already contains prices, this step might be redundant or for more granular quotes.
+            // For now, we assume getMarketQuotes is still useful for detailed/fresher prices.
+            const quotes = await getMarketQuotes(marketApi.id, credentials, wallet.address);
             
             return {
               id: marketApi.id,
               question: marketApi.question,
               category: marketApi.category || 'General',
-              yesPrice: quotes.yesPrice ?? null,
-              noPrice: quotes.noPrice ?? null,
-              volume24h: marketApi.volume24h ?? quotes.volume24h ?? null,
-              deadline: marketApi.endDate ?? quotes.endDate ?? null,
-              liquidity: quotes.liquidity ?? null,
+              yesPrice: quotes.yesPrice ?? marketApi.yesPrice ?? null, // Prioritize quotes, fallback to market list prices
+              noPrice: quotes.noPrice ?? marketApi.noPrice ?? null,
+              volume24h: quotes.volume24h ?? marketApi.volume24h ?? null,
+              deadline: quotes.endDate ?? marketApi.endDate ?? null,
+              liquidity: quotes.liquidity ?? marketApi.liquidity ?? null,
               description: marketApi.description,
-              imageUrl: marketApi.imageUrl, // Keep imageUrl if provided by getActiveMarkets
+              imageUrl: marketApi.imageUrl,
             };
           } catch (error) {
             console.warn(`⚠️ Failed to get quotes for market ${marketApi.id}:`, error);
+            // Return market with data from getActiveMarkets if quotes fail
             return {
               id: marketApi.id,
               question: marketApi.question,
               category: marketApi.category || 'General',
-              yesPrice: 0.5, 
-              noPrice: 0.5,
+              yesPrice: marketApi.yesPrice ?? 0.5, // Default neutral price if all else fails
+              noPrice: marketApi.noPrice ?? 0.5,
               volume24h: marketApi.volume24h || null,
               deadline: marketApi.endDate,
-              liquidity: null,
+              liquidity: marketApi.liquidity || null,
               description: marketApi.description,
               imageUrl: marketApi.imageUrl,
             };
@@ -109,10 +111,7 @@ export class LiveMarketService {
 
     } catch (error) {
       console.error('❌ Failed to fetch live markets in LiveMarketService:', error);
-      // Decide on error handling: throw or return empty/default. For now, throwing.
-      // throw new Error(`Live market fetch failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      // Returning empty array for resilience in the endpoint
-      return [];
+      return []; // Return empty array for resilience
     }
   }
 
@@ -128,10 +127,12 @@ export class LiveMarketService {
    */
   async getTrendingMarkets(limit = 10): Promise<LiveMarket[]> {
     // Example: popular markets might be those with higher volume
-    return this.getLiveMarkets({ 
-      limit, 
-      minVolume: 10000 // Example threshold for "popular"
-    });
+    // The minVolume filter is now applied within getLiveMarkets.
+    // We can also sort by volume if getActiveMarkets returns enough data.
+    const markets = await this.getLiveMarkets({ limit: limit * 2 }); // Fetch more to sort
+    return markets
+      .sort((a,b) => (b.volume24h || 0) - (a.volume24h || 0))
+      .slice(0, limit);
   }
 
   /**
@@ -140,29 +141,47 @@ export class LiveMarketService {
   async getMarketDetails(marketId: string): Promise<LiveMarket | null> {
     try {
       console.log(`🔍 Fetching details for market: ${marketId}`);
-      // Ensure credentials exist/are fresh for any potential direct SDK calls
-      await this.credentialManager.getCredentials('testnet');
+      const { credentials, wallet } = await this.credentialManager.getCredentials('testnet');
 
-      // Get market quotes (currently stubbed)
-      const quotes = await getMarketQuotes(marketId);
-      // In a real scenario, you might fetch more comprehensive details here
-      // For now, structure is similar to LiveMarket
+      const quotes = await getMarketQuotes(marketId, credentials, wallet.address);
       
-      if (!quotes.question) { // If quotes didn't return basic info, market might not exist
+      if (!quotes.question || quotes.question === 'N/A') { 
           console.warn(`Market details/quotes not found for marketId: ${marketId}`);
+          // Attempt to get basic info from the active markets list as a fallback
+          const activeMarkets = await getActiveMarkets(credentials, wallet.address);
+          const marketInfo = activeMarkets.find(m => m.id === marketId);
+          if (marketInfo) {
+            return {
+              id: marketId,
+              question: marketInfo.question,
+              category: marketInfo.category || 'General',
+              yesPrice: quotes.yesPrice ?? marketInfo.yesPrice ?? null,
+              noPrice: quotes.noPrice ?? marketInfo.noPrice ?? null,
+              volume24h: quotes.volume24h ?? marketInfo.volume24h ?? null,
+              deadline: quotes.endDate ?? marketInfo.endDate ?? null,
+              liquidity: quotes.liquidity ?? marketInfo.liquidity ?? null,
+              description: marketInfo.description,
+              imageUrl: marketInfo.imageUrl,
+            };
+          }
           return null;
       }
+
+      // Try to find the market in the active list to supplement details like imageUrl
+      const activeMarkets = await getActiveMarkets(credentials, wallet.address);
+      const marketFromList = activeMarkets.find(m => m.id === marketId);
 
       return {
         id: marketId,
         question: quotes.question,
-        category: 'General', // Category might come from a different endpoint or initial market list
+        category: marketFromList?.category || 'General', 
         yesPrice: quotes.yesPrice ?? null,
         noPrice: quotes.noPrice ?? null,
-        volume24h: quotes.volume24h ?? null,
-        deadline: quotes.endDate ?? null,
-        liquidity: quotes.liquidity ?? null,
-        // description and imageUrl would ideally come from a more detailed market info call
+        volume24h: quotes.volume24h ?? marketFromList?.volume24h ?? null,
+        deadline: quotes.endDate ?? marketFromList?.endDate ?? null,
+        liquidity: quotes.liquidity ?? marketFromList?.liquidity ?? null,
+        description: marketFromList?.description,
+        imageUrl: marketFromList?.imageUrl,
       };
 
     } catch (error) {
