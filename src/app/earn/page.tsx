@@ -72,8 +72,7 @@ export default function EarnPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7 }}
-        className="text-center py-8 md:py-12 rounded-xl bg-gradient-to-br from-primary/10 via-background to-background shadow-lg mb-10 md:mb-12"
-        // Conceptual background: animated growing graph or flashing rewards
+        className="text-center py-8 md:py-12 rounded-xl bg-gradient-to-br from-primary/10 via-background to-background shadow-lg mb-8 md:mb-10"
       >
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-3 leading-tight tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
           Bet Smarter. <span className="block md:inline">Earn Passively.</span> Own the Network.
@@ -83,16 +82,12 @@ export default function EarnPage() {
         </p>
         <div className="flex justify-center">
           <ConnectWalletButton /> 
-          {/* This button will show "Connect Wallet" or the user's address if connected. 
-              Ideally, if connected, it would say "Get Your Link" or similar and take to an affiliate dashboard.
-              For now, it serves as the wallet connect CTA.
-          */}
         </div>
          <p className="text-xs text-muted-foreground mt-3">Connect your wallet to start earning.</p>
       </motion.section>
 
       {/* 2. How It Works (3 Steps) */}
-      <section className="mb-10 md:mb-12">
+      <section className="mb-8 md:mb-10">
         <h2 className="text-3xl md:text-4xl font-bold text-center mb-6 md:mb-8">
           Unlock Your Earnings in <span className="text-primary">3 Simple Steps</span>
         </h2>
@@ -117,7 +112,7 @@ export default function EarnPage() {
       </section>
 
       {/* 3. Why It’s Different */}
-      <section className="mb-10 md:mb-12">
+      <section className="mb-8 md:mb-10">
         <h2 className="text-3xl md:text-4xl font-bold text-center mb-6 md:mb-8">
           This Isn't Just Affiliate. <span className="block md:inline">This is <span className="text-accent">Leverage.</span></span>
         </h2>
@@ -144,7 +139,7 @@ export default function EarnPage() {
       </section>
 
       {/* 4. Simulated Earnings Block */}
-      <section className="mb-10 md:mb-12 p-5 md:p-6 bg-muted/50 rounded-xl shadow-lg">
+      <section className="mb-8 md:mb-10 p-5 md:p-6 bg-muted/50 rounded-xl shadow-lg">
         <h2 className="text-3xl md:text-4xl font-bold text-center mb-3">
           What Could <span className="text-primary">You</span> Earn?
         </h2>
@@ -209,14 +204,13 @@ export default function EarnPage() {
           Your link is your key. The earlier you start, the bigger your network grows. The time is now.
         </p>
         <div className="flex justify-center">
-            {/* Re-using the ConnectWalletButton. If connected, text should ideally change. */}
             <ConnectWalletButton />
         </div>
         <p className="text-xs text-muted-foreground mt-3">Connect to get your unique shareable link.</p>
       </section>
 
       {/* 6. Optional Footer */}
-      <footer className="text-center mt-10 md:mt-12 py-5 border-t border-border/50">
+      <footer className="text-center mt-8 md:mt-10 py-5 border-t border-border/50">
         <p className="text-xs text-muted-foreground mb-1">
           <ShieldCheck className="w-3 h-3 inline mr-1" /> Revenue is generated from a small platform fee on each bet placed.
         </p>
