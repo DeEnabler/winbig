@@ -29,8 +29,8 @@ if (process.env.NODE_ENV === 'production' && appUrlForMetadata.startsWith('http:
 const metadata = {
   name: 'WinBig',
   description: 'WinBig - Swipe, Bet, Share!',
-  url: appUrlForMetadata, 
-  icons: [`${appUrlForMetadata}/vb-icon-192.png`], 
+  url: appUrlForMetadata,
+  icons: [`${appUrlForMetadata}/vb-icon-192.png`],
 };
 console.log("[Reown Context] AppKit Metadata:", metadata);
 
@@ -44,21 +44,26 @@ if (!projectId || projectId === 'undefined' || projectId === PLACEHOLDER_PROJECT
       alert("Wallet connection is not configured. Please check NEXT_PUBLIC_REOWN_PROJECT_ID in your environment variables.");
       console.error("[Reown Context] appKitModal.open() called but AppKit is not initialized due to missing Project ID.");
     },
-  } as unknown as AppKitModal; 
+  } as unknown as AppKitModal;
 } else {
   console.log("[Reown Context] Initializing Reown AppKit with Project ID:", projectId);
   try {
     appKitModal = createAppKit({
       adapters: [wagmiAdapter],
       projectId,
-      networks: configNetworks, 
-      defaultNetwork: configNetworks[0] || undefined, 
+      networks: configNetworks,
+      defaultNetwork: configNetworks[0] || undefined,
       metadata,
+      auth: {
+        email: true, // Retain email login (can be set to false if not desired)
+        socials: ["google"], // Limit social logins to Google only
+        showWallets: true, // Ensure wallet logins are available
+      },
       features: {
-        analytics: false, // Changed from true to false
+        analytics: false,
       },
     });
-    console.log("[Reown Context] Reown AppKit initialized successfully.");
+    console.log("[Reown Context] Reown AppKit initialized successfully with custom auth options.");
   } catch (error) {
     console.error("[Reown Context] Error initializing Reown AppKit:", error);
     appKitModal = {
