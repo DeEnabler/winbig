@@ -198,11 +198,11 @@ export default function PositionsPage() {
             <Sparkles className="w-6 h-6 mr-2 text-primary" /> Active Bets
           </h2>
           {activePositions.length === 0 ? (
-            <Card className="text-center p-8 bg-muted/50">
+            <Card className="text-center p-8 bg-muted/50 rounded-lg">
               <ShoppingCart className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
               <p className="text-xl font-semibold mb-2">No Active Bets Right Now</p>
               <p className="text-muted-foreground mb-4">Time to find some predictions and get in the game!</p>
-              <Button asChild size="lg" className="h-12 text-base rounded-xl">
+              <Button asChild size="lg" className="rounded-lg">
                 <a href={appendEntryParams('/')}>Find Predictions</a>
               </Button>
             </Card>
@@ -286,7 +286,7 @@ export default function PositionsPage() {
             <BookOpenText className="w-6 h-6 mr-2 text-muted-foreground" /> Past Positions
           </h2>
           {pastPositions.length === 0 ? (
-             <Card className="text-center p-8 bg-muted/50">
+             <Card className="text-center p-8 bg-muted/50 rounded-lg">
               <Info className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
               <p className="text-xl font-semibold">No Past Positions Yet</p>
               <p className="text-muted-foreground">Your settled bets will appear here.</p>

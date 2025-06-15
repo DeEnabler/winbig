@@ -85,14 +85,14 @@ export default function PredictionCard({
         <div className="grid grid-cols-2 w-full">
           <Button
             variant="ghost"
-            className="w-full h-16 rounded-none rounded-bl-xl bg-green-500/20 hover:bg-green-500/30 text-green-700 dark:text-green-400 text-lg font-bold"
+            className="w-full h-16 rounded-none rounded-bl-2xl bg-green-500/20 hover:bg-green-500/30 text-green-700 dark:text-green-400 text-lg font-bold"
             onClick={() => handleBet('YES')}
           >
             <ThumbsUp className="w-6 h-6 mr-2" /> YES
           </Button>
           <Button
             variant="ghost"
-            className="w-full h-16 rounded-none rounded-br-xl bg-red-500/20 hover:bg-red-500/30 text-red-700 dark:text-red-400 text-lg font-bold"
+            className="w-full h-16 rounded-none rounded-br-2xl bg-red-500/20 hover:bg-red-500/30 text-red-700 dark:text-red-400 text-lg font-bold"
             onClick={() => handleBet('NO')}
           >
             <ThumbsDown className="w-6 h-6 mr-2" /> NO

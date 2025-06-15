@@ -10,13 +10,12 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { mockCurrentUser } from '@/lib/mockData';
-import ConnectWalletButton from '@/components/wallet/ConnectWallet';
+import ConnectWalletButton from '@/components/wallet/ConnectWallet'; // Using this for consistency with other ConnectWalletButton styling
 
 const navItems = [
   { href: '/', label: 'Bet', icon: Home },
   { href: '/positions', label: 'Positions', icon: ListChecks },
   { href: '/earn', label: 'Earn', icon: DollarSign },
-  // { href: '/wallet-setup', label: 'Wallet Setup', icon: Settings2 }, // Removed Wallet Setup
 ];
 
 export default function Navbar() {
@@ -58,6 +57,7 @@ export default function Navbar() {
             </span>
           </div>
           <div className="hidden md:block ml-2">
+             {/* ConnectWalletButton here will pick up the lg size and rounded-lg from its own definition */}
             <ConnectWalletButton />
           </div>
 

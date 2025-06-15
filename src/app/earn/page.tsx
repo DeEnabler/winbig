@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
 import { Share2, Coins, Users, MessageCircleQuestion, Flame, TrendingUp, Clock, Rocket, ShieldCheck } from 'lucide-react';
-import ConnectWalletButton from '@/components/wallet/ConnectWallet'; // Re-using for CTA
+import ConnectWalletButton from '@/components/wallet/ConnectWalletButton'; // Using the more styled version
 import { motion } from 'framer-motion';
 import React, { useState } from 'react';
 
@@ -72,7 +72,7 @@ export default function EarnPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7 }}
-        className="text-center py-12 md:py-16 rounded-xl bg-gradient-to-br from-primary/10 via-background to-background shadow-lg mb-10 md:mb-12"
+        className="text-center py-12 md:py-16 rounded-xl bg-gradient-to-br from-primary/10 via-background to-background shadow-lg mb-8 md:mb-10"
       >
         <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold mb-4 leading-tight tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
           Bet Smarter. <span className="block md:inline">Earn Passively.</span> Own the Network.
@@ -81,6 +81,7 @@ export default function EarnPage() {
           Get paid every time your network bets on WinBig. No code. No capital. Just your unique link. This is how you make money in 2025.
         </p>
         <div className="flex justify-center">
+          {/* ConnectWalletButton already styled with lg size & rounded-xl */}
           <ConnectWalletButton />
         </div>
          <p className="text-xs text-muted-foreground mt-3">Connect your wallet to start earning.</p>
@@ -112,7 +113,7 @@ export default function EarnPage() {
       </section>
 
       {/* 3. Why It’s Different */}
-      <section className="mb-10 md:mb-12">
+      <section className="mb-8 md:mb-10">
         <h2 className="text-3xl md:text-4xl font-bold text-center mb-6 md:mb-8">
           This Isn't Just Affiliate. <span className="block md:inline">This is <span className="text-accent">Leverage.</span></span>
         </h2>
@@ -124,7 +125,7 @@ export default function EarnPage() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: index * 0.15 }}
             >
-              <Card className="h-full bg-card shadow-md hover:shadow-lg transition-shadow">
+              <Card className="h-full bg-card rounded-lg shadow-md hover:shadow-lg transition-shadow">
                 <CardHeader className="items-center text-center">
                   {feature.icon}
                   <CardTitle className="text-lg md:text-xl">{feature.title}</CardTitle>
@@ -193,7 +194,7 @@ export default function EarnPage() {
       </section>
 
       {/* 5. Join the Movement CTA Section */}
-      <section className="text-center py-8 md:py-10 bg-gradient-to-tr from-accent/10 to-background rounded-xl shadow-lg">
+      <section className="text-center py-10 md:py-12 bg-gradient-to-tr from-accent/10 to-background rounded-xl shadow-lg">
         <blockquote className="text-2xl md:text-3xl font-semibold italic text-foreground max-w-2xl mx-auto mb-5">
           “We don’t pay influencers. <span className="block">We pay <span className="text-accent underline decoration-wavy">believers.</span></span>”
         </blockquote>
@@ -204,13 +205,14 @@ export default function EarnPage() {
           Your link is your key. The earlier you start, the bigger your network grows. The time is now.
         </p>
         <div className="flex justify-center">
+            {/* ConnectWalletButton already styled with lg size & rounded-xl */}
             <ConnectWalletButton />
         </div>
         <p className="text-xs text-muted-foreground mt-3">Connect to get your unique shareable link.</p>
       </section>
 
       {/* 6. Optional Footer */}
-      <footer className="text-center mt-6 md:mt-8 py-5 border-t border-border/50">
+      <footer className="text-center mt-8 md:mt-10 py-5 border-t border-border/50">
         <p className="text-xs text-muted-foreground mb-1">
           <ShieldCheck className="w-3 h-3 inline mr-1" /> Revenue is generated from a small platform fee on each bet placed.
         </p>

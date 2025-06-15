@@ -21,27 +21,27 @@ body {
     --secondary-foreground: 270 83% 37%; /* Primary color for text on secondary bg */
     --muted: 270 60% 92%; /* Even lighter purple */
     --muted-foreground: 270 30% 50%; /* Muted text color */
-    --accent: 210 83% 50%; /* Lively Blue #20A0F0 */
-    --accent-foreground: 0 0% 98%; /* White for contrast */
+    --accent: 20 80% 60%; /* Coral/Gold - NEW */
+    --accent-foreground: 20 0% 10%; /* Dark text for new accent - NEW */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --success: 120 60% 50%; /* Bolder Green */
-    --success-foreground: 120 60% 15%; /* Dark Green for text on success bg */
-    --warning: 30 70% 60%; /* Bolder Orange */
-    --warning-foreground: 30 70% 15%; /* Dark Orange for text on warning bg */
+    --success: 120 60% 50%; /* Bolder Green - NEW */
+    --success-foreground: 120 60% 95%; /* Light text for success - NEW */
+    --warning: 30 70% 60%; /* Bolder Orange - NEW */
+    --warning-foreground: 30 70% 95%; /* Light text for warning - NEW */
     --border: 270 50% 85%; /* Border color, derived from primary */
     --input: 270 50% 90%; /* Input background */
-    --ring: 210 83% 50%; /* Accent color for focus rings */
+    --ring: 20 80% 60%; /* Ring color to new accent - NEW */
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --radius: 0.75rem; /* Increased from 0.5rem */
+    --radius: 0.75rem; /* Increased from 0.5rem - NEW */
   }
   .dark {
     --background: 270 30% 10%; /* Dark Purple */
-    --foreground: 276 71% 95%; /* Brightened Light Purple text */
+    --foreground: 276 71% 95%; /* Brightened Light Purple text - UPDATED */
     --card: 270 30% 12%;
     --card-foreground: 276 71% 95%; /* Brightened for consistency */
     --popover: 270 30% 12%;
@@ -52,17 +52,17 @@ body {
     --secondary-foreground: 270 83% 70%; /* Lighter primary */
     --muted: 270 30% 20%;
     --muted-foreground: 276 71% 70%; /* Slightly brightened muted text */
-    --accent: 210 83% 65%; /* Lighter Lively Blue */
-    --accent-foreground: 210 25% 15%; /* Darker blue for contrast */
+    --accent: 20 80% 65%; /* Lighter Coral/Gold - NEW */
+    --accent-foreground: 20 0% 10%; /* Dark text for new accent - NEW */
     --destructive: 0 70% 45%; /* Adjusted dark destructive */
     --destructive-foreground: 0 0% 98%;
-    --success: 120 60% 55%; /* Dark mode Green */
-    --success-foreground: 0 0% 98%;
-    --warning: 30 70% 65%; /* Dark mode Orange */
-    --warning-foreground: 0 0% 98%;
+    --success: 120 60% 55%; /* Dark mode Green - NEW */
+    --success-foreground: 0 0% 98%; /* White text for success - NEW */
+    --warning: 30 70% 65%; /* Dark mode Orange - NEW */
+    --warning-foreground: 0 0% 98%; /* White text for warning - NEW */
     --border: 270 30% 25%;
     --input: 270 30% 25%;
-    --ring: 210 83% 65%; /* Accent for rings in dark mode */
+    --ring: 20 80% 65%; /* Ring color to new accent in dark mode - NEW */
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;

@@ -365,7 +365,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
 
         <CardFooter className="p-4 flex flex-col gap-3">
            {match.isConfirmingChallenge ? (
-             <Button onClick={handleConfirmBet} disabled={isBetting} size="lg" className="w-full bg-green-600 hover:bg-green-700 text-white">
+             <Button onClick={handleConfirmBet} disabled={isBetting} size="lg" className="w-full bg-green-600 hover:bg-green-700 text-white animate-pulse-glow">
                 <CheckCircle className="w-5 h-5 mr-2" /> {isBetting ? "Confirming..." : "Confirm Bet"}
              </Button>
            ) : (

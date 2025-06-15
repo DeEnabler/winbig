@@ -36,8 +36,8 @@ export default function ConnectWalletButton() {
   
   if (!appKitModal) {
      return (
-      <Button variant="outline" disabled className="flex items-center space-x-2 border-destructive text-destructive">
-        <AlertTriangle className="h-5 w-5" />
+      <Button variant="outline" disabled className="flex items-center space-x-2 border-destructive text-destructive h-12 text-base rounded-lg">
+        <AlertTriangle className="w-5 h-5" />
         <span>Wallet Disabled</span>
       </Button>
     );
@@ -48,7 +48,7 @@ export default function ConnectWalletButton() {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="flex items-center space-x-2">
+          <Button variant="outline" size="lg" className="flex items-center space-x-2 text-base rounded-lg">
             <UserCircle className="h-5 w-5" />
             <span>{truncateAddress(address)}</span>
           </Button>
@@ -84,8 +84,8 @@ export default function ConnectWalletButton() {
       {/* Trust text removed from here */}
       <Button
         onClick={handleOpenModal}
-        variant="default"
-        className="bg-primary hover:bg-primary/90 w-full" // Make button full width if container is full width
+        size="lg" // Uses the updated lg size: h-12, text-base, rounded-lg
+        className="bg-primary hover:bg-primary/90 w-full shadow-md hover:shadow-lg transition-shadow animate-pulse-glow"
       >
         <LogIn className="mr-2 h-5 w-5" />
         Connect Wallet
