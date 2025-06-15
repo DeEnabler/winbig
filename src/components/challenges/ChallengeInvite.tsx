@@ -20,7 +20,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import BonusDisplay from './BonusDisplay';
 
 const REWARD_AMOUNT = 100;
-const REWARD_CURRENCY = "ViralPoints"; // Keeping "ViralPoints" unless specified otherwise
+const REWARD_CURRENCY = "WinPoints"; // Updated to WinPoints
 const REWARD_GIVEN_STORAGE_KEY = 'winBigWalletConnectRewardGiven_v1_reown'; // Updated key
 
 const BONUS_DURATION_SECONDS = 120; // 2 minutes
@@ -361,7 +361,7 @@ export default function ChallengeInvite({
             </div>
           </div>
           
-          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 mt-3">
+          <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 mt-4">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -369,10 +369,10 @@ export default function ChallengeInvite({
                     whileHover={{ scale: 1.03, y: -1 }}
                     whileTap={{ scale: 0.97 }}
                     transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                    className="flex-1 py-3 px-3 bg-gradient-to-br from-green-500 to-green-600 text-white font-bold rounded-lg shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 flex items-center justify-center space-x-1.5 text-sm md:text-base"
+                    className="flex-1 h-12 px-3 bg-gradient-to-br from-green-500 to-green-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75 flex items-center justify-center space-x-1.5 text-base"
                     onClick={() => handleBetAction('with')}
                   >
-                    <CheckCircle className="w-4 h-4 md:w-5 md:h-5" />
+                    <CheckCircle className="w-5 h-5" />
                     <span>I'm In</span>
                   </motion.button>
                 </TooltipTrigger>
@@ -388,10 +388,10 @@ export default function ChallengeInvite({
                     whileHover={{ scale: 1.03, y: -1 }}
                     whileTap={{ scale: 0.97 }}
                     transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                    className="flex-1 py-3 px-3 bg-gradient-to-br from-red-500 to-red-600 text-white font-bold rounded-lg shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 flex items-center justify-center space-x-1.5 text-sm md:text-base"
+                    className="flex-1 h-12 px-3 bg-gradient-to-br from-red-500 to-red-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 flex items-center justify-center space-x-1.5 text-base"
                     onClick={() => handleBetAction('against')}
                   >
-                    <Swords className="w-4 h-4 md:w-5 md:h-5" />
+                    <Swords className="w-5 h-5" />
                     <span>Challenge</span>
                   </motion.button>
                 </TooltipTrigger>
@@ -403,7 +403,7 @@ export default function ChallengeInvite({
           </div>
           <div className="text-xs text-muted-foreground mt-3 space-y-1">
             <p>🛡️ Fast, secure bets – Powered by smart contracts</p>
-            <p>Go big! Share your bet to X and earn ViralPoints.</p>
+            <p>Go big! Share your bet to X and earn WinPoints.</p>
           </div>
         </CardContent>
         <CardFooter className="flex items-center justify-between p-3 bg-muted/20 border-t text-xs text-muted-foreground">
@@ -423,8 +423,8 @@ export default function ChallengeInvite({
       {showBonusSection && isBonusOfferActive && !bonusSuccessfullyClaimed && (
         <div className="fixed bottom-4 right-4 z-50 md:bottom-6 md:right-6">
           <BonusDisplay
-            isActive={isBonusOfferActive} // This will always be true here due to parent condition
-            isClaimed={bonusSuccessfullyClaimed} // This will always be false here
+            isActive={isBonusOfferActive} 
+            isClaimed={bonusSuccessfullyClaimed} 
             timeLeftSeconds={bonusTimeLeft}
             durationSeconds={BONUS_DURATION_SECONDS}
             lowTimeThreshold={BONUS_LOW_TIME_THRESHOLD}

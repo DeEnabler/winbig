@@ -202,7 +202,7 @@ export default function PositionsPage() {
               <ShoppingCart className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
               <p className="text-xl font-semibold mb-2">No Active Bets Right Now</p>
               <p className="text-muted-foreground mb-4">Time to find some predictions and get in the game!</p>
-              <Button asChild size="lg">
+              <Button asChild size="lg" className="h-12 text-base rounded-xl">
                 <a href={appendEntryParams('/')}>Find Predictions</a>
               </Button>
             </Card>
@@ -220,7 +220,7 @@ export default function PositionsPage() {
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     transition={{ duration: 0.4, delay: index * 0.1 }}
                   >
-                    <Card className="flex flex-col h-full overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
+                    <Card className="flex flex-col h-full overflow-hidden shadow-xl hover:shadow-2xl transition-shadow duration-300 rounded-xl">
                       {position.imageUrl && (
                         <div className="relative w-full h-36">
                           <NextImage src={position.imageUrl} alt={position.predictionText} fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" style={{ objectFit: 'cover' }} data-ai-hint={position.aiHint || position.category} />
@@ -245,7 +245,7 @@ export default function PositionsPage() {
                         <div>Your Bet: <span className={`font-semibold ${position.userChoice === 'YES' ? 'text-green-600' : 'text-red-600'}`}>{position.userChoice}</span> for {formatCurrency(position.betAmount)}</div>
                         <div>Potential Payout: <span className="font-semibold text-primary">{formatCurrency(position.potentialPayout)}</span></div>
                         <div className="flex items-center">
-                          <DollarSign className="w-3 h-3 mr-1 text-green-500" /> Current Sell Value: <span className="font-semibold text-green-600 ml-1">{formatCurrency(position.currentValue)}</span>
+                          <DollarSign className="w-3 h-3 mr-1 text-success" /> Current Sell Value: <span className="font-semibold text-success ml-1">{formatCurrency(position.currentValue)}</span>
                         </div>
                         <div className="text-muted-foreground">Status: <span className={`font-semibold ${statusText === 'LIVE' ? 'text-blue-500' : 'text-orange-500'}`}>{statusText}</span>
                           {position.opponentUsername && <span className="block text-xxs truncate">vs @{position.opponentUsername}</span>}
@@ -254,8 +254,8 @@ export default function PositionsPage() {
                       <CardFooter className="pt-2 pb-3 px-4 flex flex-col gap-2">
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button className="w-full bg-yellow-500 hover:bg-yellow-600 text-yellow-900" size="sm" disabled={position.currentValue <= 0}>
-                              <ShoppingCart className="w-3.5 h-3.5 mr-1.5" /> Sell for {formatCurrency(position.currentValue)}
+                            <Button className="w-full bg-warning hover:bg-warning/90 text-warning-foreground h-10 text-sm rounded-lg" size="sm" disabled={position.currentValue <= 0}>
+                              <ShoppingCart className="w-4 h-4 mr-1.5" /> Sell for {formatCurrency(position.currentValue)}
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
@@ -264,12 +264,12 @@ export default function PositionsPage() {
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleSellPosition(position.id, position.currentValue)} className="bg-yellow-500 hover:bg-yellow-600 text-yellow-900">Yes, Sell</AlertDialogAction>
+                              <AlertDialogAction onClick={() => handleSellPosition(position.id, position.currentValue)} className="bg-warning hover:bg-warning/90 text-warning-foreground">Yes, Sell</AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
-                        <Button onClick={() => handleSharePosition(position)} variant="outline" size="sm" className="w-full">
-                          <LucideXIcon className="w-3.5 h-3.5 mr-1.5" /> Share
+                        <Button onClick={() => handleSharePosition(position)} variant="outline" size="sm" className="w-full h-10 text-sm rounded-lg">
+                          <LucideXIcon className="w-4 h-4 mr-1.5" /> Share
                         </Button>
                       </CardFooter>
                     </Card>
@@ -292,7 +292,7 @@ export default function PositionsPage() {
               <p className="text-muted-foreground">Your settled bets will appear here.</p>
             </Card>
           ) : (
-            <Card>
+            <Card className="rounded-xl overflow-hidden">
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
@@ -309,30 +309,50 @@ export default function PositionsPage() {
                     {pastPositions.map(position => {
                       let outcomeText = '';
                       let outcomeColor = 'text-foreground';
+                      let ActionButtonOrBadge;
+
                       switch(position.status) {
                         case 'SETTLED_WON':
+                          outcomeText = `Won ${formatCurrency(position.settledAmount || 0)}`;
+                          outcomeColor = 'text-success';
+                           ActionButtonOrBadge = (
+                            <Button onClick={() => handleCollectWinnings(position.id, position.settledAmount || 0)} size="icon" variant="ghost" className="h-8 w-8 hover:bg-success/10">
+                              <Gift className="w-4 h-4 text-success" />
+                            </Button>
+                          );
+                          break;
                         case 'COLLECTED':
                           outcomeText = `Won ${formatCurrency(position.settledAmount || 0)}`;
-                          outcomeColor = 'text-green-600 dark:text-green-400';
+                          outcomeColor = 'text-success';
+                          ActionButtonOrBadge = (<Badge variant="outline" className="text-success border-success">Collected</Badge>);
                           break;
                         case 'SETTLED_LOST':
                           outcomeText = `Lost ${formatCurrency(position.betAmount)}`;
-                          outcomeColor = 'text-red-600 dark:text-red-400';
+                          outcomeColor = 'text-destructive';
+                          ActionButtonOrBadge = (<Badge variant="outline" className="text-destructive border-destructive">Lost</Badge>);
                           break;
                         case 'SOLD':
                           outcomeText = `Sold for ${formatCurrency(position.settledAmount || 0)}`;
                           if (position.settledAmount && position.settledAmount > position.betAmount) {
-                            outcomeColor = 'text-green-600 dark:text-green-400';
+                            outcomeColor = 'text-success';
                           } else if (position.settledAmount && position.settledAmount < position.betAmount) {
-                            outcomeColor = 'text-red-600 dark:text-red-400';
+                            outcomeColor = 'text-destructive';
                           } else {
-                            outcomeColor = 'text-yellow-600 dark:text-yellow-400'; 
+                            outcomeColor = 'text-warning-foreground'; 
                           }
+                          ActionButtonOrBadge = (<Badge variant="outline" className="border-muted-foreground">Sold</Badge>);
                           break;
                         case 'PENDING_COLLECTION': 
                            outcomeText = `Collect ${formatCurrency(position.settledAmount || 0)}`;
                            outcomeColor = 'text-blue-500 dark:text-blue-400';
+                           ActionButtonOrBadge = (
+                            <Button onClick={() => handleCollectWinnings(position.id, position.settledAmount || 0)} size="icon" variant="ghost" className="h-8 w-8 hover:bg-blue-500/10">
+                              <Gift className="w-4 h-4 text-blue-500" />
+                            </Button>
+                          );
                            break;
+                        default:
+                          ActionButtonOrBadge = (<Badge variant="secondary">N/A</Badge>);
                       }
                       return (
                         <TableRow key={position.id}>
@@ -342,17 +362,7 @@ export default function PositionsPage() {
                           <TableCell className={`text-right font-semibold ${outcomeColor}`}>{outcomeText}</TableCell>
                           <TableCell className="text-right text-xs text-muted-foreground">{format(position.endsAt, 'MMM d, yyyy')}</TableCell>
                           <TableCell className="text-center space-x-1">
-                            {(position.status === 'SETTLED_WON' || position.status === 'PENDING_COLLECTION') && (
-                              <Button onClick={() => handleCollectWinnings(position.id, position.settledAmount || 0)} size="icon" variant="ghost" className="h-8 w-8 hover:bg-green-100 dark:hover:bg-green-800">
-                                <Gift className="w-4 h-4 text-green-600" />
-                              </Button>
-                            )}
-                            {position.status === 'COLLECTED' && (
-                                <Badge variant="outline" className="text-green-600 border-green-600">Collected</Badge>
-                            )}
-                             {(position.status === 'SETTLED_LOST' || position.status === 'SOLD') && (
-                                <Badge variant="outline">Closed</Badge>
-                            )}
+                            {ActionButtonOrBadge}
                             <Button onClick={() => handleSharePosition(position)} size="icon" variant="ghost" className="h-8 w-8">
                               <LucideXIcon className="w-4 h-4" />
                             </Button>

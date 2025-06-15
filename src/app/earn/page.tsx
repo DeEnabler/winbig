@@ -72,16 +72,16 @@ export default function EarnPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7 }}
-        className="text-center py-8 md:py-12 rounded-xl bg-gradient-to-br from-primary/10 via-background to-background shadow-lg mb-8 md:mb-10"
+        className="text-center py-12 md:py-16 rounded-xl bg-gradient-to-br from-primary/10 via-background to-background shadow-lg mb-10 md:mb-12"
       >
-        <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-3 leading-tight tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
+        <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold mb-4 leading-tight tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
           Bet Smarter. <span className="block md:inline">Earn Passively.</span> Own the Network.
         </h1>
-        <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-5">
+        <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6">
           Get paid every time your network bets on WinBig. No code. No capital. Just your unique link. This is how you make money in 2025.
         </p>
         <div className="flex justify-center">
-          <ConnectWalletButton /> 
+          <ConnectWalletButton />
         </div>
          <p className="text-xs text-muted-foreground mt-3">Connect your wallet to start earning.</p>
       </motion.section>
@@ -112,7 +112,7 @@ export default function EarnPage() {
       </section>
 
       {/* 3. Why It’s Different */}
-      <section className="mb-8 md:mb-10">
+      <section className="mb-10 md:mb-12">
         <h2 className="text-3xl md:text-4xl font-bold text-center mb-6 md:mb-8">
           This Isn't Just Affiliate. <span className="block md:inline">This is <span className="text-accent">Leverage.</span></span>
         </h2>
@@ -173,7 +173,7 @@ export default function EarnPage() {
                 <span>50 Friends</span>
             </div>
           </div>
-          
+
           <div className="text-center mt-3 border-t border-border pt-3">
              <p className="text-lg">
               And if their network grows (e.g., {simulatedSubFriends} sub-referrals)...
@@ -210,7 +210,7 @@ export default function EarnPage() {
       </section>
 
       {/* 6. Optional Footer */}
-      <footer className="text-center mt-8 md:mt-10 py-5 border-t border-border/50">
+      <footer className="text-center mt-6 md:mt-8 py-5 border-t border-border/50">
         <p className="text-xs text-muted-foreground mb-1">
           <ShieldCheck className="w-3 h-3 inline mr-1" /> Revenue is generated from a small platform fee on each bet placed.
         </p>

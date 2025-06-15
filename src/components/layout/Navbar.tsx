@@ -1,3 +1,4 @@
+
 // src/components/layout/Navbar.tsx
 'use client';
 
@@ -44,14 +45,14 @@ export default function Navbar() {
                 )}
               >
                 <Link href={item.href}>
-                  <item.icon className="mr-2 h-4 w-4" />
+                  <item.icon className="mr-2 h-5 w-5" /> {/* Increased icon size */}
                   {item.label}
                 </Link>
               </Button>
             ))}
           </nav>
           <div className="hidden md:flex items-center space-x-2 border-l pl-4 ml-2">
-            <Coins className="h-5 w-5 text-yellow-500" />
+            <Coins className="h-5 w-5 text-yellow-500" /> {/* Kept icon size consistent */}
             <span className="text-sm font-semibold text-foreground">
               {mockCurrentUser.xp.toLocaleString()} XP
             </span>
@@ -88,7 +89,7 @@ export default function Navbar() {
                 )}
               >
                 <Link href={item.href}>
-                  <item.icon className="mr-3 h-5 w-5" />
+                  <item.icon className="mr-3 h-5 w-5" /> {/* Consistent icon size */}
                   {item.label}
                 </Link>
               </Button>

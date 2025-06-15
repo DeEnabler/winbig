@@ -25,6 +25,10 @@ body {
     --accent-foreground: 0 0% 98%; /* White for contrast */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
+    --success: 120 60% 50%; /* Bolder Green */
+    --success-foreground: 120 60% 15%; /* Dark Green for text on success bg */
+    --warning: 30 70% 60%; /* Bolder Orange */
+    --warning-foreground: 30 70% 15%; /* Dark Orange for text on warning bg */
     --border: 270 50% 85%; /* Border color, derived from primary */
     --input: 270 50% 90%; /* Input background */
     --ring: 210 83% 50%; /* Accent color for focus rings */
@@ -33,25 +37,29 @@ body {
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
+    --radius: 0.75rem; /* Increased from 0.5rem */
   }
   .dark {
     --background: 270 30% 10%; /* Dark Purple */
-    --foreground: 276 71% 90%; /* Light Purple text */
+    --foreground: 276 71% 95%; /* Brightened Light Purple text */
     --card: 270 30% 12%;
-    --card-foreground: 276 71% 90%;
+    --card-foreground: 276 71% 95%; /* Brightened for consistency */
     --popover: 270 30% 12%;
-    --popover-foreground: 276 71% 90%;
+    --popover-foreground: 276 71% 95%; /* Brightened for consistency */
     --primary: 270 83% 60%; /* Lighter Vibrant Purple */
     --primary-foreground: 270 25% 15%; /* Darker purple for contrast */
     --secondary: 270 30% 20%;
     --secondary-foreground: 270 83% 70%; /* Lighter primary */
     --muted: 270 30% 20%;
-    --muted-foreground: 276 71% 65%;
+    --muted-foreground: 276 71% 70%; /* Slightly brightened muted text */
     --accent: 210 83% 65%; /* Lighter Lively Blue */
     --accent-foreground: 210 25% 15%; /* Darker blue for contrast */
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 70% 45%; /* Adjusted dark destructive */
     --destructive-foreground: 0 0% 98%;
+    --success: 120 60% 55%; /* Dark mode Green */
+    --success-foreground: 0 0% 98%;
+    --warning: 30 70% 65%; /* Dark mode Orange */
+    --warning-foreground: 0 0% 98%;
     --border: 270 30% 25%;
     --input: 270 30% 25%;
     --ring: 210 83% 65%; /* Accent for rings in dark mode */

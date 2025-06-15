@@ -41,6 +41,14 @@ export default {
   				DEFAULT: 'hsl(var(--destructive))',
   				foreground: 'hsl(var(--destructive-foreground))'
   			},
+        success: {
+          DEFAULT: 'hsl(var(--success))',
+          foreground: 'hsl(var(--success-foreground))'
+        },
+        warning: {
+          DEFAULT: 'hsl(var(--warning))',
+          foreground: 'hsl(var(--warning-foreground))'
+        },
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
@@ -65,7 +73,8 @@ export default {
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
+  			sm: 'calc(var(--radius) - 4px)',
+        xl: 'calc(var(--radius) + 4px)' // For 0.75rem if base radius is 0.5rem
   		},
   		keyframes: {
   			'accordion-down': {
@@ -93,8 +102,8 @@ export default {
           '20%, 80%': { opacity: '1', transform: 'translateY(0px)' },
         },
         'pulse-glow': {
-          '0%, 100%': { boxShadow: '0 0 0 0 rgba(250, 204, 21, 0.5)' }, // yellow-500 base
-          '50%': { boxShadow: '0 0 8px 10px rgba(250, 204, 21, 0)' },
+          '0%, 100%': { boxShadow: '0 0 0 0 hsl(var(--warning) / 0.5)' }, 
+          '50%': { boxShadow: '0 0 8px 10px hsl(var(--warning) / 0)' },
         }
   		},
   		animation: {

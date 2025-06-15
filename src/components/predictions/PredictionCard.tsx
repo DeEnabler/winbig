@@ -21,11 +21,11 @@ export default function PredictionCard({
   streakCount,
   facePileCount,
   category,
-  timeLeft, 
-  endsAt, 
+  timeLeft,
+  endsAt,
   onBet,
 }: PredictionCardProps) {
-  
+
   const handleBet = async (choice: 'YES' | 'NO') => {
     await onBet({ predictionId: id, choice, amount: 5 }); // Default bet amount
   };
@@ -37,7 +37,7 @@ export default function PredictionCard({
   const endsOrEnded = endsAt && endsAt.getTime() < Date.now() ? 'Ended' : 'Ends';
 
   return (
-    <Card className="bg-card text-card-foreground rounded-2xl shadow-lg p-0 mb-4 w-full max-w-md mx-auto transform transition-all hover:scale-[1.02] duration-300 ease-out overflow-hidden">
+    <Card className="bg-card text-card-foreground rounded-2xl shadow-lg hover:shadow-xl p-0 mb-4 w-full max-w-md mx-auto transform transition-all hover:scale-[1.02] duration-300 ease-out overflow-hidden">
       {thumbnailUrl && (
         <div className="relative w-full h-48"> {/* Removed object-cover from here */}
           <NextImage
@@ -53,7 +53,7 @@ export default function PredictionCard({
       )}
       <CardHeader className="p-4 pb-2">
         <CardTitle className="text-xl font-semibold leading-tight">{question}</CardTitle>
-        
+
         <div className="flex items-center text-xs text-muted-foreground pt-2">
           {category && (
             <>
