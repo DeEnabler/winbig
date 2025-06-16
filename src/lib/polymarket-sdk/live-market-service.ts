@@ -79,12 +79,11 @@ export class LiveMarketService {
     const allRawMarkets = marketDataPayload.data || [];
     console.log(`Raw markets received from API: ${allRawMarkets.length}`);
 
-    // DEBUGGING LOGIC START
-    console.log('🔍 DEBUG: Analyzing first few markets for filtering (active: true, closed: false)...');
-    const now = new Date(); // Still useful for context if we re-introduce date checks
-    const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000); // Still useful for context
+    // Debugging and Filtering Logic
+    console.log('🔍 DEBUG: Analyzing first 5 markets for filtering...');
+    const now = new Date();
 
-    allRawMarkets.slice(0, 5).forEach((market: any, index: number) => { // Log first 5 markets
+    allRawMarkets.slice(0, 5).forEach((market: any, index: number) => {
       console.log(`\n📊 Market ${index + 1} (ID: ${market.condition_id || 'N/A'}):`);
       console.log(`  Question: ${market.question}`);
       console.log(`  Active: ${market.active} (Type: ${typeof market.active})`);
@@ -92,31 +91,45 @@ export class LiveMarketService {
       console.log(`  End Date ISO: ${market.end_date_iso}`);
       
       let endDate: Date | null = null;
+      let isValidDate = false;
+      let isFutureDated = false;
+
       if (market.end_date_iso) {
         endDate = new Date(market.end_date_iso);
-        console.log(`  Parsed End Date: ${endDate.toISOString()}`);
-        console.log(`  Is Valid Date: ${!isNaN(endDate.getTime())}`);
+        isValidDate = !isNaN(endDate.getTime());
+        if (isValidDate) {
+            isFutureDated = endDate > now;
+        }
+        console.log(`  Parsed End Date: ${isValidDate ? endDate.toISOString() : 'Invalid Date'}`);
+        console.log(`  Is Valid Date: ${isValidDate}`);
       } else {
         console.log(`  ❌ No end_date_iso field!`);
       }
       
-      const passesFilter = market.active === true && market.closed === false;
-      console.log(`  Would pass current filter (active & not closed): ${passesFilter}`);
+      const passesFilter = market.active === true && market.closed === false && isValidDate && isFutureDated;
+      console.log(`  Condition (endDate > now): ${isFutureDated}`);
+      console.log(`  Would pass current filter (active & not closed & future date): ${passesFilter}`);
     });
-
-    console.log(`\n⏰ Current time for context: ${now.toISOString()}`);
-    // DEBUGGING LOGIC END
-
-    // Updated filter: Only check for active and not closed
+    console.log(`\n⏰ Current time for filter comparison: ${now.toISOString()}`);
+    
     const filteredMarkets = allRawMarkets.filter((market: any) => {
       if (typeof market.active !== 'boolean' || typeof market.closed !== 'boolean') {
         console.warn(`Market ${market.condition_id || 'N/A'} missing active/closed flags or wrong type. Skipping.`);
         return false;
       }
-      return market.active === true && market.closed === false;
+      if (!market.end_date_iso) {
+          console.warn(`Market ${market.condition_id || 'N/A'} missing end_date_iso. Skipping.`);
+          return false;
+      }
+      const endDate = new Date(market.end_date_iso);
+      if (isNaN(endDate.getTime())) {
+          console.warn(`Market ${market.condition_id || 'N/A'} has invalid end_date_iso: ${market.end_date_iso}. Skipping.`);
+          return false;
+      }
+      return market.active === true && market.closed === false && endDate > now;
     });
     
-    console.log(`Markets after (active: true && closed: false) filtering: ${filteredMarkets.length}`);
+    console.log(`Markets after (active: true && closed: false && future-dated) filtering: ${filteredMarkets.length}`);
 
     let categoryFilteredMarkets = filteredMarkets;
     if (category) {
@@ -132,7 +145,7 @@ export class LiveMarketService {
       yesPrice: 0.50, 
       noPrice: 0.50,  
       category: market.category || "General",
-      endsAt: market.end_date_iso ? new Date(market.end_date_iso) : undefined, // Still map it for potential future use
+      endsAt: market.end_date_iso ? new Date(market.end_date_iso) : undefined,
     }));
     
     console.log(`✅ Mapped ${liveMarkets.length} active markets. Applying final user limit of ${limit}.`);

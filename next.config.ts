@@ -23,8 +23,6 @@ const nextConfig: NextConfig = {
     allowedDevOrigins: [
         'https://6000-firebase-studio-1748227192070.cluster-3gc7bglotjgwuxlqpiut7yyqt4.cloudworkstations.dev',
         'https://9000-firebase-studio-1748227192070.cluster-3gc7bglotjgwuxlqpiut7yyqt4.cloudworkstations.dev',
-        // It's sometimes useful to also add the http version if issues persist, or if the exact protocol isn't clear.
-        // 'http://6000-firebase-studio-1748227192070.cluster-3gc7bglotjgwuxlqpiut7yyqt4.cloudworkstations.dev'
     ],
   },
   async headers() {
