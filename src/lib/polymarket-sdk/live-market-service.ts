@@ -1,14 +1,13 @@
 
 import { ClobClient } from '@polymarket/clob-client';
-// Use the standard ethers import, which will now be v5 due to package.json changes
-import { Wallet, providers as EthersProviders } from 'ethers';
+import { Wallet as EthersWallet, providers as EthersProviders, utils as EthersUtils } from 'ethers'; // Use ethers v5 components
 import { generateTestnetWalletAndKeys, generateMainnetWalletAndKeys } from './generate-wallet-and-keys';
 import type { AuthResult, EphemeralCredentialManagerInterface, LiveMarket, NetworkConfig } from './types'; 
 import { NETWORKS } from './types';
 
 export class LiveMarketService {
   private clobClient: ClobClient | null = null;
-  private wallet: Wallet | null = null;
+  private wallet: EthersWallet | null = null;
   private credentialManager?: EphemeralCredentialManagerInterface;
   private currentNetwork: NetworkConfig = NETWORKS.amoy; // Default to Amoy
 
@@ -48,9 +47,8 @@ export class LiveMarketService {
       throw new Error('❌ Failed to generate/retrieve wallet and credentials for LiveMarketService.');
     }
 
-    // Create an ethers v5 wallet instance for ClobClient
     const provider = new EthersProviders.JsonRpcProvider(this.currentNetwork.rpcUrl);
-    this.wallet = new Wallet(authResult.wallet.privateKey, provider); // Provider passed in constructor
+    this.wallet = new EthersWallet(authResult.wallet.privateKey, provider);
 
     this.clobClient = new ClobClient(
       this.currentNetwork.clobUrl,
@@ -72,7 +70,7 @@ export class LiveMarketService {
         throw new Error("CLOB Client not initialized in getLiveMarkets");
     }
 
-    console.log(`📊 Fetching up to ${limit} live markets. Category: ${category || 'All'}`);
+    console.log(`📊 Fetching up to ${limit} live markets. Network: ${this.currentNetwork.name}, Category: ${category || 'All'}`);
     
     const marketDataPayload = await this.clobClient.getMarkets(); 
     
@@ -126,7 +124,7 @@ export class LiveMarketService {
     
     yesPrice = Math.max(0.01, Math.min(0.99, yesPrice)); 
 
-    const marketsList = await this.clobClient.getMarkets();
+    const marketsList = await this.clobClient.getMarkets(); // Re-fetch or cache earlier
     const marketInfo = marketsList.data.find((m: any) => m.condition_id === marketId);
 
     return {

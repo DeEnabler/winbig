@@ -1,44 +1,34 @@
 
-import { Wallet, providers as EthersProviders } from 'ethers'; // Standard ethers import, will be v5
+import { Wallet as EthersWallet, providers as EthersProviders } from 'ethers'; // Use ethers v5 components
 import { ClobClient } from '@polymarket/clob-client';
-import { PolymarketCredentials, WalletInfo, NetworkConfig } from './types'; // Make sure this path is correct if types.ts is in the same dir
+import { PolymarketCredentials, WalletInfo, NetworkConfig } from './types';
 
 export class PolymarketAuth {
   private clobClient: ClobClient;
-  private wallet: Wallet;
+  private wallet: EthersWallet;
   private network: NetworkConfig;
 
   constructor(walletInfo: WalletInfo, network: NetworkConfig) {
-    // Create provider for the network using ethers v5
     const provider = new EthersProviders.JsonRpcProvider(network.rpcUrl);
-    
-    // Create wallet instance using ethers v5
-    this.wallet = new Wallet(walletInfo.privateKey, provider); // Provider passed in constructor
+    this.wallet = new EthersWallet(walletInfo.privateKey, provider);
     this.network = network;
     
-    // Initialize CLOB client
     this.clobClient = new ClobClient(
-      network.clobUrl, // Use clobUrl from NetworkConfig
+      network.clobUrl,
       network.chainId,
-      this.wallet // This wallet instance is created from ethers.Wallet (v5)
+      this.wallet
     );
   }
 
-  /**
-   * Perform L1 Authentication (Polygon signature)
-   */
   async performL1Auth(): Promise<string> {
     try {
       console.log('\n🔐 Performing L1 Authentication (Polygon signature)...');
-      
       const timestamp = Math.floor(Date.now() / 1000);
       const message = `This message attests that I control the given wallet\n${this.wallet.address}\n${timestamp}`;
-      
       console.log('Message to sign:', message);
       const signature = await this.wallet.signMessage(message);
-      
       console.log('✅ L1 Authentication successful');
-      console.log('Signature:', signature);
+      // console.log('Signature:', signature); // Avoid logging signature
       return signature;
     } catch (error: any) {
       console.error('❌ L1 Authentication failed:', error.message);
@@ -49,22 +39,13 @@ export class PolymarketAuth {
     }
   }
 
-  /**
-   * Perform L2 Authentication and generate API credentials
-   */
   async generateApiCredentials(): Promise<PolymarketCredentials> {
     try {
       console.log('\n🔑 Generating API credentials (L2 Authentication)...');
-      
-      await this.performL1Auth(); // Ensure L1 auth is done first
-      
+      await this.performL1Auth();
       const apiCreds = await this.clobClient.createOrDeriveApiKey();
-      
       console.log('✅ API credentials generated successfully!');
-      console.log('Key:', apiCreds.key);
-      // console.log('Secret:', apiCreds.secret); // Avoid logging secret
-      // console.log('Passphrase:', apiCreds.passphrase); // Avoid logging passphrase
-      
+      // console.log('Key:', apiCreds.key); // Avoid logging key
       return {
         key: apiCreds.key,
         secret: apiCreds.secret,
@@ -79,15 +60,11 @@ export class PolymarketAuth {
     }
   }
 
-  /**
-   * Test the generated credentials
-   */
   async testCredentials(credentials: PolymarketCredentials): Promise<boolean> {
     try {
       console.log('\n🧪 Testing generated credentials...');
-      
        const testClient = new ClobClient(
-         this.network.clobUrl, // Use clobUrl from NetworkConfig
+         this.network.clobUrl,
          this.network.chainId,
          this.wallet,
          {
@@ -96,10 +73,9 @@ export class PolymarketAuth {
            passphrase: credentials.passphrase
          }
        );
-
       const userInfo = await testClient.getApiKeys();
       console.log('✅ Credentials test successful!');
-      console.log('User API Keys:', userInfo);
+      // console.log('User API Keys:', userInfo); // Avoid logging sensitive info
       return true;
     } catch (error: any) {
       console.error('❌ Credentials test failed:', error.message);

@@ -6,9 +6,8 @@ import { Toaster } from '@/components/ui/toaster';
 import AppLayout from '@/components/layout/AppLayout';
 import { EntryContextProvider } from '@/contexts/EntryContext';
 import { Suspense } from 'react';
-// Removed ClientSideWeb3ProviderLoader, using ContextProvider from @/context now
-import ContextProvider from '@/context/index'; // Adjusted path
-import { cookies } from 'next/headers'; // Import cookies
+import ContextProvider from '@/context/index';
+import { cookies } from 'next/headers';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -21,7 +20,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'WinBig - Swipe, Bet, Share!',
+  title: 'ViralBet - Swipe, Bet, Share!',
   description: 'Instantly challenge others on high-emotion predictions. Swipe, bet, and share virally on X!',
 };
 
@@ -40,7 +39,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}>
-        <ContextProvider cookies={rawCookieHeader}> {/* Use the reconstructed cookie string */}
+        <ContextProvider cookies={rawCookieHeader}>
           <Suspense fallback={<div>Loading context...</div>}>
             <EntryContextProvider>
                 <AppLayout>
