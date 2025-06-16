@@ -1,14 +1,14 @@
 
 // src/lib/polymarket-sdk/live-market-service.ts
 import { ClobClient } from '@polymarket/clob-client';
-import { Wallet as EthersWallet, providers as EthersProviders } from 'ethers'; // Using ethers v5
+import { Wallet, providers as EthersProviders } from 'ethers'; // Using ethers v5
 import { generateTestnetWalletAndKeys, generateMainnetWalletAndKeys } from './generate-wallet-and-keys';
 import type { AuthResult, EphemeralCredentialManagerInterface, LiveMarket, NetworkConfig } from './types';
 import { NETWORKS } from './types';
 
 export class LiveMarketService {
   private clobClient: ClobClient | null = null;
-  private wallet: EthersWallet | null = null;
+  private wallet: Wallet | null = null;
   private credentialManager?: EphemeralCredentialManagerInterface;
   private currentNetwork: NetworkConfig = NETWORKS.polygon; // Default to Polygon mainnet
 
@@ -35,7 +35,6 @@ export class LiveMarketService {
       authResult = await this.credentialManager.getCredentials(this.currentNetwork.name === NETWORKS.polygon.name ? 'polygon' : 'amoy');
       if (!authResult.success) {
          console.error('❌ Failed to get credentials via EphemeralCredentialManager. Falling back to direct generation.', authResult.error);
-         // Fallback to direct generation
          authResult = this.currentNetwork.name === NETWORKS.polygon.name ? await generateMainnetWalletAndKeys() : await generateTestnetWalletAndKeys();
       } else {
         console.log('✅ Credentials successfully retrieved via EphemeralCredentialManager.');
@@ -50,7 +49,7 @@ export class LiveMarketService {
     }
 
     const provider = new EthersProviders.JsonRpcProvider(this.currentNetwork.rpcUrl);
-    this.wallet = new EthersWallet(authResult.wallet.privateKey, provider);
+    this.wallet = new Wallet(authResult.wallet.privateKey, provider);
 
     this.clobClient = new ClobClient(
       this.currentNetwork.clobUrl,
@@ -72,7 +71,7 @@ export class LiveMarketService {
         throw new Error("CLOB Client not initialized in getLiveMarkets");
     }
 
-    const internalFetchLimit = Math.max(limit, 50); // Default internal fetch limit
+    const internalFetchLimit = Math.max(limit, 50); 
     console.log(`📊 Fetching up to ${internalFetchLimit} raw markets internally. Network: ${this.currentNetwork.name}, Category: ${category || 'All'}. Final user limit: ${limit}`);
     
     const marketDataPayload = await this.clobClient.getMarkets();
@@ -81,12 +80,12 @@ export class LiveMarketService {
     console.log(`Raw markets received from API: ${allRawMarkets.length}`);
 
     // DEBUGGING LOGIC START
-    console.log('🔍 DEBUG: Analyzing first few markets for filtering...');
-    const now = new Date();
-    const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000); // 1 hour buffer
+    console.log('🔍 DEBUG: Analyzing first few markets for filtering (active: true, closed: false)...');
+    const now = new Date(); // Still useful for context if we re-introduce date checks
+    const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000); // Still useful for context
 
     allRawMarkets.slice(0, 5).forEach((market: any, index: number) => { // Log first 5 markets
-      console.log(`\n📊 Market ${index + 1} (ID: ${market.condition_id || 'N/A'}):`); // Handle missing condition_id
+      console.log(`\n📊 Market ${index + 1} (ID: ${market.condition_id || 'N/A'}):`);
       console.log(`  Question: ${market.question}`);
       console.log(`  Active: ${market.active} (Type: ${typeof market.active})`);
       console.log(`  Closed: ${market.closed} (Type: ${typeof market.closed})`);
@@ -97,41 +96,27 @@ export class LiveMarketService {
         endDate = new Date(market.end_date_iso);
         console.log(`  Parsed End Date: ${endDate.toISOString()}`);
         console.log(`  Is Valid Date: ${!isNaN(endDate.getTime())}`);
-        console.log(`  Condition (endDate > oneHourFromNow): ${endDate ? endDate > oneHourFromNow : 'N/A'}`);
       } else {
         console.log(`  ❌ No end_date_iso field!`);
       }
       
-      const passesFilter = market.active === true && 
-                           market.closed === false && 
-                           endDate && // Ensure endDate is parsed and valid
-                           !isNaN(endDate.getTime()) &&
-                           endDate > oneHourFromNow;
-      console.log(`  Would pass current filter: ${passesFilter}`);
+      const passesFilter = market.active === true && market.closed === false;
+      console.log(`  Would pass current filter (active & not closed): ${passesFilter}`);
     });
 
-    console.log(`\n⏰ Current time for filter comparison: ${now.toISOString()}`);
-    console.log(`⏰ One hour from now for filter comparison: ${oneHourFromNow.toISOString()}`);
+    console.log(`\n⏰ Current time for context: ${now.toISOString()}`);
     // DEBUGGING LOGIC END
 
+    // Updated filter: Only check for active and not closed
     const filteredMarkets = allRawMarkets.filter((market: any) => {
-      if (typeof market.active !== 'boolean' || typeof market.closed !== 'boolean' || !market.end_date_iso) {
+      if (typeof market.active !== 'boolean' || typeof market.closed !== 'boolean') {
+        console.warn(`Market ${market.condition_id || 'N/A'} missing active/closed flags or wrong type. Skipping.`);
         return false;
       }
-      const endDate = new Date(market.end_date_iso);
-      if (isNaN(endDate.getTime())) {
-        return false;
-      }
-      
-      const isActive = market.active === true;
-      const isNotClosed = market.closed === false;
-      // Market must end at least 1 hour from now
-      const hasAtLeast1hRemaining = endDate > oneHourFromNow;
-
-      return isActive && isNotClosed && hasAtLeast1hRemaining;
+      return market.active === true && market.closed === false;
     });
     
-    console.log(`Markets after active/closed/future-dated (1h+) filtering: ${filteredMarkets.length}`);
+    console.log(`Markets after (active: true && closed: false) filtering: ${filteredMarkets.length}`);
 
     let categoryFilteredMarkets = filteredMarkets;
     if (category) {
@@ -147,7 +132,7 @@ export class LiveMarketService {
       yesPrice: 0.50, 
       noPrice: 0.50,  
       category: market.category || "General",
-      endsAt: new Date(market.end_date_iso),
+      endsAt: market.end_date_iso ? new Date(market.end_date_iso) : undefined, // Still map it for potential future use
     }));
     
     console.log(`✅ Mapped ${liveMarkets.length} active markets. Applying final user limit of ${limit}.`);
@@ -162,7 +147,7 @@ export class LiveMarketService {
 
     console.log(`🔍 Fetching details for market ID (conditionId): ${marketId} on ${this.currentNetwork.name}`);
     
-    const marketsListPayload = await this.clobClient.getMarkets(); // This might be inefficient if list is huge
+    const marketsListPayload = await this.clobClient.getMarkets();
     const marketInfo = marketsListPayload.data.find((m: any) => m.condition_id === marketId);
 
     if (!marketInfo) {
