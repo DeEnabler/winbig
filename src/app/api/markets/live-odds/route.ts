@@ -8,7 +8,8 @@ import { EphemeralCredentialManager } from '@/lib/polymarket-sdk/credential-mana
 // These instances will be reused across requests in the same serverless function invocation (if warm)
 // or recreated on cold starts. This is generally fine for this use case.
 const credentialManager = new EphemeralCredentialManager();
-const marketService = new LiveMarketService(credentialManager, 'amoy'); // Defaulting to 'amoy' testnet
+// TEMPORARY CHANGE FOR TESTING: Force mainnet to bypass Amoy issues
+const marketService = new LiveMarketService(credentialManager, 'polygon'); 
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
     }, { status: 400 });
   }
   
-  console.log(\`[API Route] /api/markets/live-odds called. Category: \${category}, Limit: \${limit}\`);
+  console.log(`[API Route] /api/markets/live-odds called. Category: ${category}, Limit: ${limit}, Network Forced: polygon (for testing)`);
 
   try {
     const markets = await marketService.getLiveMarkets(limit, category);
@@ -48,7 +49,11 @@ export async function GET(req: NextRequest) {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-    console.error('❌ Error in /api/markets/live-odds API route:', errorMessage, error);
+    console.error('❌ Error in /api/markets/live-odds API route (forced polygon network):', errorMessage, error);
+    // Log nested error response if available, especially from Polymarket API
+    if (error instanceof Error && (error as any).response?.data) {
+      console.error('└──> Polymarket API Response (from route error):', (error as any).response.data);
+    }
     return NextResponse.json({
       success: false,
       error: 'Failed to fetch live market odds.',
