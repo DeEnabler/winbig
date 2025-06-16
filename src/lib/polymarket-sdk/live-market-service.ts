@@ -1,15 +1,15 @@
 
 import { ClobClient } from '@polymarket/clob-client';
-import { Wallet as EthersWallet, providers as EthersProviders, utils as EthersUtils } from 'ethers'; // Use ethers v5 components
+import { Wallet, providers as EthersProviders } from 'ethers'; // Using ethers v5
 import { generateTestnetWalletAndKeys, generateMainnetWalletAndKeys } from './generate-wallet-and-keys';
 import type { AuthResult, EphemeralCredentialManagerInterface, LiveMarket, NetworkConfig } from './types'; 
 import { NETWORKS } from './types';
 
 export class LiveMarketService {
   private clobClient: ClobClient | null = null;
-  private wallet: EthersWallet | null = null;
+  private wallet: Wallet | null = null;
   private credentialManager?: EphemeralCredentialManagerInterface;
-  private currentNetwork: NetworkConfig = NETWORKS.amoy; // Default to Amoy
+  private currentNetwork: NetworkConfig = NETWORKS.amoy;
 
   constructor(credentialManager?: EphemeralCredentialManagerInterface, network: 'amoy' | 'polygon' = 'amoy') {
     this.credentialManager = credentialManager;
@@ -48,7 +48,7 @@ export class LiveMarketService {
     }
 
     const provider = new EthersProviders.JsonRpcProvider(this.currentNetwork.rpcUrl);
-    this.wallet = new EthersWallet(authResult.wallet.privateKey, provider);
+    this.wallet = new Wallet(authResult.wallet.privateKey, provider);
 
     this.clobClient = new ClobClient(
       this.currentNetwork.clobUrl,
@@ -64,35 +64,48 @@ export class LiveMarketService {
     console.log(`✅ New authenticated CLOB client created successfully for ${this.currentNetwork.name}.`);
   }
 
-  async getLiveMarkets(limit: number = 20, category?: string): Promise<LiveMarket[]> {
+  async getLiveMarkets(limit: number = 50, category?: string): Promise<LiveMarket[]> {
     await this.ensureAuthenticatedClient();
     if (!this.clobClient) {
         throw new Error("CLOB Client not initialized in getLiveMarkets");
     }
 
-    console.log(`📊 Fetching up to ${limit} live markets. Network: ${this.currentNetwork.name}, Category: ${category || 'All'}`);
+    console.log(`📊 Fetching markets. Network: ${this.currentNetwork.name}, Category: ${category || 'All'}, Max results before filter: up to client default`);
     
     const marketDataPayload = await this.clobClient.getMarkets(); 
     
-    const allMarkets = marketDataPayload.data || [];
+    const allRawMarkets = marketDataPayload.data || [];
+    console.log(`Raw markets received: ${allRawMarkets.length}`);
 
-    const liveMarkets: LiveMarket[] = allMarkets.map((market: any) => ({
+    const now = new Date();
+    const filteredRawMarkets = allRawMarkets.filter((market: any) => {
+      if (!market.end_date_iso || market.active !== true || market.closed !== false) {
+        return false;
+      }
+      const endDate = new Date(market.end_date_iso);
+      if (endDate <= now) {
+        return false;
+      }
+      // Category filter
+      if (category) {
+        return market.category?.toLowerCase() === category.toLowerCase();
+      }
+      return true;
+    });
+    
+    console.log(`Markets after active/closed/future filtering (and category if specified): ${filteredRawMarkets.length}`);
+
+    const liveMarkets: LiveMarket[] = filteredRawMarkets.map((market: any) => ({
       id: market.condition_id, 
       question: market.question,
-      yesPrice: 0.50, 
-      noPrice: 0.50,  
+      yesPrice: 0.50, // Placeholder, actual price fetching is a separate concern
+      noPrice: 0.50,  // Placeholder
       category: market.category || "General", 
-      endsAt: market.end_date_iso ? new Date(market.end_date_iso) : undefined, 
+      endsAt: new Date(market.end_date_iso), 
     }));
     
-    let filteredMarkets = liveMarkets;
-    if (category) {
-        console.log(`Filtering for category: ${category}`);
-        filteredMarkets = liveMarkets.filter(market => market.category?.toLowerCase() === category.toLowerCase());
-    }
-
-    console.log(`✅ Retrieved ${filteredMarkets.length} live markets after filtering (limit ${limit}).`);
-    return filteredMarkets.slice(0, limit);
+    console.log(`✅ Mapped ${liveMarkets.length} active markets. Applying limit of ${limit}.`);
+    return liveMarkets.slice(0, limit);
   }
 
   async getMarketDetails(marketId: string): Promise<LiveMarket | null> {
@@ -124,7 +137,7 @@ export class LiveMarketService {
     
     yesPrice = Math.max(0.01, Math.min(0.99, yesPrice)); 
 
-    const marketsList = await this.clobClient.getMarkets(); // Re-fetch or cache earlier
+    const marketsList = await this.clobClient.getMarkets(); 
     const marketInfo = marketsList.data.find((m: any) => m.condition_id === marketId);
 
     return {
