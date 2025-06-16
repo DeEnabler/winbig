@@ -1,15 +1,14 @@
 
 import { ClobClient } from '@polymarket/clob-client';
-// Use EthersV5Wallet for ClobClient
-import { Wallet as EthersV5Wallet } from '@ethersproject/wallet';
-import { JsonRpcProvider as EthersV5JsonRpcProvider } from '@ethersproject/providers';
+// Use the standard ethers import, which will now be v5 due to package.json changes
+import { Wallet, JsonRpcProvider } from 'ethers';
 import { generateTestnetWalletAndKeys } from './generate-wallet-and-keys';
 import type { AuthResult, EphemeralCredentialManagerInterface, LiveMarket, NetworkConfig } from './types'; 
 import { NETWORKS } from './types';
 
 export class LiveMarketService {
   private clobClient: ClobClient | null = null;
-  private wallet: EthersV5Wallet | null = null; // Changed to EthersV5Wallet
+  private wallet: Wallet | null = null;
   private credentialManager?: EphemeralCredentialManagerInterface;
   private currentNetwork: NetworkConfig = NETWORKS.amoy; // Default to Amoy
 
@@ -23,7 +22,7 @@ export class LiveMarketService {
   }
 
   private async ensureAuthenticatedClient(): Promise<void> {
-    if (this.clobClient && this.wallet) { // Also check for wallet
+    if (this.clobClient && this.wallet) {
       console.log('✅ Using existing authenticated CLOB client.');
       return;
     }
@@ -50,13 +49,13 @@ export class LiveMarketService {
     }
 
     // Create an ethers v5 wallet instance for ClobClient
-    const provider = new EthersV5JsonRpcProvider(this.currentNetwork.rpcUrl);
-    this.wallet = new EthersV5Wallet(authResult.wallet.privateKey, provider);
+    const provider = new JsonRpcProvider(this.currentNetwork.rpcUrl);
+    this.wallet = new Wallet(authResult.wallet.privateKey, provider); // Provider passed in constructor
 
     this.clobClient = new ClobClient(
       this.currentNetwork.clobUrl,
       this.currentNetwork.chainId,
-      this.wallet, // This is now an EthersV5Wallet instance
+      this.wallet, 
       {
         key: authResult.credentials.key,
         secret: authResult.credentials.secret,
