@@ -24,7 +24,7 @@ export class EphemeralCredentialManager implements EphemeralCredentialManagerInt
     console.log("EphemeralCredentialManager initialized for Next.js API Route context.");
   }
 
-  private selectCache(network: 'amoy' | 'polygon'): { get: () => CachedCredentials | null, set: (creds: CachedCredentials) => void } {
+  private selectCache(network: 'amoy' | 'polygon'): { get: () => CachedCredentials | null, set: (creds: CachedCredentials | null) => void } {
     if (network === 'polygon') {
       return {
         get: () => this.cachedPolygonCreds,
@@ -43,11 +43,11 @@ export class EphemeralCredentialManager implements EphemeralCredentialManagerInt
     const currentCached = cache.get();
 
     if (currentCached && currentCached.expiresAt > now && currentCached.authResult.success) {
-      console.log(\`✅ Using cached Polymarket credentials for \${network}. Expires at: \${new Date(currentCached.expiresAt).toISOString()}\`);
+      console.log(`✅ Using cached Polymarket credentials for ${network}. Expires at: ${new Date(currentCached.expiresAt).toISOString()}`);
       return currentCached.authResult;
     }
 
-    console.log(\`🚀 Cache miss or expired for \${network}. Attempting to generate new Polymarket credentials...\`);
+    console.log(`🚀 Cache miss or expired for ${network}. Attempting to generate new Polymarket credentials...`);
     this.nextRefreshAttemptTime = new Date(now + CREDENTIAL_EXPIRY_MS);
     try {
       const newAuthResult = network === 'polygon'
@@ -61,24 +61,24 @@ export class EphemeralCredentialManager implements EphemeralCredentialManagerInt
           network: network,
         });
         this.lastError = null;
-        console.log(\`✅ Successfully generated and cached new Polymarket credentials for \${network}. Expires at: \${new Date(now + CREDENTIAL_EXPIRY_MS).toISOString()}\`);
+        console.log(`✅ Successfully generated and cached new Polymarket credentials for ${network}. Expires at: ${new Date(now + CREDENTIAL_EXPIRY_MS).toISOString()}`);
         return newAuthResult;
       } else {
         this.lastError = newAuthResult.error || 'Unknown error during credential generation.';
-        console.error(\`❌ Failed to generate credentials for \${network}: \${this.lastError}\`);
-        return { success: false, error: this.lastError };
+        console.error(`❌ Failed to generate credentials for ${network}: ${this.lastError}`);
+        return { success: false, error: this.lastError, wallet: undefined, credentials: undefined };
       }
     } catch (error) {
       this.lastError = error instanceof Error ? error.message : 'Unknown exception during credential generation.';
-      console.error(\`❌ Exception during credential generation for \${network}: \${this.lastError}\`, error);
-      return { success: false, error: this.lastError };
+      console.error(`❌ Exception during credential generation for ${network}: ${this.lastError}`, error);
+      return { success: false, error: this.lastError, wallet: undefined, credentials: undefined };
     }
   }
 
   async forceRefreshCredentials(network: 'amoy' | 'polygon' = 'amoy'): Promise<void> {
-    console.log(\`🔄 Forcing refresh of credentials for \${network}...\`);
+    console.log(`🔄 Forcing refresh of credentials for ${network}...`);
     const cache = this.selectCache(network);
-    cache.set(null as any); // Invalidate cache
+    cache.set(null); // Invalidate cache
     await this.getCredentials(network); // Regenerate
   }
   
@@ -106,8 +106,8 @@ export class EphemeralCredentialManager implements EphemeralCredentialManagerInt
       currentNetwork,
       error: this.lastError,
       // You could add more details like wallet address if needed
-      amoyCacheStatus: amoyCache ? \`Cached, expires \${new Date(amoyCache.expiresAt).toLocaleTimeString()}\` : 'Not cached',
-      polygonCacheStatus: polygonCache ? \`Cached, expires \${new Date(polygonCache.expiresAt).toLocaleTimeString()}\` : 'Not cached',
+      amoyCacheStatus: amoyCache ? `Cached, expires ${new Date(amoyCache.expiresAt).toLocaleTimeString()}` : 'Not cached',
+      polygonCacheStatus: polygonCache ? `Cached, expires ${new Date(polygonCache.expiresAt).toLocaleTimeString()}` : 'Not cached',
     };
   }
 }

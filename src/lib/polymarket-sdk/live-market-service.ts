@@ -1,8 +1,8 @@
 
 import { ClobClient } from '@polymarket/clob-client';
 // Use the standard ethers import, which will now be v5 due to package.json changes
-import { Wallet, JsonRpcProvider } from 'ethers';
-import { generateTestnetWalletAndKeys } from './generate-wallet-and-keys';
+import { Wallet, providers as EthersProviders } from 'ethers';
+import { generateTestnetWalletAndKeys, generateMainnetWalletAndKeys } from './generate-wallet-and-keys';
 import type { AuthResult, EphemeralCredentialManagerInterface, LiveMarket, NetworkConfig } from './types'; 
 import { NETWORKS } from './types';
 
@@ -34,14 +34,14 @@ export class LiveMarketService {
       const creds = await this.credentialManager.getCredentials(this.currentNetwork.name === NETWORKS.polygon.name ? 'polygon' : 'amoy');
       if (!creds.success || !creds.wallet || !creds.credentials) {
         console.error('❌ Failed to get credentials via EphemeralCredentialManager. Falling back to direct generation.', creds.error);
-        authResult = await generateTestnetWalletAndKeys(); 
+        authResult = this.currentNetwork.name === NETWORKS.polygon.name ? await generateMainnetWalletAndKeys() : await generateTestnetWalletAndKeys();
       } else {
         authResult = creds;
         console.log('✅ Credentials successfully retrieved via EphemeralCredentialManager.');
       }
     } else {
       console.warn('🤔 No EphemeralCredentialManager provided to LiveMarketService. Generating new wallet and credentials directly (less efficient).');
-      authResult = await generateTestnetWalletAndKeys(); 
+      authResult = this.currentNetwork.name === NETWORKS.polygon.name ? await generateMainnetWalletAndKeys() : await generateTestnetWalletAndKeys();
     }
 
     if (!authResult.success || !authResult.wallet || !authResult.credentials) {
@@ -49,7 +49,7 @@ export class LiveMarketService {
     }
 
     // Create an ethers v5 wallet instance for ClobClient
-    const provider = new JsonRpcProvider(this.currentNetwork.rpcUrl);
+    const provider = new EthersProviders.JsonRpcProvider(this.currentNetwork.rpcUrl);
     this.wallet = new Wallet(authResult.wallet.privateKey, provider); // Provider passed in constructor
 
     this.clobClient = new ClobClient(

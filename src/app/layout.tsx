@@ -31,21 +31,16 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const cookieStore = cookies();
-  const allCookiesArray = cookieStore.getAll();
-  
-  let rawCookieHeader = "";
-  if (allCookiesArray && allCookiesArray.length > 0) {
-    // Reconstruct the cookie string in the format "name1=value1; name2=value2"
-    rawCookieHeader = allCookiesArray
-      .map(cookie => `${cookie.name}=${encodeURIComponent(cookie.value)}`) // Ensure cookie values are properly encoded
-      .join('; ');
-  }
-  const cookieStringForProvider = rawCookieHeader || null; // Pass null if no cookies, as expected by cookieToInitialState
+  // Reconstruct the cookie string in the format "name1=value1; name2=value2"
+  // This is a common way to pass cookies to client-side providers for SSR hydration.
+  const rawCookieHeader = cookieStore.getAll().map(cookie => {
+    return `${cookie.name}=${encodeURIComponent(cookie.value)}`;
+  }).join('; ') || null; // Pass null if no cookies, as expected by cookieToInitialState
 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}>
-        <ContextProvider cookies={cookieStringForProvider}> {/* Use the reconstructed cookie string */}
+        <ContextProvider cookies={rawCookieHeader}> {/* Use the reconstructed cookie string */}
           <Suspense fallback={<div>Loading context...</div>}>
             <EntryContextProvider>
                 <AppLayout>

@@ -1,5 +1,5 @@
 
-import { Wallet, JsonRpcProvider } from 'ethers'; // Standard ethers import, will be v5
+import { Wallet, providers as EthersProviders } from 'ethers'; // Standard ethers import, will be v5
 import { ClobClient } from '@polymarket/clob-client';
 import { PolymarketCredentials, WalletInfo, NetworkConfig } from './types'; // Make sure this path is correct if types.ts is in the same dir
 
@@ -10,7 +10,7 @@ export class PolymarketAuth {
 
   constructor(walletInfo: WalletInfo, network: NetworkConfig) {
     // Create provider for the network using ethers v5
-    const provider = new JsonRpcProvider(network.rpcUrl);
+    const provider = new EthersProviders.JsonRpcProvider(network.rpcUrl);
     
     // Create wallet instance using ethers v5
     this.wallet = new Wallet(walletInfo.privateKey, provider); // Provider passed in constructor
