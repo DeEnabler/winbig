@@ -1,4 +1,5 @@
 
+// src/lib/polymarket-sdk/live-market-service.ts
 import { ClobClient } from '@polymarket/clob-client';
 import { Wallet, providers as EthersProviders } from 'ethers'; // Using ethers v5
 import { generateTestnetWalletAndKeys, generateMainnetWalletAndKeys } from './generate-wallet-and-keys';
@@ -9,33 +10,33 @@ export class LiveMarketService {
   private clobClient: ClobClient | null = null;
   private wallet: Wallet | null = null;
   private credentialManager?: EphemeralCredentialManagerInterface;
-  private currentNetwork: NetworkConfig = NETWORKS.amoy;
+  private currentNetwork: NetworkConfig = NETWORKS.polygon; // Default to Polygon mainnet
 
-  constructor(credentialManager?: EphemeralCredentialManagerInterface, network: 'amoy' | 'polygon' = 'amoy') {
+  constructor(credentialManager?: EphemeralCredentialManagerInterface, network: 'amoy' | 'polygon' = 'polygon') {
     this.credentialManager = credentialManager;
     this.currentNetwork = NETWORKS[network];
     if (!this.currentNetwork) {
-        console.error(`Invalid network specified: ${network}, defaulting to Amoy.`);
-        this.currentNetwork = NETWORKS.amoy;
+        console.error(`Invalid network specified: ${network}, defaulting to Polygon Mainnet.`);
+        this.currentNetwork = NETWORKS.polygon;
     }
+    console.log(`LiveMarketService initialized for network: ${this.currentNetwork.name}`);
   }
 
   private async ensureAuthenticatedClient(): Promise<void> {
     if (this.clobClient && this.wallet) {
-      console.log('✅ Using existing authenticated CLOB client.');
+      // console.log('✅ Using existing authenticated CLOB client.'); // Less verbose
       return;
     }
 
     let authResult: AuthResult;
 
     if (this.credentialManager) {
-      console.log('🚀 Using EphemeralCredentialManager to get/refresh credentials for network:', this.currentNetwork.name);
-      const creds = await this.credentialManager.getCredentials(this.currentNetwork.name === NETWORKS.polygon.name ? 'polygon' : 'amoy');
-      if (!creds.success || !creds.wallet || !creds.credentials) {
-        console.error('❌ Failed to get credentials via EphemeralCredentialManager. Falling back to direct generation.', creds.error);
-        authResult = this.currentNetwork.name === NETWORKS.polygon.name ? await generateMainnetWalletAndKeys() : await generateTestnetWalletAndKeys();
+      console.log(`🚀 Using EphemeralCredentialManager to get/refresh credentials for network: ${this.currentNetwork.name}`);
+      authResult = await this.credentialManager.getCredentials(this.currentNetwork.name === NETWORKS.polygon.name ? 'polygon' : 'amoy');
+      if (!authResult.success) {
+         console.error('❌ Failed to get credentials via EphemeralCredentialManager. Falling back to direct generation.', authResult.error);
+         authResult = this.currentNetwork.name === NETWORKS.polygon.name ? await generateMainnetWalletAndKeys() : await generateTestnetWalletAndKeys();
       } else {
-        authResult = creds;
         console.log('✅ Credentials successfully retrieved via EphemeralCredentialManager.');
       }
     } else {
@@ -44,7 +45,7 @@ export class LiveMarketService {
     }
 
     if (!authResult.success || !authResult.wallet || !authResult.credentials) {
-      throw new Error('❌ Failed to generate/retrieve wallet and credentials for LiveMarketService.');
+      throw new Error(`❌ Failed to generate/retrieve wallet and credentials for LiveMarketService. Error: ${authResult.error}`);
     }
 
     const provider = new EthersProviders.JsonRpcProvider(this.currentNetwork.rpcUrl);
@@ -64,47 +65,60 @@ export class LiveMarketService {
     console.log(`✅ New authenticated CLOB client created successfully for ${this.currentNetwork.name}.`);
   }
 
-  async getLiveMarkets(limit: number = 50, category?: string): Promise<LiveMarket[]> {
+  async getLiveMarkets(limit: number = 20, category?: string): Promise<LiveMarket[]> {
     await this.ensureAuthenticatedClient();
     if (!this.clobClient) {
         throw new Error("CLOB Client not initialized in getLiveMarkets");
     }
 
-    console.log(`📊 Fetching markets. Network: ${this.currentNetwork.name}, Category: ${category || 'All'}, Max results before filter: up to client default`);
+    // Internally fetch a larger batch for better filtering, ClobClient default might be paginated or limited.
+    // This service's 'limit' param is for the final returned count.
+    // ClobClient.getMarkets() itself might have its own default limit for how many it returns in one go.
+    // For now, we rely on the default of clobClient.getMarkets() and filter from that.
+    console.log(`📊 Fetching markets. Network: ${this.currentNetwork.name}, Category: ${category || 'All'}. Final limit: ${limit}`);
     
     const marketDataPayload = await this.clobClient.getMarkets(); 
     
     const allRawMarkets = marketDataPayload.data || [];
-    console.log(`Raw markets received: ${allRawMarkets.length}`);
+    console.log(`Raw markets received from API: ${allRawMarkets.length}`);
 
     const now = new Date();
-    const filteredRawMarkets = allRawMarkets.filter((market: any) => {
-      if (!market.end_date_iso || market.active !== true || market.closed !== false) {
-        return false;
+    const twentyFourHoursFromNow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    const filteredByStatusAndDate = allRawMarkets.filter((market: any) => {
+      if (!market.end_date_iso || typeof market.active !== 'boolean' || typeof market.closed !== 'boolean') {
+        return false; // Skip if essential fields are missing
       }
       const endDate = new Date(market.end_date_iso);
-      if (endDate <= now) {
-        return false;
-      }
-      // Category filter
-      if (category) {
-        return market.category?.toLowerCase() === category.toLowerCase();
-      }
-      return true;
+      const isActive = market.active === true;
+      const isNotClosed = market.closed === false;
+      const isFutureEndDate = endDate > now;
+      const hasAtLeast24hRemaining = endDate > twentyFourHoursFromNow;
+
+      return isActive && isNotClosed && isFutureEndDate && hasAtLeast24hRemaining;
     });
     
-    console.log(`Markets after active/closed/future filtering (and category if specified): ${filteredRawMarkets.length}`);
+    console.log(`Markets after active/closed/future-dated (24h+) filtering: ${filteredByStatusAndDate.length}`);
 
-    const liveMarkets: LiveMarket[] = filteredRawMarkets.map((market: any) => ({
+    // Apply category filter if specified, after status/date filtering
+    let categoryFilteredMarkets = filteredByStatusAndDate;
+    if (category) {
+      categoryFilteredMarkets = filteredByStatusAndDate.filter((market: any) => 
+        market.category?.toLowerCase() === category.toLowerCase()
+      );
+      console.log(`Markets after category ('${category}') filtering: ${categoryFilteredMarkets.length}`);
+    }
+
+    const liveMarkets: LiveMarket[] = categoryFilteredMarkets.map((market: any) => ({
       id: market.condition_id, 
       question: market.question,
-      yesPrice: 0.50, // Placeholder, actual price fetching is a separate concern
+      yesPrice: 0.50, // Placeholder, actual price fetching is a separate concern for order book
       noPrice: 0.50,  // Placeholder
       category: market.category || "General", 
       endsAt: new Date(market.end_date_iso), 
     }));
     
-    console.log(`✅ Mapped ${liveMarkets.length} active markets. Applying limit of ${limit}.`);
+    console.log(`✅ Mapped ${liveMarkets.length} active markets. Applying final limit of ${limit}.`);
     return liveMarkets.slice(0, limit);
   }
 
@@ -114,13 +128,33 @@ export class LiveMarketService {
         throw new Error("CLOB Client not initialized in getMarketDetails");
     }
 
-    console.log(`🔍 Fetching details for market ID (conditionId): ${marketId}`);
+    console.log(`🔍 Fetching details for market ID (conditionId): ${marketId} on ${this.currentNetwork.name}`);
+    
+    // First, get all markets to find the specific one for question, category, and endDate
+    // This is inefficient but clobClient.getOrderBook() doesn't return these details.
+    const marketsListPayload = await this.clobClient.getMarkets();
+    const marketInfo = marketsListPayload.data.find((m: any) => m.condition_id === marketId);
+
+    if (!marketInfo) {
+        console.warn(`❓ Market info not found for market ID ${marketId} in getMarkets() list.`);
+        // Optionally, still try to get orderbook if we want to proceed with partial data
+    }
     
     const orderbook = await this.clobClient.getOrderBook(marketId);
     
     if (!orderbook || !orderbook.bids || !orderbook.asks) {
         console.warn(`❓ No orderbook data found for market ${marketId}`);
-        return null;
+        // If marketInfo was also null, then we have no data.
+        if (!marketInfo) return null; 
+        // If we have marketInfo but no orderbook, return with placeholder prices
+        return {
+            id: marketId,
+            question: marketInfo.question,
+            yesPrice: 0.50,
+            noPrice: 0.50,
+            category: marketInfo.category || "General",
+            endsAt: marketInfo.end_date_iso ? new Date(marketInfo.end_date_iso) : undefined,
+        };
     }
 
     const bestBid = orderbook.bids[0] ? parseFloat(orderbook.bids[0].price) : null; 
@@ -135,10 +169,7 @@ export class LiveMarketService {
         yesPrice = bestAsk; 
     }
     
-    yesPrice = Math.max(0.01, Math.min(0.99, yesPrice)); 
-
-    const marketsList = await this.clobClient.getMarkets(); 
-    const marketInfo = marketsList.data.find((m: any) => m.condition_id === marketId);
+    yesPrice = Math.max(0.01, Math.min(0.99, yesPrice)); // Clamp price
 
     return {
       id: marketId,

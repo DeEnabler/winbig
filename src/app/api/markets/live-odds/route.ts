@@ -6,16 +6,17 @@ import { EphemeralCredentialManager } from '@/lib/polymarket-sdk/credential-mana
 
 // Initialize services.
 // These instances will be reused across requests in the same serverless function invocation (if warm)
-// or recreated on cold starts. This is generally fine for this use case.
+// or recreated on cold starts.
 const credentialManager = new EphemeralCredentialManager();
-// Reverted to Amoy for testnet focus, service itself now filters better
-const marketService = new LiveMarketService(credentialManager, 'amoy'); 
+// Using Polygon Mainnet as per research agent's recommendation for better market data
+const marketService = new LiveMarketService(credentialManager, 'polygon'); 
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const category = searchParams.get('category') || undefined;
   const limitQuery = searchParams.get('limit');
-  // Service default is 50, API route can override. Defaulting API query to 20 still.
+  // API route default limit for returned results is 20.
+  // LiveMarketService might fetch more internally for better filtering.
   const limit = limitQuery ? parseInt(limitQuery) : 20; 
 
   // Basic validation for limit
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
     }, { status: 400 });
   }
   
-  console.log(`[API Route] /api/markets/live-odds called. Category: ${category}, Limit: ${limit}, Network: amoy`);
+  console.log(`[API Route] /api/markets/live-odds called. Category: ${category}, Limit: ${limit}, Network: polygon`);
 
   try {
     const markets = await marketService.getLiveMarkets(limit, category);
@@ -50,7 +51,7 @@ export async function GET(req: NextRequest) {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-    console.error('❌ Error in /api/markets/live-odds API route (using amoy network):', errorMessage, error);
+    console.error('❌ Error in /api/markets/live-odds API route (using polygon network):', errorMessage, error);
     // Log nested error response if available, especially from Polymarket API
     if (error instanceof Error && (error as any).response?.data) {
       console.error('└──> Polymarket API Response (from route error):', (error as any).response.data);
