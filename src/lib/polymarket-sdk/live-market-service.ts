@@ -3,7 +3,7 @@
 import { ClobClient } from '@polymarket/clob-client';
 import { Wallet, providers as EthersProviders } from 'ethers'; // Using ethers v5
 import { generateTestnetWalletAndKeys, generateMainnetWalletAndKeys } from './generate-wallet-and-keys';
-import type { AuthResult, EphemeralCredentialManagerInterface, LiveMarket, NetworkConfig } from './types'; 
+import type { AuthResult, EphemeralCredentialManagerInterface, LiveMarket, NetworkConfig } from './types';
 import { NETWORKS } from './types';
 
 export class LiveMarketService {
@@ -54,7 +54,7 @@ export class LiveMarketService {
     this.clobClient = new ClobClient(
       this.currentNetwork.clobUrl,
       this.currentNetwork.chainId,
-      this.wallet, 
+      this.wallet,
       {
         key: authResult.credentials.key,
         secret: authResult.credentials.secret,
@@ -71,34 +71,36 @@ export class LiveMarketService {
         throw new Error("CLOB Client not initialized in getLiveMarkets");
     }
 
-    // Internally fetch a larger batch for better filtering, ClobClient default might be paginated or limited.
-    // This service's 'limit' param is for the final returned count.
-    // ClobClient.getMarkets() itself might have its own default limit for how many it returns in one go.
-    // For now, we rely on the default of clobClient.getMarkets() and filter from that.
-    console.log(`📊 Fetching markets. Network: ${this.currentNetwork.name}, Category: ${category || 'All'}. Final limit: ${limit}`);
+    // Fetch a slightly larger batch than requested limit to have a good pool for filtering.
+    // ClobClient default might be paginated or limited. Let's fetch up to 50 for internal processing.
+    const internalFetchLimit = Math.max(limit, 50);
+    console.log(`📊 Fetching up to ${internalFetchLimit} raw markets. Network: ${this.currentNetwork.name}, Category: ${category || 'All'}. Final user limit: ${limit}`);
     
-    const marketDataPayload = await this.clobClient.getMarkets(); 
+    // Note: clobClient.getMarkets() does not accept a limit parameter.
+    // It fetches a default batch (e.g., Polymarket API might return 500 or a paginated set).
+    const marketDataPayload = await this.clobClient.getMarkets();
     
     const allRawMarkets = marketDataPayload.data || [];
     console.log(`Raw markets received from API: ${allRawMarkets.length}`);
 
     const now = new Date();
-    const twentyFourHoursFromNow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
 
     const filteredByStatusAndDate = allRawMarkets.filter((market: any) => {
-      if (!market.end_date_iso || typeof market.active !== 'boolean' || typeof market.closed !== 'boolean') {
-        return false; // Skip if essential fields are missing
+      if (typeof market.active !== 'boolean' || typeof market.closed !== 'boolean' || !market.end_date_iso) {
+        // console.warn(`Skipping market due to missing fields: ID ${market.condition_id}, Active: ${market.active}, Closed: ${market.closed}, EndDate: ${market.end_date_iso}`);
+        return false; // Skip if essential fields are missing or invalid
       }
       const endDate = new Date(market.end_date_iso);
       const isActive = market.active === true;
       const isNotClosed = market.closed === false;
-      const isFutureEndDate = endDate > now;
-      const hasAtLeast24hRemaining = endDate > twentyFourHoursFromNow;
+      // Market must end at least 1 hour from now
+      const hasAtLeast1hRemaining = endDate > oneHourFromNow;
 
-      return isActive && isNotClosed && isFutureEndDate && hasAtLeast24hRemaining;
+      return isActive && isNotClosed && hasAtLeast1hRemaining;
     });
     
-    console.log(`Markets after active/closed/future-dated (24h+) filtering: ${filteredByStatusAndDate.length}`);
+    console.log(`Markets after active/closed/future-dated (1h+) filtering: ${filteredByStatusAndDate.length}`);
 
     // Apply category filter if specified, after status/date filtering
     let categoryFilteredMarkets = filteredByStatusAndDate;
@@ -110,15 +112,15 @@ export class LiveMarketService {
     }
 
     const liveMarkets: LiveMarket[] = categoryFilteredMarkets.map((market: any) => ({
-      id: market.condition_id, 
+      id: market.condition_id,
       question: market.question,
       yesPrice: 0.50, // Placeholder, actual price fetching is a separate concern for order book
       noPrice: 0.50,  // Placeholder
-      category: market.category || "General", 
-      endsAt: new Date(market.end_date_iso), 
+      category: market.category || "General",
+      endsAt: new Date(market.end_date_iso),
     }));
     
-    console.log(`✅ Mapped ${liveMarkets.length} active markets. Applying final limit of ${limit}.`);
+    console.log(`✅ Mapped ${liveMarkets.length} active markets. Applying final user limit of ${limit}.`);
     return liveMarkets.slice(0, limit);
   }
 
@@ -130,23 +132,18 @@ export class LiveMarketService {
 
     console.log(`🔍 Fetching details for market ID (conditionId): ${marketId} on ${this.currentNetwork.name}`);
     
-    // First, get all markets to find the specific one for question, category, and endDate
-    // This is inefficient but clobClient.getOrderBook() doesn't return these details.
     const marketsListPayload = await this.clobClient.getMarkets();
     const marketInfo = marketsListPayload.data.find((m: any) => m.condition_id === marketId);
 
     if (!marketInfo) {
         console.warn(`❓ Market info not found for market ID ${marketId} in getMarkets() list.`);
-        // Optionally, still try to get orderbook if we want to proceed with partial data
     }
     
     const orderbook = await this.clobClient.getOrderBook(marketId);
     
     if (!orderbook || !orderbook.bids || !orderbook.asks) {
         console.warn(`❓ No orderbook data found for market ${marketId}`);
-        // If marketInfo was also null, then we have no data.
-        if (!marketInfo) return null; 
-        // If we have marketInfo but no orderbook, return with placeholder prices
+        if (!marketInfo) return null;
         return {
             id: marketId,
             question: marketInfo.question,
@@ -157,19 +154,19 @@ export class LiveMarketService {
         };
     }
 
-    const bestBid = orderbook.bids[0] ? parseFloat(orderbook.bids[0].price) : null; 
-    const bestAsk = orderbook.asks[0] ? parseFloat(orderbook.asks[0].price) : null; 
+    const bestBid = orderbook.bids[0] ? parseFloat(orderbook.bids[0].price) : null;
+    const bestAsk = orderbook.asks[0] ? parseFloat(orderbook.asks[0].price) : null;
 
-    let yesPrice = 0.5; 
+    let yesPrice = 0.5;
     if (bestBid !== null && bestAsk !== null) {
         yesPrice = (bestBid + bestAsk) / 2;
     } else if (bestBid !== null) {
-        yesPrice = bestBid; 
+        yesPrice = bestBid;
     } else if (bestAsk !== null) {
-        yesPrice = bestAsk; 
+        yesPrice = bestAsk;
     }
     
-    yesPrice = Math.max(0.01, Math.min(0.99, yesPrice)); // Clamp price
+    yesPrice = Math.max(0.01, Math.min(0.99, yesPrice));
 
     return {
       id: marketId,
