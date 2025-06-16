@@ -73,25 +73,59 @@ export class LiveMarketService {
 
     // Fetch a slightly larger batch than requested limit to have a good pool for filtering.
     // ClobClient default might be paginated or limited. Let's fetch up to 50 for internal processing.
-    const internalFetchLimit = Math.max(limit, 50);
-    console.log(`📊 Fetching up to ${internalFetchLimit} raw markets. Network: ${this.currentNetwork.name}, Category: ${category || 'All'}. Final user limit: ${limit}`);
+    const internalFetchLimit = Math.max(limit, 50); // Ensure we fetch at least 50 if limit is smaller
+    console.log(`📊 Fetching up to ${internalFetchLimit} raw markets internally. Network: ${this.currentNetwork.name}, Category: ${category || 'All'}. Final user limit: ${limit}`);
     
-    // Note: clobClient.getMarkets() does not accept a limit parameter.
-    // It fetches a default batch (e.g., Polymarket API might return 500 or a paginated set).
-    const marketDataPayload = await this.clobClient.getMarkets();
+    const marketDataPayload = await this.clobClient.getMarkets(); // ClobClient.getMarkets() typically fetches a large batch
     
     const allRawMarkets = marketDataPayload.data || [];
     console.log(`Raw markets received from API: ${allRawMarkets.length}`);
 
+    // DEBUGGING LOGIC START
+    console.log('🔍 DEBUG: Analyzing first few markets for filtering...');
     const now = new Date();
-    const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+    const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000); // 1 hour buffer
 
-    const filteredByStatusAndDate = allRawMarkets.filter((market: any) => {
+    allRawMarkets.slice(0, 5).forEach((market: any, index: number) => { // Log first 5 markets
+      console.log(`\n📊 Market ${index + 1} (ID: ${market.condition_id}):`);
+      console.log(`  Question: ${market.question}`);
+      console.log(`  Active: ${market.active} (Type: ${typeof market.active})`);
+      console.log(`  Closed: ${market.closed} (Type: ${typeof market.closed})`);
+      console.log(`  End Date ISO: ${market.end_date_iso}`);
+      
+      let endDate: Date | null = null;
+      if (market.end_date_iso) {
+        endDate = new Date(market.end_date_iso);
+        console.log(`  Parsed End Date: ${endDate.toISOString()}`);
+        console.log(`  Is Valid Date: ${!isNaN(endDate.getTime())}`);
+        console.log(`  Condition (endDate > oneHourFromNow): ${endDate > oneHourFromNow}`);
+      } else {
+        console.log(`  ❌ No end_date_iso field!`);
+      }
+      
+      const passesFilter = market.active === true && 
+                           market.closed === false && 
+                           endDate && // Ensure endDate is parsed and valid
+                           !isNaN(endDate.getTime()) &&
+                           endDate > oneHourFromNow;
+      console.log(`  Would pass current filter: ${passesFilter}`);
+    });
+
+    console.log(`\n⏰ Current time for filter comparison: ${now.toISOString()}`);
+    console.log(`⏰ One hour from now for filter comparison: ${oneHourFromNow.toISOString()}`);
+    // DEBUGGING LOGIC END
+
+    const filteredMarkets = allRawMarkets.filter((market: any) => {
       if (typeof market.active !== 'boolean' || typeof market.closed !== 'boolean' || !market.end_date_iso) {
-        // console.warn(`Skipping market due to missing fields: ID ${market.condition_id}, Active: ${market.active}, Closed: ${market.closed}, EndDate: ${market.end_date_iso}`);
-        return false; // Skip if essential fields are missing or invalid
+        // console.warn(`Skipping market due to missing or invalid essential fields: ID ${market.condition_id}`);
+        return false;
       }
       const endDate = new Date(market.end_date_iso);
+      if (isNaN(endDate.getTime())) { // Check if the date is valid
+        // console.warn(`Skipping market due to invalid end_date_iso: ID ${market.condition_id}, Value: ${market.end_date_iso}`);
+        return false;
+      }
+      
       const isActive = market.active === true;
       const isNotClosed = market.closed === false;
       // Market must end at least 1 hour from now
@@ -100,12 +134,12 @@ export class LiveMarketService {
       return isActive && isNotClosed && hasAtLeast1hRemaining;
     });
     
-    console.log(`Markets after active/closed/future-dated (1h+) filtering: ${filteredByStatusAndDate.length}`);
+    console.log(`Markets after active/closed/future-dated (1h+) filtering: ${filteredMarkets.length}`);
 
     // Apply category filter if specified, after status/date filtering
-    let categoryFilteredMarkets = filteredByStatusAndDate;
+    let categoryFilteredMarkets = filteredMarkets;
     if (category) {
-      categoryFilteredMarkets = filteredByStatusAndDate.filter((market: any) => 
+      categoryFilteredMarkets = filteredMarkets.filter((market: any) => 
         market.category?.toLowerCase() === category.toLowerCase()
       );
       console.log(`Markets after category ('${category}') filtering: ${categoryFilteredMarkets.length}`);
@@ -117,7 +151,7 @@ export class LiveMarketService {
       yesPrice: 0.50, // Placeholder, actual price fetching is a separate concern for order book
       noPrice: 0.50,  // Placeholder
       category: market.category || "General",
-      endsAt: new Date(market.end_date_iso),
+      endsAt: new Date(market.end_date_iso), // We've already validated end_date_iso exists and is valid
     }));
     
     console.log(`✅ Mapped ${liveMarkets.length} active markets. Applying final user limit of ${limit}.`);
@@ -143,8 +177,8 @@ export class LiveMarketService {
     
     if (!orderbook || !orderbook.bids || !orderbook.asks) {
         console.warn(`❓ No orderbook data found for market ${marketId}`);
-        if (!marketInfo) return null;
-        return {
+        if (!marketInfo) return null; // If no market info and no orderbook, can't proceed
+        return { // Fallback if only market info is available
             id: marketId,
             question: marketInfo.question,
             yesPrice: 0.50,
@@ -161,11 +195,12 @@ export class LiveMarketService {
     if (bestBid !== null && bestAsk !== null) {
         yesPrice = (bestBid + bestAsk) / 2;
     } else if (bestBid !== null) {
-        yesPrice = bestBid;
+        yesPrice = bestBid; // Use bid if only bid available
     } else if (bestAsk !== null) {
-        yesPrice = bestAsk;
+        yesPrice = bestAsk; // Use ask if only ask available
     }
     
+    // Ensure price is within 0.01 and 0.99
     yesPrice = Math.max(0.01, Math.min(0.99, yesPrice));
 
     return {
@@ -178,3 +213,5 @@ export class LiveMarketService {
     };
   }
 }
+
+    
