@@ -1,143 +1,146 @@
 
 import * as functions from 'firebase-functions';
-import * as express from 'express';
-import * as cors from 'cors';
-
-import { generateTestnetWalletAndKeys, generateMainnetWalletAndKeys, generateFromExistingKey } from './lib/generate-wallet-and-keys';
+import express from 'express';
+import cors from 'cors';
 import { LiveMarketService } from './lib/live-market-service';
-// EphemeralCredentialManager is used internally by LiveMarketService
-// import { EphemeralCredentialManager } from './lib/credential-manager';
+import { EphemeralCredentialManager } from './lib/credential-manager'; // Added this import
 
+// Initialize the Express app
 const app = express();
-app.use(cors({ origin: true }));
-app.use(express.json());
 
-// Wallet Generation Endpoint (primarily for setup/testing, not direct user calls in WinBig)
-app.post('/wallet/generate', async (req, res) => {
+// Initialize services
+const credentialManager = new EphemeralCredentialManager(); // Use the manager
+const marketService = new LiveMarketService(credentialManager); // Pass manager to service
+
+// Logging middleware - THIS IS NEW
+app.use((req, res, next) => {
+  console.log(`Received request: ${req.method} ${req.path}, Query: ${JSON.stringify(req.query)}, Headers: ${JSON.stringify(req.headers)}`);
+  next();
+});
+
+// Enable CORS for all routes, which is necessary for frontend calls
+app.use(cors({ origin: true }));
+
+// This is the primary endpoint your frontend will call.
+// It fetches a list of live markets, optionally filtered by category.
+app.get('/markets/live-odds/:category?', async (req: express.Request, res: express.Response) => {
   try {
-    const { network, privateKey } = req.body; 
-    
-    let result;
-    if (privateKey && typeof privateKey === 'string') {
-      result = await generateFromExistingKey(privateKey, network === 'polygon' ? 'polygon' : 'amoy');
-    } else if (network === 'polygon' || network === 'mainnet') { // Accept 'mainnet' as alias for 'polygon'
-      result = await generateMainnetWalletAndKeys();
-    } else { 
-      result = await generateTestnetWalletAndKeys(); // Default to amoy/testnet
+    const { category } = req.params;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+
+    console.log(`Fetching live odds. Category: ${category}, Limit: ${limit}`);
+
+    const markets = await marketService.getLiveMarkets(limit, category || undefined); // Pass category
+
+    if (!markets || markets.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'No live markets found for the given criteria.',
+      });
     }
+
+    res.status(200).json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      marketCount: markets.length,
+      markets: markets,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    console.error('❌ Error fetching live market odds:', errorMessage, error); // Log the full error
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch live market odds.',
+      message: errorMessage,
+    });
+  }
+});
+
+// Wallet and API key generation endpoints (for testing/admin)
+app.post('/wallet/generate', async (req: express.Request, res: express.Response) => {
+  try {
+    const { network: networkParam, privateKey } = req.body;
+    const network = (networkParam === 'mainnet' || networkParam === 'polygon') ? 'polygon' : 'amoy';
     
-    if (result.success) {
+    console.log(`Generating wallet. Network: ${network}, Existing Key Provided: ${!!privateKey}`);
+    
+    const result = await credentialManager.generateNewCredentials(network, privateKey);
+    
+    if (result.success && result.wallet && result.credentials) {
       res.json({
         success: true,
         wallet: {
           address: result.wallet.address,
-          // IMPORTANT: In a real production app, NEVER return the privateKey to the client
-          // This is returned here for backend setup/dev purposes as per original structure
-          privateKey: result.wallet.privateKey 
+          // Note: Never return private key in production for general use!
+          // This endpoint is for admin/testing.
         },
-        credentials: result.credentials,
-        networkUsed: result.wallet.address ? (network === 'polygon' || network === 'mainnet' ? 'polygon' : 'amoy') : 'unknown'
+        credentials: {
+            key: result.credentials.key,
+            // secret: result.credentials.secret, // Avoid returning secret unless absolutely necessary
+            // passphrase: result.credentials.passphrase // Avoid returning passphrase
+        },
+        network: network,
+        message: "Credentials generated. See function logs for full details."
       });
     } else {
       res.status(500).json({
         success: false,
-        error: result.error || 'Wallet generation failed'
+        error: result.error || 'Wallet generation failed during credential manager call'
       });
     }
   } catch (error) {
-    console.error('Error generating wallet:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error during wallet generation';
+    console.error('❌ Error generating wallet:', errorMessage, error);
     res.status(500).json({ 
       success: false,
-      error: 'Failed to generate wallet',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      error: 'Failed to generate wallet.',
+      message: errorMessage
     });
   }
 });
 
-// Live Market Odds Endpoint
-app.get('/markets/live-odds/:category?', async (req, res) => {
+
+// Admin endpoint to check current credential status
+app.get('/admin/credential-status', (req, res) => {
   try {
-    const { category } = req.params;
-    const limitQuery = req.query.limit;
-    const limit = limitQuery ? parseInt(limitQuery as string, 10) : 10;
-
-    if (isNaN(limit) || limit <= 0) {
-        return res.status(400).json({ success: false, error: "Invalid 'limit' parameter." });
-    }
-
-    // LiveMarketService now uses EphemeralCredentialManager internally
-    const marketService = new LiveMarketService();
-    
-    let markets;
-    if (category) {
-      markets = await marketService.getMarketsByCategory(category, limit);
-    } else {
-      // If no category, maybe fetch trending or a default set
-      markets = await marketService.getTrendingMarkets(limit); 
-    }
-    
-    res.json({
-      success: true,
-      markets: markets.map(market => ({
-        id: market.id,
-        question: market.question,
-        category: market.category,
-        yesPrice: market.yesPrice,
-        noPrice: market.noPrice,
-        volume24h: market.volume24h,
-        deadline: market.deadline, 
-        liquidity: market.liquidity,
-        imageUrl: market.imageUrl,
-        description: market.description,
-      }))
-    });
+    const status = credentialManager.getCredentialStatus();
+    res.status(200).json({ success: true, ...status });
   } catch (error) {
-    console.error('Error fetching live odds:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to fetch live odds',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('❌ Error getting credential status:', errorMessage, error);
+    res.status(500).json({ success: false, error: 'Failed to get credential status.', message: errorMessage });
   }
 });
 
-// Credential Status Endpoint (for debugging/monitoring ephemeral credentials)
-app.get('/admin/credential-status', async (req, res) => {
-  try {
-    // This should be protected in a real app (e.g., admin auth middleware)
-    const marketService = new LiveMarketService(); // Instantiates EphemeralCredentialManager
-    const status = marketService.getCredentialStatus();
-    res.json({ success: true, status });
-  } catch (error) {
-    console.error('Error fetching credential status:', error);
-    res.status(500).json({ success: false, error: 'Failed to get credential status' });
-  }
-});
-
-// Endpoint to manually refresh credentials (for debugging)
+// Admin endpoint to manually refresh credentials
 app.post('/admin/refresh-credentials', async (req, res) => {
   try {
-    // This should be protected
-    const { network } = req.body; // 'testnet' or 'mainnet'
-    if (network !== 'testnet' && network !== 'mainnet') {
-      return res.status(400).json({ success: false, error: "Invalid network. Use 'testnet' or 'mainnet'." });
-    }
-    const marketService = new LiveMarketService();
-    await marketService.refreshCredentials(network);
-    res.json({ success: true, message: `Credentials for ${network} refreshed.` });
+    const { network: networkParam } = req.body;
+    const network = (networkParam === 'mainnet' || networkParam === 'polygon') ? 'polygon' : 'amoy';
+    console.log(`Attempting to refresh credentials for network: ${network}`);
+    await credentialManager.forceRefreshCredentials(network);
+    const status = credentialManager.getCredentialStatus();
+    res.status(200).json({ success: true, message: `Credentials refreshed for ${network}.`, newStatus: status });
   } catch (error) {
-    console.error('Error refreshing credentials:', error);
-    res.status(500).json({ success: false, error: 'Failed to refresh credentials' });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('❌ Error refreshing credentials:', errorMessage, error);
+    res.status(500).json({ success: false, error: 'Failed to refresh credentials.', message: errorMessage });
   }
 });
 
 
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'healthy', 
+// A simple health check endpoint
+app.get('/health', (req: express.Request, res: express.Response) => {
+  console.log('Health check endpoint hit.');
+  res.status(200).json({
+    status: 'healthy',
     timestamp: new Date().toISOString(),
-    service: 'winbig-firebase-functions'
+    message: "WinBig API is up and running!"
   });
 });
 
+// Export the Express app as a Firebase Function named 'api'.
+// This is the name you will see in your Firebase console.
 export const api = functions.https.onRequest(app);
+
+    

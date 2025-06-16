@@ -1,9 +1,12 @@
 import { WalletGenerator } from './wallet-generator';
 import { PolymarketAuth } from './polymarket-auth';
-import { type AuthResult, NETWORKS } from './types';
+import { AuthResult, NETWORKS } from './types';
 
 /**
  * Complete workflow for testnet (Amoy)
+ * - Generate random wallet
+ * - Check balance (not required for testnet)
+ * - Generate Polymarket API credentials
  */
 export async function generateTestnetWalletAndKeys(): Promise<AuthResult> {
   try {
@@ -20,9 +23,8 @@ export async function generateTestnetWalletAndKeys(): Promise<AuthResult> {
     console.log('\n🎉 Testnet Setup Complete!');
     console.log(`Address: ${wallet.address}`);
     console.log(`Key: ${credentials.key}`);
-    // Avoid logging secret and passphrase
-    // console.log(`Secret: ${credentials.secret}`);
-    // console.log(`Passphrase: ${credentials.passphrase}`);
+    console.log(`Secret: ${credentials.secret}`);
+    console.log(`Passphrase: ${credentials.passphrase}`);
     
     return { wallet, credentials, success: true };
     
@@ -38,6 +40,9 @@ export async function generateTestnetWalletAndKeys(): Promise<AuthResult> {
 
 /**
  * Complete workflow for mainnet (Polygon)
+ * - Generate random wallet  
+ * - Check balance (required for mainnet)
+ * - Generate Polymarket API credentials
  */
 export async function generateMainnetWalletAndKeys(): Promise<AuthResult> {
   try {
@@ -54,7 +59,8 @@ export async function generateMainnetWalletAndKeys(): Promise<AuthResult> {
     console.log('\n🎉 Mainnet Setup Complete!');
     console.log(`Address: ${wallet.address}`);
     console.log(`Key: ${credentials.key}`);
-    // Avoid logging secret and passphrase
+    console.log(`Secret: ${credentials.secret}`);
+    console.log(`Passphrase: ${credentials.passphrase}`);
     
     return { wallet, credentials, success: true };
     
@@ -75,17 +81,30 @@ export async function generateFromExistingKey(privateKey: string, network: 'poly
   try {
     console.log(`🔄 Using existing private key for ${network} network...`);
     
-    const walletGen = new WalletGenerator(network);
-    const wallet = walletGen.createFromPrivateKey(privateKey);
+    // Create wallet from private key
+    const wallet = {
+      address: '',
+      privateKey: privateKey
+    };
+    
+    // Get network config
+    const networkConfig = NETWORKS[network];
+    
+    // Generate API credentials
+    const auth = new PolymarketAuth(wallet, networkConfig);
+    wallet.address = auth.getWalletAddress();
     
     console.log(`📍 Wallet Address: ${wallet.address}`);
+    
+    // Check balance
+    const walletGen = new WalletGenerator(network);
     await walletGen.checkBalance(wallet.address);
     
-    const auth = new PolymarketAuth(wallet, NETWORKS[network]);
+    // Generate credentials
     const credentials = await auth.generateApiCredentials();
     
-    // Testing credentials might be complex to implement fully here
-    // await auth.testCredentials(credentials); 
+    // Test credentials
+    await auth.testCredentials(credentials);
     
     console.log('\n🎉 Setup Complete with Existing Key!');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -93,7 +112,8 @@ export async function generateFromExistingKey(privateKey: string, network: 'poly
     console.log(`Address: ${wallet.address}`);
     console.log('\n🔑 API CREDENTIALS:');
     console.log(`Key: ${credentials.key}`);
-    // Avoid logging secret and passphrase
+    console.log(`Secret: ${credentials.secret}`);
+    console.log(`Passphrase: ${credentials.passphrase}`);
     
     return {
       wallet,
@@ -110,4 +130,4 @@ export async function generateFromExistingKey(privateKey: string, network: 'poly
       error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
-}
+} 

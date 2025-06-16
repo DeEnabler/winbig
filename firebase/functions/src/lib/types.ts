@@ -1,55 +1,46 @@
+export interface PolymarketCredentials {
+  key: string;
+  secret: string;
+  passphrase: string;
+}
+
 export interface WalletInfo {
   address: string;
   privateKey: string;
   mnemonic?: string;
 }
 
-export interface ApiCredentials {
-  key: string;
-  secret: string;
-  passphrase: string;
-}
-
 export interface AuthResult {
   wallet: WalletInfo;
-  credentials: ApiCredentials;
+  credentials: PolymarketCredentials;
   success: boolean;
   error?: string;
 }
 
 export interface NetworkConfig {
-  name: string;
   chainId: number;
+  name: string;
   rpcUrl: string;
-  explorer: string;
-  nativeCurrency: {
-    name: string;
-    symbol: string;
-    decimals: number;
-  };
+  clobUrl: string;
+  currency: string;
+  blockExplorer: string;
 }
 
 export const NETWORKS: Record<string, NetworkConfig> = {
   polygon: {
-    name: "Polygon Mainnet",
     chainId: 137,
-    rpcUrl: "https://polygon-rpc.com/",
-    explorer: "https://polygonscan.com",
-    nativeCurrency: {
-      name: "MATIC",
-      symbol: "MATIC",
-      decimals: 18
-    }
+    name: 'Polygon Mainnet',
+    rpcUrl: 'https://polygon-rpc.com',
+    clobUrl: 'https://clob.polymarket.com',
+    currency: 'MATIC',
+    blockExplorer: 'https://polygonscan.com'
   },
   amoy: {
-    name: "Polygon Amoy Testnet",
     chainId: 80002,
-    rpcUrl: "https://rpc-amoy.polygon.technology/",
-    explorer: "https://www.oklink.com/amoy",
-    nativeCurrency: {
-      name: "MATIC",
-      symbol: "MATIC",
-      decimals: 18
-    }
+    name: 'Polygon Amoy Testnet',
+    rpcUrl: 'https://rpc-amoy.polygon.technology',
+    clobUrl: 'https://clob-staging.polymarket.com',
+    currency: 'MATIC',
+    blockExplorer: 'https://amoy.polygonscan.com'
   }
-};
+}; 

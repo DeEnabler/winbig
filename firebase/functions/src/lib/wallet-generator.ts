@@ -1,12 +1,16 @@
 import { ethers } from 'ethers';
-import { WalletInfo, type NetworkConfig, NETWORKS } from './types';
+import { WalletInfo, NetworkConfig, NETWORKS } from './types';
 
 export class WalletGenerator {
-  private network: NetworkConfig;
   private provider: ethers.JsonRpcProvider;
+  private network: NetworkConfig;
 
-  constructor(networkName: 'polygon' | 'amoy') {
+  constructor(networkName: string = 'amoy') {
     this.network = NETWORKS[networkName];
+    if (!this.network) {
+      throw new Error(`Unsupported network: ${networkName}`);
+    }
+    
     this.provider = new ethers.JsonRpcProvider(this.network.rpcUrl);
   }
 
@@ -14,93 +18,98 @@ export class WalletGenerator {
    * Generate a completely random wallet
    */
   generateRandomWallet(): WalletInfo {
-    console.log('🎲 Generating random wallet...');
-    
     const wallet = ethers.Wallet.createRandom();
     
-    const walletInfo: WalletInfo = {
+    console.log('\n🎲 Generated Random Wallet:');
+    console.log(`Address: ${wallet.address}`);
+    console.log(`Private Key: ${wallet.privateKey}`);
+    if (wallet.mnemonic) {
+      console.log(`Mnemonic: ${wallet.mnemonic.phrase}`);
+    }
+
+    return {
       address: wallet.address,
       privateKey: wallet.privateKey,
       mnemonic: wallet.mnemonic?.phrase
     };
-    
-    console.log('✅ Random wallet generated successfully');
-    console.log(`📍 Address: ${walletInfo.address}`);
-    
-    return walletInfo;
   }
 
   /**
-   * Create wallet from existing private key
+   * Generate wallet from mnemonic
    */
-  createFromPrivateKey(privateKey: string): WalletInfo {
-    console.log('🔄 Creating wallet from private key...');
+  generateFromMnemonic(mnemonic?: string): WalletInfo {
+    const actualMnemonic = mnemonic || ethers.Wallet.createRandom().mnemonic?.phrase || '';
+    const wallet = ethers.Wallet.fromPhrase(actualMnemonic);
     
-    try {
-      const wallet = new ethers.Wallet(privateKey);
-      
-      const walletInfo: WalletInfo = {
-        address: wallet.address,
-        privateKey: wallet.privateKey
-      };
-      
-      console.log('✅ Wallet created from private key');
-      console.log(`📍 Address: ${walletInfo.address}`);
-      
-      return walletInfo;
-    } catch (error) {
-      throw new Error(`Invalid private key: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
+    console.log('\n🌱 Generated Wallet from Mnemonic:');
+    console.log(`Address: ${wallet.address}`);
+    console.log(`Private Key: ${wallet.privateKey}`);
+    console.log(`Mnemonic: ${actualMnemonic}`);
 
-  /**
-   * Create wallet from mnemonic
-   */
-  createFromMnemonic(mnemonic: string, path: string = "m/44'/60'/0'/0/0"): WalletInfo {
-    console.log('🔄 Creating wallet from mnemonic...');
-    
-    try {
-      const wallet = ethers.Wallet.fromPhrase(mnemonic); // Corrected from ethers.Wallet.fromMnemonic
-      
-      const walletInfo: WalletInfo = {
-        address: wallet.address,
-        privateKey: wallet.privateKey,
-        mnemonic: mnemonic
-      };
-      
-      console.log('✅ Wallet created from mnemonic');
-      console.log(`📍 Address: ${walletInfo.address}`);
-      
-      return walletInfo;
-    } catch (error) {
-      throw new Error(`Invalid mnemonic: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+    return {
+      address: wallet.address,
+      privateKey: wallet.privateKey,
+      mnemonic: actualMnemonic
+    };
   }
 
   /**
    * Check wallet balance
    */
-  async checkBalance(address: string): Promise<void> {
+  async checkBalance(address: string): Promise<string> {
     try {
-      console.log(`💰 Checking balance for ${address}...`);
-      
       const balance = await this.provider.getBalance(address);
-      const balanceEth = ethers.formatEther(balance);
+      const balanceInMatic = ethers.formatEther(balance);
       
-      console.log(`💰 Balance: ${balanceEth} ${this.network.nativeCurrency.symbol}`);
+      console.log(`\n💰 Balance for ${address}:`);
+      console.log(`${balanceInMatic} ${this.network.currency}`);
       
-      if (balance === BigInt(0) && this.network.chainId === 137) {
-        console.log('⚠️  WARNING: Mainnet wallet has 0 MATIC balance');
-        console.log('💡 You need MATIC for gas fees to interact with Polymarket');
-        console.log(`🔗 Get MATIC at: ${this.network.explorer}/address/${address}`);
-      } else if (balance === BigInt(0)) {
-        console.log('ℹ️  Testnet wallet has 0 MATIC (this is normal for testing)');
-        console.log(`🔗 Get testnet MATIC at: https://faucet.polygon.technology/`);
+      return balanceInMatic;
+    } catch (error) {
+      console.error('Error checking balance:', error);
+      return '0';
+    }
+  }
+
+  /**
+   * Get funding instructions for the wallet
+   */
+  getFundingInstructions(address: string): void {
+    console.log(`\n💡 To fund your wallet on ${this.network.name}:`);
+    
+    if (this.network.chainId === 80002) { // Amoy testnet
+      console.log('1. Visit: https://faucet.polygon.technology/');
+      console.log('2. Select "Polygon Amoy" network');
+      console.log(`3. Enter your address: ${address}`);
+      console.log('4. Complete the captcha and request test MATIC');
+      console.log('5. Wait a few minutes for the transaction to confirm');
+    } else { // Mainnet
+      console.log('1. Buy MATIC on an exchange (Coinbase, Binance, etc.)');
+      console.log('2. Withdraw MATIC to Polygon network');
+      console.log(`3. Send to your address: ${address}`);
+      console.log('4. Or use a bridge from Ethereum mainnet');
+    }
+    
+    console.log(`\n🔍 Track your transaction: ${this.network.blockExplorer}/address/${address}`);
+  }
+
+  /**
+   * Validate if wallet has sufficient balance (for mainnet)
+   */
+  async validateBalance(address: string, minBalance: string = '0.1'): Promise<boolean> {
+    try {
+      const balance = await this.checkBalance(address);
+      const hasBalance = parseFloat(balance) >= parseFloat(minBalance);
+      
+      if (!hasBalance) {
+        console.log(`\n⚠️  Insufficient balance. Need at least ${minBalance} ${this.network.currency}`);
+        this.getFundingInstructions(address);
       }
       
+      return hasBalance;
     } catch (error) {
-      console.error('❌ Failed to check balance:', error);
-      throw new Error(`Balance check failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Error validating balance:', error);
+      return false;
     }
   }
 
@@ -110,4 +119,4 @@ export class WalletGenerator {
   getNetworkInfo(): NetworkConfig {
     return this.network;
   }
-}
+} 
