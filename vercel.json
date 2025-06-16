@@ -1,9 +1,9 @@
 
 {
-  "builds": [
+  "rewrites": [
     {
-      "src": "package.json",
-      "use": "@vercel/next"
+      "source": "/api/(.*)",
+      "destination": "YOUR_FIREBASE_FUNCTION_URL_HERE/$1"
     }
   ]
 }
