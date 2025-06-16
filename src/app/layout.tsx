@@ -7,7 +7,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import { EntryContextProvider } from '@/contexts/EntryContext';
 import { Suspense } from 'react';
 import ContextProvider from '@/context/index';
-import { cookies } from 'next/headers';
+import { cookies } from 'next/headers'; // Correct import
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -29,12 +29,15 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const cookieStore = cookies();
+  const cookieStore = cookies(); // Get the cookie store
+
   // Reconstruct the cookie string in the format "name1=value1; name2=value2"
   // This is a common way to pass cookies to client-side providers for SSR hydration.
-  const rawCookieHeader = cookieStore.getAll().map(cookie => {
-    return `${cookie.name}=${encodeURIComponent(cookie.value)}`;
-  }).join('; ') || null; // Pass null if no cookies, as expected by cookieToInitialState
+  // Ensure allCookiesArray is constructed properly.
+  const allCookiesArray = cookieStore.getAll();
+  const rawCookieHeader = allCookiesArray.length > 0
+    ? allCookiesArray.map(cookie => `${cookie.name}=${encodeURIComponent(cookie.value)}`).join('; ')
+    : null; // Pass null if no cookies, as expected by cookieToInitialState
 
   return (
     <html lang="en" suppressHydrationWarning>
