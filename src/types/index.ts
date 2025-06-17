@@ -65,19 +65,6 @@ export interface Match {
   originalReferrer?: string; // To pass along who initiated the challenge
 }
 
-// LeaderboardEntry removed
-
-// For AI Share Message
-export type ShareMessageDetails = {
-  predictionText: string; // Renamed from 'prediction' for clarity
-  betAmount?: number; // Made optional for outcomes where it's less relevant
-  outcomeDescription: string; // e.g., "I WON", "I just SOLD my bet", "I'm betting YES"
-  opponentUsername?: string; // Optional, as not all shares involve a direct opponent
-  finalAmount?: number; // Replaces potentialWinnings; can be actual winnings, sell value, or potential winnings for an open bet
-  currency?: string; // e.g., "SOL", "$", "XP"
-  callToAction?: string; // e.g., "Think you can beat me?", "Check out my win!"
-};
-
 // Props for PredictionCard
 export interface PredictionCardProps {
   id: string;
@@ -100,6 +87,7 @@ export interface ChallengeInviteProps {
   predictionQuestion: string;
   predictionId: string;
   referrerOriginalChoice: 'YES' | 'NO';
+  initialYesPrice?: number; // Added to pass initial odds
 }
 
 // Props for MatchViewClient
@@ -126,7 +114,7 @@ export interface EntryContextType {
   challenge?: boolean;
   referrer?: string;
   marketId?: string;
-  predictionId?: string;
+  predictionId?: string; // Already present, just confirming
   appendEntryParams: (url: string) => string;
 }
 
@@ -167,4 +155,15 @@ export interface OpenPosition {
   aiHint?: string;
   opponentUsername?: string; // Who the user bet against (if applicable)
   bonusApplied?: boolean; // Was a bonus applied to this bet?
+}
+
+// Interface for LiveMarketService to use (already present in your types, ensuring it's used)
+export interface LiveMarket {
+  id: string; // conditionId from Polymarket
+  question: string;
+  yesPrice: number; // Probability from 0.01 to 0.99
+  noPrice: number;  // 1 - yesPrice
+  category?: string;
+  endsAt?: Date;
+  // Add other relevant fields: volume, liquidity, etc. as needed
 }

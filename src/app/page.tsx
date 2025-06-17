@@ -4,21 +4,20 @@
 
 import { useEffect, useState } from 'react';
 import ChallengeInvite from '@/components/challenges/ChallengeInvite';
-import type { ChallengeInviteProps } from '@/types';
+import type { LiveMarket } from '@/types'; // Changed from ChallengeInviteProps to LiveMarket
 import { mockPredictions } from '@/lib/mockData'; // For fallback
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 
-// Define a simple Market type based on expected API response for this page
-interface PageLiveMarket {
-  id: string;
-  question: string;
-  // Add other fields if they become necessary for prop mapping to ChallengeInvite
-  // e.g., category, deadline. For now, ChallengeInvite primarily uses question and id.
-}
+// PageLiveMarket is now essentially LiveMarket for consistency
+// interface PageLiveMarket {
+//   id: string;
+//   question: string;
+//   yesPrice?: number; // Added to carry over odds
+// }
 
 export default function HomePage() {
-  const [market, setMarket] = useState<PageLiveMarket | null>(null);
+  const [market, setMarket] = useState<LiveMarket | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,42 +26,48 @@ export default function HomePage() {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch('/api/markets/live-odds'); // Fetches default/popular markets
+        const response = await fetch('/api/markets/live-odds');
         if (!response.ok) {
-          const errorData = await response.json(); // Try to parse error JSON
+          const errorData = await response.json();
           console.error('API Error Response:', errorData);
           throw new Error(errorData.message || `Failed to fetch market data: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
 
         if (data.success && data.markets && data.markets.length > 0) {
-          const firstApiMarket = data.markets[0];
-          setMarket({
-            id: firstApiMarket.id,
-            question: firstApiMarket.question,
-          });
+          const firstApiMarket = data.markets[0] as LiveMarket; // Cast to LiveMarket
+          setMarket(firstApiMarket); // This will now include yesPrice and noPrice
         } else if (data.success && data.markets && data.markets.length === 0) {
           setError('No live markets available at the moment. Displaying a sample prediction.');
-          const fallbackMarket: PageLiveMarket = {
+          const fallbackMarket: LiveMarket = {
             id: mockPredictions[0].id,
             question: mockPredictions[0].text,
+            category: mockPredictions[0].category,
+            yesPrice: 0.5, // Default for mock
+            noPrice: 0.5,  // Default for mock
           };
           setMarket(fallbackMarket);
         } else {
           console.error('API response error or malformed data:', data.message || data);
           setError(data.message || 'Could not load live markets. Displaying a sample prediction.');
-          const fallbackMarket: PageLiveMarket = {
+          const fallbackMarket: LiveMarket = {
             id: mockPredictions[0].id,
             question: mockPredictions[0].text,
+            category: mockPredictions[0].category,
+            yesPrice: 0.5,
+            noPrice: 0.5,
           };
           setMarket(fallbackMarket);
         }
       } catch (err) {
         console.error('Error fetching market data:', err);
         setError(err instanceof Error ? err.message : 'An unknown error occurred. Displaying a sample prediction.');
-        const fallbackMarket: PageLiveMarket = {
+        const fallbackMarket: LiveMarket = {
             id: mockPredictions[0].id,
             question: mockPredictions[0].text,
+            category: mockPredictions[0].category,
+            yesPrice: 0.5,
+            noPrice: 0.5,
         };
         setMarket(fallbackMarket);
       } finally {
@@ -90,7 +95,8 @@ export default function HomePage() {
             referrerName="Community Pick"
             predictionQuestion={market.question}
             predictionId={market.id}
-            referrerOriginalChoice='YES'
+            referrerOriginalChoice='YES' // This could be more dynamic if needed
+            initialYesPrice={market.yesPrice} // Pass the fetched yesPrice
           />
         )}
         {!isLoading && !market && !error && (

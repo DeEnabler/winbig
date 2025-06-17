@@ -20,13 +20,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import BonusDisplay from './BonusDisplay';
 
 const REWARD_AMOUNT = 100;
-const REWARD_CURRENCY = "WinPoints"; // Updated to WinPoints
-const REWARD_GIVEN_STORAGE_KEY = 'winBigWalletConnectRewardGiven_v1_reown'; // Updated key
+const REWARD_CURRENCY = "WinPoints";
+const REWARD_GIVEN_STORAGE_KEY = 'winBigWalletConnectRewardGiven_v1_reown';
 
-const BONUS_DURATION_SECONDS = 120; // 2 minutes
+const BONUS_DURATION_SECONDS = 120;
 const BONUS_PERCENTAGE = 20;
-const BONUS_LOW_TIME_THRESHOLD = 30; // seconds
-const BONUS_REVEAL_DELAY = 1800; // milliseconds
+const BONUS_LOW_TIME_THRESHOLD = 30;
+const BONUS_REVEAL_DELAY = 1800;
 
 interface ReferrerStats {
   winStreak: number;
@@ -34,12 +34,29 @@ interface ReferrerStats {
   predictionRank: string;
 }
 
+// Function to initialize bettors based on price
+// Uses a base total to make numbers more relatable (e.g., out of 100)
+const initializeBettorsFromPrice = (yesPrice?: number, baseTotalBettors = 50) => {
+  if (typeof yesPrice === 'number' && yesPrice >= 0 && yesPrice <= 1) {
+    const initialYes = Math.round(yesPrice * baseTotalBettors);
+    const initialNo = baseTotalBettors - initialYes;
+    return { yesBettors: Math.max(1, initialYes), noBettors: Math.max(1, initialNo) }; // Ensure at least 1 bettor
+  }
+  // Fallback to random if no price or invalid price
+  return {
+    yesBettors: Math.floor(Math.random() * 15) + 8,
+    noBettors: Math.floor(Math.random() * 15) + 7,
+  };
+};
+
+
 export default function ChallengeInvite({
   matchId: originalChallengeMatchId,
   referrerName,
   predictionQuestion,
   predictionId,
-  referrerOriginalChoice
+  referrerOriginalChoice,
+  initialYesPrice // New prop for initial odds
 }: ChallengeInviteProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -67,9 +84,10 @@ export default function ChallengeInvite({
     return null;
   }, [referrerName]);
 
+  const initialBettorCounts = useMemo(() => initializeBettorsFromPrice(initialYesPrice), [initialYesPrice]);
+  const [yesBettors, setYesBettors] = useState(initialBettorCounts.yesBettors);
+  const [noBettors, setNoBettors] = useState(initialBettorCounts.noBettors);
 
-  const [yesBettors, setYesBettors] = useState(Math.floor(Math.random() * 15) + 8);
-  const [noBettors, setNoBettors] = useState(Math.floor(Math.random() * 15) + 7);
   const [showPlusOneYes, setShowPlusOneYes] = useState(false);
   const [showPlusOneNo, setShowPlusOneNo] = useState(false);
   const [oddsYes, setOddsYes] = useState(50);
@@ -117,15 +135,23 @@ export default function ChallengeInvite({
   useEffect(() => {
     const calculateOdds = (yes: number, no: number) => {
       const total = yes + no;
-      return total > 0 ? (yes / total) * 100 : 50;
+      return total > 0 ? Math.max(1, Math.min(99, (yes / total) * 100)) : 50; // Clamp between 1% and 99%
     };
     setOddsYes(calculateOdds(yesBettors, noBettors));
   }, [yesBettors, noBettors]);
 
+  // Effect to re-initialize bettors if initialYesPrice changes after mount (e.g., async load)
+  useEffect(() => {
+    const newInitialBettors = initializeBettorsFromPrice(initialYesPrice);
+    setYesBettors(newInitialBettors.yesBettors);
+    setNoBettors(newInitialBettors.noBettors);
+  }, [initialYesPrice]);
+
+
   useEffect(() => {
     const activityInterval = setInterval(() => {
-      const isAddingYes = Math.random() < 0.6;
-      const isAddingNo = Math.random() < 0.45;
+      const isAddingYes = Math.random() < 0.3; // Reduced frequency of updates
+      const isAddingNo = Math.random() < 0.25;
 
       if (isAddingYes) {
         setYesBettors(prev => prev + 1);
@@ -141,7 +167,7 @@ export default function ChallengeInvite({
         setOddsPulse(true);
         setTimeout(() => setOddsPulse(false), 700);
       }
-    }, 2500 + Math.random() * 2000);
+    }, 3500 + Math.random() * 2500); // Slower updates
     return () => clearInterval(activityInterval);
   }, []);
 
@@ -190,7 +216,7 @@ export default function ChallengeInvite({
     let bonusAppliedForThisAction = false;
     if (isBonusOfferActive && !bonusSuccessfullyClaimed && showBonusSection) {
       setBonusSuccessfullyClaimed(true);
-      setIsBonusOfferActive(false); 
+      setIsBonusOfferActive(false);
       bonusAppliedForThisAction = true;
       toast({
         title: "Bonus Locked In! 🌟",
@@ -419,7 +445,6 @@ export default function ChallengeInvite({
         </CardFooter>
       </Card>
 
-      {/* Conditionally render BonusDisplay outside the card */}
       {showBonusSection && isBonusOfferActive && !bonusSuccessfullyClaimed && (
         <div className="fixed bottom-4 right-4 z-50 md:bottom-6 md:right-6">
           <BonusDisplay
