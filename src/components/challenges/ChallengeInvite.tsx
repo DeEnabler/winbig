@@ -272,7 +272,7 @@ export default function ChallengeInvite({
       const cleanReferrerName = referrerName.replace(/^👑\s*@/, '@');
       if (referrerStats.winStreak > 7) {
         message = `🔥 @${cleanReferrerName} is on a ${referrerStats.winStreak}W tear. Think you can break it?`;
-      } else if (referrerStats.winStreak > 3) {
+      } else if (referrerStats.winStreak >= 3) { // Changed from > 3 to >=3 to match display logic
         message = `They're on a ${referrerStats.winStreak}W streak. Feeling lucky?`;
       } else if (referrerStats.predictionRank && (referrerStats.predictionRank.includes("Top") || referrerStats.predictionRank.includes("#"))) {
         message = `${cleanReferrerName} is ${referrerStats.predictionRank}. Challenge the champ?`;
@@ -299,19 +299,21 @@ export default function ChallengeInvite({
               {referrerStats && (
                 <>
                   <div className="flex items-center space-x-2 md:space-x-3 mt-1">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="flex items-center space-x-1 text-xs text-yellow-500">
-                            <Flame className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                            <span className="font-bold">{referrerStats.winStreak}W</span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Win Streak: {referrerStats.winStreak} wins in a row</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    {referrerStats.winStreak >= 3 && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center space-x-1 text-xs text-yellow-500">
+                              <Flame className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                              <span className="font-bold">{referrerStats.winStreak}W</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Win Streak: {referrerStats.winStreak} wins in a row</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
