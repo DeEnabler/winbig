@@ -4,7 +4,7 @@ import { ClobClient } from '@polymarket/clob-client';
 import { Wallet, providers as EthersProviders } from 'ethers'; // Using ethers v5
 import type { AuthResult, EphemeralCredentialManagerInterface, LiveMarket, NetworkConfig } from './types';
 import { NETWORKS } from './types';
-import fetch from 'node-fetch';
+import fetch from 'node-fetch'; // For making HTTP requests to Gamma API
 
 interface RawMarketCandidate {
   rawMarket: any;
@@ -86,7 +86,7 @@ export class LiveMarketService {
   private deduplicateRawMarketCandidates(candidates: RawMarketCandidate[]): RawMarketCandidate[] {
     const seen = new Set();
     return candidates.filter(candidate => {
-      const id = candidate.rawMarket.condition_id || candidate.rawMarket.id; // Gamma uses 'id', CLOB uses 'condition_id'
+      const id = candidate.rawMarket.id || candidate.rawMarket.condition_id; // Gamma uses 'id', CLOB uses 'condition_id' for list, but detailed object might have 'id'
       if (!id || seen.has(id)) return false;
       seen.add(id);
       return true;
@@ -98,8 +98,8 @@ export class LiveMarketService {
       active: 'true',
       closed: 'false',
       limit: limit.toString(),
-      order_by: 'volume', // Corrected from 'order'
-      sort_by: 'desc', // Corrected from 'ascending'
+      order_by: 'volume',
+      sort_by: 'desc',
       end_date_min: new Date().toISOString(),
     });
 
@@ -119,7 +119,7 @@ export class LiveMarketService {
         return [];
       }
       const data = await response.json();
-      return Array.isArray(data) ? data : (data.data || []); // data.data for paginated Gamma responses
+      return Array.isArray(data) ? data : (data.data || []);
     } catch (error) {
       console.error(`[LiveMarketService] Error fetching from Gamma API:`, error);
       return [];
@@ -136,13 +136,14 @@ export class LiveMarketService {
       return null;
     }
 
-    const marketId = rawMarketData.condition_id || rawMarketData.id;
+    const marketId = rawMarketData.id || rawMarketData.condition_id;
     if (!marketId) {
       console.warn("[LiveMarketService] Market missing ID, cannot fetch price.", rawMarketData);
       return null;
     }
 
     let yesTokenId: string | undefined;
+    let noTokenId: string | undefined;
 
     if (source === 'gamma') {
       try {
@@ -153,16 +154,24 @@ export class LiveMarketService {
           const clobTokenIdsArray: string[] = JSON.parse(clobTokenIdsString);
           const outcomesArray: string[] = JSON.parse(outcomesString);
 
-          if (Array.isArray(clobTokenIdsArray) && Array.isArray(outcomesArray) && clobTokenIdsArray.length === outcomesArray.length && clobTokenIdsArray.length > 0) {
+          if (Array.isArray(clobTokenIdsArray) && Array.isArray(outcomesArray) && clobTokenIdsArray.length === outcomesArray.length && clobTokenIdsArray.length >= 2) {
             const yesOutcomeIndex = outcomesArray.findIndex(o => o?.toLowerCase() === 'yes');
+            const noOutcomeIndex = outcomesArray.findIndex(o => o?.toLowerCase() === 'no');
+
             if (yesOutcomeIndex !== -1 && clobTokenIdsArray[yesOutcomeIndex]) {
               yesTokenId = clobTokenIdsArray[yesOutcomeIndex];
-              console.log(`[LiveMarketService] Gamma market ${marketId}: Found YES token ID ${yesTokenId} via clobTokenIds and outcomes.`);
+            }
+            if (noOutcomeIndex !== -1 && clobTokenIdsArray[noOutcomeIndex]) {
+              noTokenId = clobTokenIdsArray[noOutcomeIndex];
+            }
+            
+            if(yesTokenId && noTokenId) {
+                 console.log(`[LiveMarketService] Gamma market ${marketId}: Found YES token ID ${yesTokenId} and NO token ID ${noTokenId}.`);
             } else {
-              console.warn(`[LiveMarketService] Gamma market ${marketId}: "Yes" outcome not found or index mismatch. Outcomes: ${outcomesString}, Token IDs: ${clobTokenIdsString}`);
+                 console.warn(`[LiveMarketService] Gamma market ${marketId}: Could not find both YES and NO token IDs. Yes Index: ${yesOutcomeIndex}, No Index: ${noOutcomeIndex}. Outcomes: ${outcomesString}, Token IDs: ${clobTokenIdsString}`);
             }
           } else {
-            console.warn(`[LiveMarketService] Gamma market ${marketId}: clobTokenIds or outcomes are not valid arrays or mismatched length. Outcomes: ${outcomesString}, Token IDs: ${clobTokenIdsString}`);
+            console.warn(`[LiveMarketService] Gamma market ${marketId}: clobTokenIds or outcomes are not valid arrays, mismatched length, or too short. Outcomes: ${outcomesString}, Token IDs: ${clobTokenIdsString}`);
           }
         } else {
           console.warn(`[LiveMarketService] Gamma market ${marketId}: clobTokenIds or outcomes field not a string or missing. clobTokenIds type: ${typeof clobTokenIdsString}, outcomes type: ${typeof outcomesString}`);
@@ -172,38 +181,63 @@ export class LiveMarketService {
       }
     } else if (source === 'clob') {
       const yesToken = rawMarketData.tokens?.find((t: any) => t.outcome?.toLowerCase() === 'yes');
+      const noToken = rawMarketData.tokens?.find((t: any) => t.outcome?.toLowerCase() === 'no');
       if (yesToken && yesToken.token_id) {
         yesTokenId = yesToken.token_id;
-        console.log(`[LiveMarketService] CLOB market ${marketId}: Found YES token ID ${yesTokenId} via tokens array.`);
+      }
+      if (noToken && noToken.token_id) {
+        noTokenId = noToken.token_id;
+      }
+       if(yesTokenId && noTokenId) {
+          console.log(`[LiveMarketService] CLOB market ${marketId}: Found YES token ID ${yesTokenId} and NO token ID ${noTokenId} via tokens array.`);
       } else {
-         console.warn(`[LiveMarketService] CLOB market ${marketId}: Could not find YES token_id in tokens array. Tokens:`, rawMarketData.tokens);
+         console.warn(`[LiveMarketService] CLOB market ${marketId}: Could not find both YES and NO token_ids in tokens array. YES: ${!!yesTokenId}, NO: ${!!noTokenId}. Tokens:`, rawMarketData.tokens);
       }
     }
 
-    if (!yesTokenId) {
-      console.warn(`[LiveMarketService] Could not determine YES token_id for market ${marketId}. Source: ${source}. Skipping price fetch.`);
+    if (!yesTokenId || !noTokenId) {
+      console.warn(`[LiveMarketService] Could not determine both YES and NO token_ids for market ${marketId}. YES: ${yesTokenId}, NO: ${noTokenId}. Source: ${source}. Skipping price fetch.`);
       return null;
     }
 
     let yesPriceNum: number;
+    let noPriceNum: number;
+
     try {
-      const priceResponse = await this.clobClient.getPrice(yesTokenId, "buy");
-      if (!priceResponse || typeof priceResponse.price !== 'string') {
-        console.warn(`[LiveMarketService] Invalid price response for YES token ${yesTokenId} (Market ID: ${marketId}):`, priceResponse);
+      const [yesPriceResponse, noPriceResponse] = await Promise.all([
+        this.clobClient.getPrice(yesTokenId, "buy"), // Cost to buy YES shares
+        this.clobClient.getPrice(noTokenId, "buy")   // Cost to buy NO shares
+      ]);
+
+      if (!yesPriceResponse || typeof yesPriceResponse.price !== 'string') {
+        console.warn(`[LiveMarketService] Invalid price response for YES token ${yesTokenId} (Market ID: ${marketId}):`, yesPriceResponse);
         return null;
       }
-      yesPriceNum = parseFloat(priceResponse.price);
+      if (!noPriceResponse || typeof noPriceResponse.price !== 'string') {
+        console.warn(`[LiveMarketService] Invalid price response for NO token ${noTokenId} (Market ID: ${marketId}):`, noPriceResponse);
+        return null;
+      }
+
+      yesPriceNum = parseFloat(yesPriceResponse.price);
+      noPriceNum = parseFloat(noPriceResponse.price);
+
       if (isNaN(yesPriceNum)) {
-        console.warn(`[LiveMarketService] Parsed price is NaN for YES token ${yesTokenId}, market ${marketId}. Original: ${priceResponse.price}`);
+        console.warn(`[LiveMarketService] Parsed YES price is NaN for token ${yesTokenId}, market ${marketId}. Original: ${yesPriceResponse.price}`);
         return null;
       }
+      if (isNaN(noPriceNum)) {
+        console.warn(`[LiveMarketService] Parsed NO price is NaN for token ${noTokenId}, market ${marketId}. Original: ${noPriceResponse.price}`);
+        return null;
+      }
+      
       yesPriceNum = Math.max(0.01, Math.min(0.99, yesPriceNum));
+      noPriceNum = Math.max(0.01, Math.min(0.99, noPriceNum));
+
     } catch (error) {
-      console.error(`[LiveMarketService] Error fetching price for YES token ${yesTokenId} (market ${marketId}):`, error);
+      console.error(`[LiveMarketService] Error fetching prices for tokens (YES: ${yesTokenId}, NO: ${noTokenId}) for market ${marketId}:`, error);
       return null;
     }
 
-    const noPriceNum = 1 - yesPriceNum;
     const endsAtDate = rawMarketData.end_date_iso || rawMarketData.endDate ? new Date(rawMarketData.end_date_iso || rawMarketData.endDate) : undefined;
 
     return {
@@ -226,47 +260,50 @@ export class LiveMarketService {
     const highVolumeGamma = await this.fetchGammaMarkets(limit * 2, { volume_num_min: 50000 });
     rawMarketCandidates.push(...highVolumeGamma.map(m => ({ rawMarket: m, source: 'gamma' as 'gamma' })));
     console.log(`[LiveMarketService] Found ${highVolumeGamma.length} raw high-volume markets from Gamma.`);
+    
+    let uniqueCandidates = this.deduplicateRawMarketCandidates(rawMarketCandidates);
+    let validRawCandidates = uniqueCandidates.filter(candidate => this.isValidMarket(candidate.rawMarket));
+    console.log(`[LiveMarketService] After high-volume Gamma and dedupe/validation: ${validRawCandidates.length} candidates.`);
 
-    let uniqueFilteredCandidates = this.deduplicateRawMarketCandidates(rawMarketCandidates)
-                                     .filter(candidate => this.isValidMarket(candidate.rawMarket));
-
-    if (uniqueFilteredCandidates.length < limit) {
-      const neededMoreMedium = (limit - uniqueFilteredCandidates.length) * 2;
+    if (validRawCandidates.length < limit) {
+      const neededMoreMedium = (limit - validRawCandidates.length) * 2;
       if (neededMoreMedium > 0) {
-        console.log(`[LiveMarketService] Fetching medium-volume markets from Gamma (10k <= volume < 50k), need candidates for ${limit - uniqueFilteredCandidates.length}...`);
+        console.log(`[LiveMarketService] Fetching medium-volume markets from Gamma (10k <= volume < 50k), need candidates for up to ${limit - validRawCandidates.length} priced markets...`);
         const mediumVolumeGamma = await this.fetchGammaMarkets(neededMoreMedium, { volume_num_min: 10000, volume_num_max: 49999 });
         rawMarketCandidates.push(...mediumVolumeGamma.map(m => ({ rawMarket: m, source: 'gamma' as 'gamma' })));
         console.log(`[LiveMarketService] Found ${mediumVolumeGamma.length} raw medium-volume markets from Gamma.`);
-        uniqueFilteredCandidates = this.deduplicateRawMarketCandidates(rawMarketCandidates)
-                                       .filter(candidate => this.isValidMarket(candidate.rawMarket));
+        uniqueCandidates = this.deduplicateRawMarketCandidates(rawMarketCandidates);
+        validRawCandidates = uniqueCandidates.filter(candidate => this.isValidMarket(candidate.rawMarket));
+        console.log(`[LiveMarketService] After medium-volume Gamma and dedupe/validation: ${validRawCandidates.length} candidates.`);
       }
     }
 
-    if (uniqueFilteredCandidates.length < limit) {
-      const neededMoreSampling = (limit - uniqueFilteredCandidates.length) * 2;
+    if (validRawCandidates.length < limit) {
+      const neededMoreSampling = (limit - validRawCandidates.length) * 2;
       if (neededMoreSampling > 0) {
-        console.log(`[LiveMarketService] Fetching sampling markets from CLOB, need candidates for ${limit - uniqueFilteredCandidates.length}...`);
+        console.log(`[LiveMarketService] Fetching sampling markets from CLOB, need candidates for up to ${limit - validRawCandidates.length} priced markets...`);
         try {
           const samplingResponse = await this.clobClient.getSamplingMarkets("");
           const samplingMarkets = samplingResponse?.data || [];
           rawMarketCandidates.push(...samplingMarkets.map((m: any) => ({ rawMarket: m, source: 'clob' as 'clob' })));
           console.log(`[LiveMarketService] Found ${samplingMarkets.length} raw sampling markets from CLOB.`);
-          uniqueFilteredCandidates = this.deduplicateRawMarketCandidates(rawMarketCandidates)
-                                         .filter(candidate => this.isValidMarket(candidate.rawMarket));
+          uniqueCandidates = this.deduplicateRawMarketCandidates(rawMarketCandidates);
+          validRawCandidates = uniqueCandidates.filter(candidate => this.isValidMarket(candidate.rawMarket));
+          console.log(`[LiveMarketService] After CLOB sampling and dedupe/validation: ${validRawCandidates.length} candidates.`);
         } catch (error) {
           console.error("[LiveMarketService] Error fetching sampling markets from CLOB:", error);
         }
       }
     }
     
-    console.log(`[LiveMarketService] Total ${uniqueFilteredCandidates.length} unique and valid raw candidates gathered.`);
+    console.log(`[LiveMarketService] Total ${validRawCandidates.length} unique and valid raw candidates gathered for pricing.`);
 
-    if (uniqueFilteredCandidates.length === 0) {
+    if (validRawCandidates.length === 0) {
       console.warn("[LiveMarketService] ⚠️ No valid markets found after all fetching and filtering attempts.");
       return [];
     }
 
-    const marketsToPrice = uniqueFilteredCandidates.slice(0, limit); // Price only up to the user limit
+    const marketsToPrice = validRawCandidates.slice(0, limit); 
     const pricedMarketsPromises = marketsToPrice.map(candidate =>
       this._fetchAndMapMarketWithAccuratePrice(candidate.rawMarket, candidate.source)
     );
@@ -306,8 +343,19 @@ export class LiveMarketService {
         source = 'clob';
         console.log(`[LiveMarketService] Attempting to find market ${marketId} via CLOB getMarkets() call.`);
         try {
+            // For a single market detail, getMarkets usually needs a condition_id or slug.
+            // The Polymarket API docs show using market_slugs parameter for fetching specific markets by slug.
+            // If marketId is a condition_id, it might not work directly here.
+            // Let's assume marketId could be a slug or condition_id for now.
+            // Prefer using condition_id if available, otherwise try with marketId as slug.
+            const marketConditionId = rawMarketData?.condition_id || marketId; // A bit redundant here as rawMarketData is null
+            
+            // getMarkets may not be the best way to get a single market.
+            // Typically, you'd use getMarket(conditionId) if available or rely on Gamma for single fetch.
+            // If marketId is a slug, this could work.
             const marketsListPayload = await this.clobClient.getMarkets({market_slugs: [marketId]});
-            rawMarketData = marketsListPayload.data.find((m: any) => (m.condition_id || m.id) === marketId);
+            rawMarketData = marketsListPayload.data.find((m: any) => (m.id || m.condition_id) === marketId || m.slug === marketId);
+            
             if (rawMarketData) {
                  console.log(`[LiveMarketService] Found market ${marketId} via CLOB getMarkets().`);
             } else {
