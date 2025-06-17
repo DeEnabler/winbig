@@ -5,10 +5,10 @@ import type { LiveMarket } from '@/types';
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CalendarDays, Tag, ThumbsUp, ThumbsDown, TrendingUp } from 'lucide-react'; // Removed BarChart2
+import { CalendarDays, Tag, ThumbsUp, ThumbsDown, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { formatDistanceToNowStrict, parseISO } from 'date-fns'; // Added parseISO
+import { formatDistanceToNowStrict, parseISO } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { useEntryContext } from '@/contexts/EntryContext';
 import { motion } from 'framer-motion';
@@ -24,28 +24,18 @@ export default function MarketFeedCard({ market }: MarketFeedCardProps) {
   const handleBetNavigation = (choice: 'YES' | 'NO') => {
     const params = new URLSearchParams();
     params.set('predictionId', market.id);
-    // We navigate to the match page; the match page itself will handle if it's a challenge confirmation or a new bet.
-    // For a feed card, it's usually initiating a new bet or challenge.
-    // The MatchPage will use `predictionId` to load details.
-    
-    // It's better to construct the shareable URL with original referrer if this card becomes part of a challenge flow
-    // For now, it's direct navigation based on market.id and choice.
-    const challengeMatchId = `feed_bet_${market.id}_${Date.now()}`; // Create a unique match ID for this interaction
-    
-    // Append choice for the match page to pre-select
-    params.set('choice', choice); 
-    // Optionally, add a referrer if it's part of a "share this feed item" feature later
-    // params.set('referrer', 'feed_user_xyz'); 
-    params.set('confirmChallenge', 'true'); // Indicate user intends to confirm a bet on the next screen
+    const challengeMatchId = `feed_bet_${market.id}_${Date.now()}`;
+    params.set('choice', choice);
+    params.set('confirmChallenge', 'true');
 
     const url = appendEntryParams(`/match/${challengeMatchId}?${params.toString()}`);
     router.push(url);
   };
 
   const endsAtDate = typeof market.endsAt === 'string' ? parseISO(market.endsAt) : market.endsAt;
-  const endsAtTime = endsAtDate ? endsAtDate.getTime() : Date.now() + 2 * 60 * 60 * 1000; 
+  const endsAtTime = endsAtDate ? endsAtDate.getTime() : Date.now() + 2 * 60 * 60 * 1000;
   const timeLeft = formatDistanceToNowStrict(endsAtTime, { addSuffix: true });
-  const isEndingSoon = endsAtTime - Date.now() < 3 * 60 * 60 * 1000; 
+  const isEndingSoon = endsAtTime - Date.now() < 3 * 60 * 60 * 1000;
   const hasEnded = endsAtTime < Date.now();
 
   const oddsYesPercentage = Math.max(1, Math.min(99, Math.round(market.yesPrice * 100)));
@@ -62,9 +52,10 @@ export default function MarketFeedCard({ market }: MarketFeedCardProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        whileHover={{ y: -5, boxShadow: "0px 10px 20px rgba(var(--primary-rgb, 160 32 240), 0.1)"}}
+        whileHover={{ y: -5 }} // Removed custom boxShadow here
     >
-    <Card className="bg-card text-card-foreground rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 ease-out overflow-hidden flex flex-col h-full">
+    {/* Removed max-w-md and mx-auto from Card to allow it to fill grid cell */}
+    <Card className="w-full bg-card text-card-foreground rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 ease-out overflow-hidden flex flex-col h-full">
       {imageUrl && (
         <div className="relative w-full h-36">
           <NextImage
@@ -75,7 +66,7 @@ export default function MarketFeedCard({ market }: MarketFeedCardProps) {
             style={{ objectFit: 'cover' }}
             data-ai-hint={aiHintText}
             className="rounded-t-xl"
-            priority={false} // Non-priority for feed images
+            priority={false}
           />
         </div>
       )}
@@ -99,7 +90,7 @@ export default function MarketFeedCard({ market }: MarketFeedCardProps) {
                 <span className="text-green-600 dark:text-green-400">YES {oddsYesPercentage}% (Win {payoutYes}x)</span>
                 <span className="text-red-600 dark:text-red-400">{oddsNoPercentage}% NO (Win {payoutNo}x)</span>
             </div>
-            <Progress value={oddsYesPercentage} className="h-1.5 rounded-full" 
+            <Progress value={oddsYesPercentage} className="h-1.5 rounded-full"
                 aria-label={`Odds: Yes ${oddsYesPercentage}%, No ${oddsNoPercentage}%`}
             />
         </div>
