@@ -1,4 +1,3 @@
-
 // src/lib/polymarket-sdk/wallet-generator.ts
 import { ethers, Wallet as EthersWallet, providers as EthersProviders } from 'ethers'; // Ensure Wallet is aliased if needed
 import type { WalletInfo, NetworkConfig } from './types';
@@ -13,8 +12,14 @@ export class WalletGenerator {
     if (!this.network) {
       throw new Error(`Unsupported network: ${networkName}`);
     }
-    // Explicitly create new provider instance
-    this.provider = new EthersProviders.JsonRpcProvider(this.network.rpcUrl);
+    // Explicitly create new provider instance with timeout and headers
+    this.provider = new EthersProviders.JsonRpcProvider({
+        url: this.network.rpcUrl,
+        timeout: 30000, // 30 seconds
+        headers: {
+          "User-Agent": "ViralBetApp/1.0" // Example User-Agent
+        }
+      });
     console.log(`WalletGenerator initialized for network: ${this.network.name} with RPC: ${this.network.rpcUrl}`);
   }
 
@@ -64,12 +69,8 @@ export class WalletGenerator {
       return balanceInMatic;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error checking balance';
-      // Log the full error object for more details, especially for network errors
       console.error(`Error checking balance for ${address} on ${this.network.name}: ${errorMessage}`, error);
-      // It's important to rethrow or handle this appropriately if balance check is critical
-      // For now, returning '0' as a fallback to allow other processes to continue if balance isn't strictly needed for them.
-      // However, this error (e.g., "could not detect network") signals a deeper issue.
-      return '0';
+      return '0'; // Fallback to allow other processes to continue
     }
   }
 
