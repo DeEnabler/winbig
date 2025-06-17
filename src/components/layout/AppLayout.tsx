@@ -1,7 +1,7 @@
 
 import type { ReactNode } from 'react';
 import Navbar from './Navbar';
-import HeaderChallenge from './HeaderChallenge'; // Import the new component
+// import HeaderChallenge from './HeaderChallenge'; // Removed: Hero display is now part of page.tsx
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -11,7 +11,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   return (
     <>
       <Navbar />
-      <HeaderChallenge /> {/* Render the HeaderChallenge component here */}
+      {/* <HeaderChallenge /> Removed: Hero display is now part of page.tsx and its specific components */}
       <main className="flex-grow container mx-auto px-3 md:px-4 py-6 md:py-8">
         {children}
       </main>
