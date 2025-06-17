@@ -78,7 +78,7 @@ export default function EarnPage() {
           Bet Smarter. <span className="block md:inline">Earn Passively.</span> Own the Network.
         </h1>
         <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6">
-          Get paid every time your network bets on WinBig. No code. No capital. Just your unique link. This is how you make money in 2025.
+          Betting is fun, easy, and my bets can make me money if I share them.
         </p>
         <div className="flex justify-center">
           {/* ConnectWalletButton already styled with lg size & rounded-xl */}
