@@ -71,7 +71,7 @@ export class LiveMarketService {
         throw new Error("CLOB Client not initialized in getLiveMarkets");
     }
 
-    const internalFetchLimit = Math.max(limit, 50); 
+    const internalFetchLimit = Math.max(limit, 50); // Fetch a larger pool for better filtering
     console.log(`📊 Fetching up to ${internalFetchLimit} raw markets internally. Network: ${this.currentNetwork.name}, Category: ${category || 'All'}. Final user limit: ${limit}`);
     
     const marketDataPayload = await this.clobClient.getMarkets();
@@ -79,38 +79,9 @@ export class LiveMarketService {
     const allRawMarkets = marketDataPayload.data || [];
     console.log(`Raw markets received from API: ${allRawMarkets.length}`);
 
-    // Debugging and Filtering Logic
     const now = new Date();
-    console.log('🔍 DEBUG: Analyzing first 5 markets for filtering...');
-    allRawMarkets.slice(0, 5).forEach((market: any, index: number) => {
-      console.log(`\n📊 Market ${index + 1} (ID: ${market.condition_id || 'N/A'}):`);
-      console.log(`  Question: ${market.question}`);
-      console.log(`  Active: ${market.active} (Type: ${typeof market.active})`);
-      console.log(`  Closed: ${market.closed} (Type: ${typeof market.closed})`);
-      console.log(`  End Date ISO: ${market.end_date_iso}`);
-      
-      let endDate: Date | null = null;
-      let isValidDate = false;
-      let isFutureDated = false;
-
-      if (market.end_date_iso) {
-        endDate = new Date(market.end_date_iso);
-        isValidDate = !isNaN(endDate.getTime());
-        if (isValidDate) {
-            isFutureDated = endDate > now;
-        }
-        console.log(`  Parsed End Date: ${isValidDate ? endDate.toISOString() : 'Invalid Date'}`);
-        console.log(`  Is Valid Date: ${isValidDate}`);
-      } else {
-        console.log(`  ❌ No end_date_iso field!`);
-      }
-      
-      const passesPrimaryFilter = market.active === true && market.closed === false && isValidDate && isFutureDated;
-      console.log(`  Condition (endDate > now): ${isFutureDated}`);
-      console.log(`  Would pass primary filter (active & not closed & future date): ${passesPrimaryFilter}`);
-    });
-    console.log(`\n⏰ Current time for filter comparison: ${now.toISOString()}`);
     
+    // Primary Filter: Active, Not Closed, Ends in the future
     let filteredMarkets = allRawMarkets.filter((market: any) => {
       if (typeof market.active !== 'boolean' || typeof market.closed !== 'boolean') {
         return false;
@@ -124,31 +95,50 @@ export class LiveMarketService {
       }
       return market.active === true && market.closed === false && endDate > now;
     });
-    
-    console.log(`Markets after (active: true && closed: false && future-dated) filtering: ${filteredMarkets.length}`);
+    console.log(`Markets after primary filter (active & !closed & future-dated): ${filteredMarkets.length}`);
 
+    // Fallback Filter: If no markets from primary, try active markets that ended recently
     if (filteredMarkets.length === 0) {
-      console.log('⚠️ No active markets found with primary filter. Trying with relaxed criteria (recently active)...');
+      console.log('⚠️ No markets from primary filter. Applying fallback: active & recently ended (within 7 days).');
       filteredMarkets = allRawMarkets.filter(market => {
-        if (typeof market.active !== 'boolean') return false; // Skip if no active flag
-        // Keep active markets even if closed, if they ended recently
-        if (market.active === true) {
-            if (market.closed === true && market.end_date_iso) {
-                const endDate = new Date(market.end_date_iso);
-                if (isNaN(endDate.getTime())) return false;
-                const daysSinceEnd = (now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24);
-                return daysSinceEnd <= 7; // Ended within last 7 days
-            }
-            // If active and not closed, it's a candidate (future date check already handled if we got here)
-            // For this fallback, we might accept active & !closed even if end_date is slightly passed if we removed strict future check
-            // However, primary filter already handles active & !closed & future.
-            // So this fallback primarily targets active & *closed* but *recent*.
-            return market.closed === false; // This will be redundant if primary filter failed, but good for clarity
+        if (typeof market.active !== 'boolean' || !market.active) { // Must be active
+            return false;
         }
-        return false;
+        if (!market.end_date_iso) { // Must have an end date for this fallback
+            return false;
+        }
+        const endDate = new Date(market.end_date_iso);
+        if (isNaN(endDate.getTime())) {
+            return false;
+        }
+        const daysSinceEnd = (now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24);
+        // Include if active and ended within the last 7 days (closed status doesn't matter here as long as it was active)
+        return daysSinceEnd <= 7 && daysSinceEnd >= 0; // daysSinceEnd >= 0 ensures it's in the past
       });
-      console.log(`Markets after relaxed (recently active or active & !closed) filtering: ${filteredMarkets.length}`);
+      console.log(`Markets after fallback filter (active & recently ended): ${filteredMarkets.length}`);
     }
+    
+    // Debugging: Log first 5 markets that pass any filtering or from raw if none pass
+    const marketsToLog = filteredMarkets.length > 0 ? filteredMarkets : allRawMarkets;
+    console.log('🔍 DEBUG: Analyzing first few markets (either filtered or raw if filter yielded 0)...');
+    marketsToLog.slice(0, 5).forEach((market: any, index: number) => {
+      console.log(`\n📊 Market ${index + 1} (ID: ${market.condition_id || 'N/A'}):`);
+      console.log(`  Question: ${market.question}`);
+      console.log(`  Active: ${market.active} (Type: ${typeof market.active})`);
+      console.log(`  Closed: ${market.closed} (Type: ${typeof market.closed})`);
+      console.log(`  End Date ISO: ${market.end_date_iso}`);
+      if (market.end_date_iso) {
+        const endDate = new Date(market.end_date_iso);
+        console.log(`  Parsed End Date: ${!isNaN(endDate.getTime()) ? endDate.toISOString() : 'Invalid Date'}`);
+        console.log(`  Is Valid Date: ${!isNaN(endDate.getTime())}`);
+        console.log(`  Condition (endDate > now): ${!isNaN(endDate.getTime()) && endDate > now}`);
+      } else {
+        console.log(`  ❌ No end_date_iso field!`);
+      }
+       const passesPrimary = market.active === true && market.closed === false && market.end_date_iso && new Date(market.end_date_iso) > now;
+       console.log(`  Would pass primary filter: ${passesPrimary}`);
+    });
+    console.log(`\n⏰ Current time for filter comparison: ${now.toISOString()}`);
 
 
     let categoryFilteredMarkets = filteredMarkets;

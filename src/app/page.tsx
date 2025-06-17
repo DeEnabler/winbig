@@ -5,8 +5,7 @@
 import { useEffect, useState } from 'react';
 import ChallengeInvite from '@/components/challenges/ChallengeInvite';
 import type { ChallengeInviteProps } from '@/types';
-import { mockOpponentUser, mockPredictions } from '@/lib/mockData'; // For fallback
-import { Skeleton } from '@/components/ui/skeleton'; // For loading state
+import { mockPredictions } from '@/lib/mockData'; // For fallback
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 
@@ -75,7 +74,7 @@ export default function HomePage() {
   }, []);
 
   return (
-    <ErrorBoundary fallback={<p className="text-center text-destructive p-4">Could not load market data. Please try again later.</p>}>
+    <ErrorBoundary fallback={<p className="text-center text-destructive p-4">An error occurred displaying the page. Please try again later.</p>}>
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] py-8">
         {isLoading && (
           <LoadingSpinner message="Fetching live market..." />
