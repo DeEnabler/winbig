@@ -90,7 +90,13 @@ export default function ChallengeInvite({
 
   const [showPlusOneYes, setShowPlusOneYes] = useState(false);
   const [showPlusOneNo, setShowPlusOneNo] = useState(false);
-  const [oddsYes, setOddsYes] = useState(50);
+  
+  // displayedApiOddsYes will hold the percentage for "YES" (e.g., 70 for 70%)
+  // It's initialized from initialYesPrice and will be the source of truth for displayed odds percentages.
+  const [displayedApiOddsYes, setDisplayedApiOddsYes] = useState(() => {
+    return typeof initialYesPrice === 'number' ? Math.max(1, Math.min(99, initialYesPrice * 100)) : 50;
+  });
+
   const [oddsPulse, setOddsPulse] = useState(false);
 
   const [bonusTimeLeft, setBonusTimeLeft] = useState(BONUS_DURATION_SECONDS);
@@ -131,16 +137,16 @@ export default function ChallengeInvite({
     }
   }, [bonusTimeLeft, isBonusOfferActive, bonusSuccessfullyClaimed, showBonusSection]);
 
-
+  // Update displayedApiOddsYes if initialYesPrice prop changes
   useEffect(() => {
-    const calculateOdds = (yes: number, no: number) => {
-      const total = yes + no;
-      return total > 0 ? Math.max(1, Math.min(99, (yes / total) * 100)) : 50; // Clamp between 1% and 99%
-    };
-    setOddsYes(calculateOdds(yesBettors, noBettors));
-  }, [yesBettors, noBettors]);
+    if (typeof initialYesPrice === 'number') {
+      setDisplayedApiOddsYes(Math.max(1, Math.min(99, initialYesPrice * 100)));
+    }
+  }, [initialYesPrice]);
+
 
   // Effect to re-initialize bettors if initialYesPrice changes after mount (e.g., async load)
+  // This only affects the *counts* of bettors for visual display.
   useEffect(() => {
     const newInitialBettors = initializeBettorsFromPrice(initialYesPrice);
     setYesBettors(newInitialBettors.yesBettors);
@@ -148,26 +154,31 @@ export default function ChallengeInvite({
   }, [initialYesPrice]);
 
 
+  // This useEffect handles the "fictional live activity" for bettor counts and pulsing.
+  // It no longer directly drives the displayed odds percentages.
   useEffect(() => {
     const activityInterval = setInterval(() => {
-      const isAddingYes = Math.random() < 0.3; // Reduced frequency of updates
+      let madeChange = false;
+      const isAddingYes = Math.random() < 0.3; 
       const isAddingNo = Math.random() < 0.25;
 
       if (isAddingYes) {
         setYesBettors(prev => prev + 1);
         setShowPlusOneYes(true);
         setTimeout(() => setShowPlusOneYes(false), 800);
+        madeChange = true;
       }
       if (isAddingNo) {
         setNoBettors(prev => prev + 1);
         setShowPlusOneNo(true);
         setTimeout(() => setShowPlusOneNo(false), 800);
+        madeChange = true;
       }
-      if (isAddingYes || isAddingNo) {
+      if (madeChange) { // Only pulse if bettor counts actually changed
         setOddsPulse(true);
         setTimeout(() => setOddsPulse(false), 700);
       }
-    }, 3500 + Math.random() * 2500); // Slower updates
+    }, 3500 + Math.random() * 2500); 
     return () => clearInterval(activityInterval);
   }, []);
 
@@ -272,7 +283,7 @@ export default function ChallengeInvite({
       const cleanReferrerName = referrerName.replace(/^👑\s*@/, '@');
       if (referrerStats.winStreak > 7) {
         message = `🔥 @${cleanReferrerName} is on a ${referrerStats.winStreak}W tear. Think you can break it?`;
-      } else if (referrerStats.winStreak >= 3) { // Changed from > 3 to >=3 to match display logic
+      } else if (referrerStats.winStreak >= 3) { 
         message = `They're on a ${referrerStats.winStreak}W streak. Feeling lucky?`;
       } else if (referrerStats.predictionRank && (referrerStats.predictionRank.includes("Top") || referrerStats.predictionRank.includes("#"))) {
         message = `${cleanReferrerName} is ${referrerStats.predictionRank}. Challenge the champ?`;
@@ -384,7 +395,7 @@ export default function ChallengeInvite({
             >
               <p className="text-xs text-muted-foreground">Current Odds:</p>
               <p className="text-base md:text-lg font-semibold">
-                <span className="text-green-500">YES {oddsYes.toFixed(0)}%</span> / <span className="text-red-500">NO {(100 - oddsYes).toFixed(0)}%</span>
+                <span className="text-green-500">YES {displayedApiOddsYes.toFixed(0)}%</span> / <span className="text-red-500">NO {(100 - displayedApiOddsYes).toFixed(0)}%</span>
               </p>
             </div>
           </div>
@@ -463,3 +474,4 @@ export default function ChallengeInvite({
     </>
   );
 }
+
