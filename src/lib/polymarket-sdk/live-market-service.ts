@@ -1,9 +1,10 @@
+
 // src/lib/polymarket-sdk/live-market-service.ts
 import { ClobClient } from '@polymarket/clob-client';
 import { Wallet, providers as EthersProviders } from 'ethers'; // Using ethers v5
 import type { AuthResult, EphemeralCredentialManagerInterface, LiveMarket, NetworkConfig } from './types';
 import { NETWORKS } from './types';
-import fetch from 'node-fetch'; // Ensure node-fetch is available for direct HTTP calls if running in Node.js for API routes
+import fetch from 'node-fetch';
 
 export class LiveMarketService {
   private clobClient: ClobClient | null = null;
@@ -29,17 +30,17 @@ export class LiveMarketService {
     let authResult: AuthResult;
 
     if (this.credentialManager) {
-      console.log(`🚀 Using EphemeralCredentialManager to get/refresh credentials for network: ${this.currentNetwork.name}`);
+      console.log(`[LiveMarketService] Using EphemeralCredentialManager for network: ${this.currentNetwork.name}`);
       authResult = await this.credentialManager.getCredentials(this.currentNetwork.name === NETWORKS.polygon.name ? 'polygon' : 'amoy');
     } else {
-      console.warn('🤔 No EphemeralCredentialManager provided. Generating new credentials directly (less efficient).');
-      authResult = this.currentNetwork.name === NETWORKS.polygon.name 
+      console.warn('[LiveMarketService] No EphemeralCredentialManager. Generating new credentials directly.');
+      authResult = this.currentNetwork.name === NETWORKS.polygon.name
         ? await import('./generate-wallet-and-keys').then(mod => mod.generateMainnetWalletAndKeys())
         : await import('./generate-wallet-and-keys').then(mod => mod.generateTestnetWalletAndKeys());
     }
 
     if (!authResult.success || !authResult.wallet || !authResult.credentials) {
-      throw new Error(`❌ Failed to generate/retrieve wallet and credentials. Error: ${authResult.error}`);
+      throw new Error(`[LiveMarketService] Failed to get credentials. Error: ${authResult.error}`);
     }
 
     const provider = new EthersProviders.JsonRpcProvider({
@@ -59,187 +60,230 @@ export class LiveMarketService {
         passphrase: authResult.credentials.passphrase,
       }
     );
-    console.log(`✅ New authenticated CLOB client created successfully for ${this.currentNetwork.name}.`);
+    console.log(`[LiveMarketService] Authenticated CLOB client created for ${this.currentNetwork.name}.`);
   }
 
   private deduplicateMarkets(markets: any[]): any[] {
     const seen = new Set();
     return markets.filter(market => {
-      const id = market.condition_id || market.id; // CLOB uses condition_id, Gamma uses id
-      if (seen.has(id) || !id) return false;
+      const id = market.condition_id || market.conditionId || market.id; // CLOB uses condition_id or conditionId, Gamma uses id
+      if (!id || seen.has(id)) return false;
       seen.add(id);
       return true;
     });
   }
 
-  private mapMarketToLiveMarket(market: any, source: 'clob' | 'gamma'): LiveMarket {
+  private isValidMarket(market: any, source: 'clob' | 'gamma'): boolean {
+    if (!market || typeof market !== 'object') return false;
+    if (market.active !== true || market.closed !== false) {
+        return false;
+    }
+    const endDateIso = source === 'gamma' ? market.endDate : market.end_date_iso;
+    if (!endDateIso) return false;
+
+    try {
+        const endDate = new Date(endDateIso);
+        if (isNaN(endDate.getTime())) return false;
+        return endDate > new Date(); // Must be in the future
+    } catch (e) {
+        return false;
+    }
+  }
+
+  private mapMarketToLiveMarket(market: any, source: 'clob' | 'gamma'): LiveMarket | null {
+    if (!market) return null;
     const now = new Date();
     let yesPrice = 0.50;
     let noPrice = 0.50;
+    let marketId = source === 'gamma' ? market.id : (market.condition_id || market.conditionId);
 
-    if (source === 'gamma' && market.outcomes && market.outcomes.length >= 2) {
+    if (!marketId) return null; // Cannot map without an ID
+
+    if (source === 'gamma' && market.outcomes && Array.isArray(market.outcomes) && market.outcomes.length >= 2) {
         const yesOutcome = market.outcomes.find((o: any) => o.name?.toLowerCase() === 'yes');
         const noOutcome = market.outcomes.find((o: any) => o.name?.toLowerCase() === 'no');
         if (yesOutcome && typeof yesOutcome.price === 'number') yesPrice = yesOutcome.price;
         if (noOutcome && typeof noOutcome.price === 'number') noPrice = noOutcome.price;
-        // Ensure prices sum to 1 if possible, or adjust if only one is valid
-        if (yesOutcome && !noOutcome) noPrice = 1 - yesPrice;
-        else if (!yesOutcome && noOutcome) yesPrice = 1 - noPrice;
+
+        if (yesOutcome && typeof yesOutcome.price === 'number' && !(noOutcome && typeof noOutcome.price === 'number')) noPrice = 1 - yesPrice;
+        else if (!(yesOutcome && typeof yesOutcome.price === 'number') && noOutcome && typeof noOutcome.price === 'number') yesPrice = 1 - noPrice;
+
+    } else if (source === 'clob' && market.price_yes !== undefined && market.price_no !== undefined) {
+        // Assuming sampling markets might sometimes provide direct prices (optimistic)
+        yesPrice = parseFloat(market.price_yes);
+        noPrice = parseFloat(market.price_no);
     }
-    // For CLOB sampling markets, price info might not be directly in the list object.
-    // It often requires a separate order book fetch per market, which is too slow for a list.
-    // So, we'll use placeholders for CLOB if detailed price isn't readily available.
+
+
+    const endDateIso = source === 'gamma' ? market.endDate : market.end_date_iso;
+    let endsAtDate;
+    try {
+        if (endDateIso) endsAtDate = new Date(endDateIso);
+    } catch (e) { /* ignore invalid date */ }
+
 
     return {
-      id: source === 'gamma' ? market.id : market.condition_id,
-      question: market.question,
+      id: marketId,
+      question: market.question || "N/A",
       yesPrice: parseFloat(Math.max(0.01, Math.min(0.99, yesPrice)).toFixed(2)),
-      noPrice: parseFloat(Math.max(0.01, Math.min(0.99, noPrice)).toFixed(2)),
+      noPrice: parseFloat(Math.max(0.01, Math.min(0.99, 1 - yesPrice)).toFixed(2)), // Ensure noPrice is derived if only yesPrice is good
       category: market.category || "General",
-      endsAt: market.endDate ? new Date(market.endDate) : (market.end_date_iso ? new Date(market.end_date_iso) : undefined),
+      endsAt: endsAtDate,
     };
   }
 
-  async getLiveMarkets(limit: number = 20, category?: string): Promise<LiveMarket[]> {
-    await this.ensureAuthenticatedClient();
-    if (!this.clobClient) {
-        throw new Error("CLOB Client not initialized in getLiveMarkets");
+  private async fetchGammaMarkets(limit: number, volumeParams?: { volume_num_min?: number, volume_num_max?: number }): Promise<any[]> {
+    const params = new URLSearchParams({
+      active: 'true',
+      closed: 'false',
+      limit: limit.toString(),
+      order_by: 'volume', // Corrected from 'order'
+      sort_by: 'desc',   // Corrected from 'ascending'
+      end_date_min: new Date().toISOString(),
+    });
+
+    if (volumeParams?.volume_num_min !== undefined) {
+      params.set('volume_num_min', volumeParams.volume_num_min.toString());
+    }
+    if (volumeParams?.volume_num_max !== undefined) {
+      params.set('volume_num_max', volumeParams.volume_num_max.toString());
     }
 
-    console.log(`📊 Fetching live markets. Network: ${this.currentNetwork.name}, Category: ${category || 'All'}. Target limit: ${limit}`);
-    
-    let finalMarkets: any[] = [];
-    const now = new Date();
-
+    const gammaUrl = `https://gamma-api.polymarket.com/markets?${params.toString()}`;
+    console.log(`[LiveMarketService] Fetching from Gamma API: ${gammaUrl}`);
     try {
-      console.log("Attempting to fetch from clobClient.getSamplingMarkets...");
-      const samplingResponse = await this.clobClient.getSamplingMarkets(""); // Empty string for all categories/types
-      let samplingMarkets = (samplingResponse?.data || []).filter((market: any) => 
-        market.active === true && market.closed === false && market.end_date_iso && new Date(market.end_date_iso) > now
-      );
-      console.log(`Received ${samplingResponse?.data?.length || 0} markets from getSamplingMarkets, ${samplingMarkets.length} are active & open & future-dated.`);
-      finalMarkets.push(...samplingMarkets.map(m => ({...m, _source: 'clob'})));
-
+      const response = await fetch(gammaUrl, { headers: {"User-Agent": "ViralBetApp/1.0"} });
+      if (!response.ok) {
+        console.error(`[LiveMarketService] Gamma API request failed (${response.status}): ${await response.text()}`);
+        return [];
+      }
+      const data = await response.json();
+      return Array.isArray(data) ? data : (data.data || []); // Gamma might return {data: []} or just []
     } catch (error) {
-      console.error("Error fetching from clobClient.getSamplingMarkets:", error);
-      // Proceed to Gamma API if sampling markets fail or return too few
+      console.error(`[LiveMarketService] Error fetching from Gamma API:`, error);
+      return [];
     }
+  }
 
-    if (finalMarkets.length < limit) {
-      console.log(`Sampling markets count (${finalMarkets.length}) is less than limit (${limit}). Fetching from Gamma API.`);
-      const gammaLimit = limit - finalMarkets.length; // Fetch remaining needed
-      const gammaParams = new URLSearchParams({
-        active: 'true',
-        closed: 'false',
-        limit: gammaLimit.toString(),
-        order_by: 'volume', // Corrected from 'order'
-        sort_by: 'desc', // Corrected from 'ascending'
-        // end_date_min: now.toISOString(), // Ensure markets haven't ended
-        // category: category || '', // Add category if provided
-      });
-      // Remove empty category param
-      if(category) gammaParams.set('category', category); else gammaParams.delete('category');
-      if(!gammaParams.get('category')) gammaParams.delete('category');
+  async getLiveMarkets(limit: number = 10): Promise<LiveMarket[]> {
+    await this.ensureAuthenticatedClient();
+    if (!this.clobClient) throw new Error("[LiveMarketService] CLOB Client not initialized.");
 
+    let combinedMarkets: any[] = [];
+    let marketsFromSource: LiveMarket[] = [];
 
-      const gammaUrl = `https://gamma-api.polymarket.com/markets?${gammaParams.toString()}`;
-      console.log("Fetching from Gamma API URL:", gammaUrl);
+    console.log(`[LiveMarketService] Starting market fetch. Desired limit: ${limit}`);
 
-      try {
-        const gammaResponse = await fetch(gammaUrl);
-        if (!gammaResponse.ok) {
-            const errorText = await gammaResponse.text();
-            console.error(`Gamma API request failed with status ${gammaResponse.status}: ${errorText}`);
-            // Don't throw, just proceed with what we have
-        } else {
-            const gammaApiMarkets = await gammaResponse.json(); // This is typically an array directly
-            console.log(`Received ${gammaApiMarkets?.length || 0} markets from Gamma API.`);
-            // Gamma markets are already filtered by active, closed, and end_date_min by the API query (if supported by Gamma)
-            // Additional client-side filter for safety/consistency if end_date_min isn't fully reliable from Gamma
-            const filteredGammaMarkets = (gammaApiMarkets || []).filter((market: any) => 
-                market.active === true && market.closed === false && market.endDate && new Date(market.endDate) > now
-            );
-            console.log(`Filtered ${filteredGammaMarkets.length} markets from Gamma API response.`);
-            finalMarkets.push(...filteredGammaMarkets.map(m => ({...m, _source: 'gamma'})));
-        }
-      } catch (error) {
-        console.error("Error fetching from Gamma API:", error);
-        // Proceed with any markets we might have from sampling
+    // 1. High-volume markets from Gamma
+    console.log("[LiveMarketService] Fetching high-volume markets from Gamma (volume >= 50000)...");
+    let highVolumeGamma = await this.fetchGammaMarkets(limit * 2, { volume_num_min: 50000 });
+    highVolumeGamma = highVolumeGamma.filter(market => this.isValidMarket(market, 'gamma'));
+    combinedMarkets.push(...highVolumeGamma.map(m => ({ ...m, _source: 'gamma' })));
+    console.log(`[LiveMarketService] Found ${highVolumeGamma.length} valid high-volume markets from Gamma.`);
+
+    // 2. Medium-volume markets from Gamma (if needed)
+    if (this.deduplicateMarkets(combinedMarkets).length < limit) {
+      const needed = limit - this.deduplicateMarkets(combinedMarkets).length;
+      if (needed > 0) {
+        console.log(`[LiveMarketService] Fetching medium-volume markets from Gamma (10k <= volume < 50k), need ${needed}...`);
+        let mediumVolumeGamma = await this.fetchGammaMarkets(needed * 2, { volume_num_min: 10000, volume_num_max: 49999 });
+        mediumVolumeGamma = mediumVolumeGamma.filter(market => this.isValidMarket(market, 'gamma'));
+        combinedMarkets.push(...mediumVolumeGamma.map(m => ({ ...m, _source: 'gamma' })));
+        console.log(`[LiveMarketService] Found ${mediumVolumeGamma.length} valid medium-volume markets from Gamma.`);
       }
     }
 
-    const deduplicatedRawMarkets = this.deduplicateMarkets(finalMarkets);
-    console.log(`Total deduplicated markets before mapping: ${deduplicatedRawMarkets.length}`);
-
-    const liveMarketsResult: LiveMarket[] = deduplicatedRawMarkets
-      .map(market => this.mapMarketToLiveMarket(market, market._source))
-      .slice(0, limit);
-    
-    console.log(`✅ Mapped and sliced ${liveMarketsResult.length} final markets.`);
-    if(liveMarketsResult.length === 0){
-      console.warn("⚠️ No live markets found after all fetching and filtering attempts.");
+    // 3. Sampling markets from CLOB (as last resort if still needed)
+    if (this.deduplicateMarkets(combinedMarkets).length < limit) {
+        const needed = limit - this.deduplicateMarkets(combinedMarkets).length;
+        if (needed > 0) {
+            console.log(`[LiveMarketService] Fetching sampling markets from CLOB, need ${needed}...`);
+            try {
+                const samplingResponse = await this.clobClient.getSamplingMarkets("");
+                let samplingMarkets = (samplingResponse?.data || []).filter((market: any) => this.isValidMarket(market, 'clob'));
+                combinedMarkets.push(...samplingMarkets.map(m => ({...m, _source: 'clob'})));
+                console.log(`[LiveMarketService] Found ${samplingMarkets.length} valid sampling markets from CLOB.`);
+            } catch (error) {
+                console.error("[LiveMarketService] Error fetching sampling markets from CLOB:", error);
+            }
+        }
     }
-    return liveMarketsResult;
+    
+    const deduplicatedRawMarkets = this.deduplicateMarkets(combinedMarkets);
+    console.log(`[LiveMarketService] Total ${deduplicatedRawMarkets.length} unique valid markets gathered before final mapping.`);
+
+    marketsFromSource = deduplicatedRawMarkets
+        .map(market => this.mapMarketToLiveMarket(market, market._source))
+        .filter(market => market !== null) as LiveMarket[];
+
+    const finalResult = marketsFromSource.slice(0, limit);
+    console.log(`[LiveMarketService] Returning ${finalResult.length} markets to API route.`);
+    if(finalResult.length === 0) {
+        console.warn("[LiveMarketService] ⚠️ No live markets found after all fetching and filtering attempts.");
+    }
+    return finalResult;
   }
 
   async getMarketDetails(marketId: string): Promise<LiveMarket | null> {
     await this.ensureAuthenticatedClient();
     if (!this.clobClient) {
-        throw new Error("CLOB Client not initialized in getMarketDetails");
+        throw new Error("[LiveMarketService] CLOB Client not initialized in getMarketDetails");
     }
 
-    console.log(`🔍 Fetching details for market ID (conditionId): ${marketId} on ${this.currentNetwork.name}`);
+    console.log(`[LiveMarketService] Fetching details for market ID (conditionId): ${marketId} on ${this.currentNetwork.name}`);
     
-    // Try Gamma API first for richer details if available
     try {
         const gammaUrl = `https://gamma-api.polymarket.com/markets/${marketId}`;
         const gammaResponse = await fetch(gammaUrl);
         if (gammaResponse.ok) {
             const marketData = await gammaResponse.json();
             if (marketData) {
-                return this.mapMarketToLiveMarket(marketData, 'gamma');
+                const mapped = this.mapMarketToLiveMarket(marketData, 'gamma');
+                if (mapped) return mapped;
             }
         }
     } catch (e) {
-        console.warn("Failed to fetch market details from Gamma API, falling back to CLOB order book.", e);
+        console.warn("[LiveMarketService] Failed to fetch market details from Gamma API, falling back to CLOB order book.", e);
     }
 
-    // Fallback to CLOB order book
-    const orderbook = await this.clobClient.getOrderBook(marketId);
-    
-    if (!orderbook || !orderbook.bids || !orderbook.asks) {
-        console.warn(`❓ No orderbook data found for market ${marketId} via CLOB.`);
-        // Optionally fetch general market info if orderbook fails
-        const marketsListPayload = await this.clobClient.getMarkets();
-        const marketInfo = marketsListPayload.data.find((m: any) => m.condition_id === marketId);
+    try {
+        const orderbook = await this.clobClient.getOrderBook(marketId);
+        if (!orderbook || !orderbook.bids || !orderbook.asks) {
+            console.warn(`[LiveMarketService] No orderbook data found for market ${marketId} via CLOB.`);
+            const marketsListPayload = await this.clobClient.getMarkets();
+            const marketInfo = marketsListPayload.data.find((m: any) => (m.condition_id || m.conditionId) === marketId);
+            return marketInfo ? this.mapMarketToLiveMarket(marketInfo, 'clob') : null;
+        }
+
+        const bestBid = orderbook.bids[0] ? parseFloat(orderbook.bids[0].price) : null;
+        const bestAsk = orderbook.asks[0] ? parseFloat(orderbook.asks[0].price) : null;
+
+        let yesPrice = 0.5;
+        if (bestBid !== null && bestAsk !== null) {
+            yesPrice = (bestBid + bestAsk) / 2;
+        } else if (bestBid !== null) {
+            yesPrice = bestBid;
+        } else if (bestAsk !== null) {
+            yesPrice = bestAsk;
+        }
+        yesPrice = Math.max(0.01, Math.min(0.99, yesPrice));
+
+        const marketsListPayload = await this.clobClient.getMarkets(); 
+        const marketInfo = marketsListPayload.data.find((m: any) => (m.condition_id || m.conditionId) === marketId);
+
         if (!marketInfo) return null;
-        return this.mapMarketToLiveMarket(marketInfo, 'clob'); // map with placeholder prices
+
+        return {
+            id: marketId,
+            question: marketInfo.question || 'Question not found',
+            yesPrice: parseFloat(yesPrice.toFixed(2)),
+            noPrice: parseFloat((1 - yesPrice).toFixed(2)),
+            category: marketInfo.category || "General",
+            endsAt: marketInfo.end_date_iso ? new Date(marketInfo.end_date_iso) : undefined,
+        };
+    } catch (error) {
+        console.error(`[LiveMarketService] Error fetching CLOB market details for ${marketId}:`, error);
+        return null;
     }
-
-    const bestBid = orderbook.bids[0] ? parseFloat(orderbook.bids[0].price) : null;
-    const bestAsk = orderbook.asks[0] ? parseFloat(orderbook.asks[0].price) : null;
-
-    let yesPrice = 0.5;
-    if (bestBid !== null && bestAsk !== null) {
-        yesPrice = (bestBid + bestAsk) / 2;
-    } else if (bestBid !== null) {
-        yesPrice = bestBid;
-    } else if (bestAsk !== null) {
-        yesPrice = bestAsk;
-    }
-    yesPrice = Math.max(0.01, Math.min(0.99, yesPrice));
-
-    // Fetch general market info for question, category, endsAt for CLOB path
-    const marketsListPayload = await this.clobClient.getMarkets(); // Potentially inefficient
-    const marketInfo = marketsListPayload.data.find((m: any) => m.condition_id === marketId);
-
-    return {
-      id: marketId,
-      question: marketInfo ? marketInfo.question : 'Question not found for this ID',
-      yesPrice: parseFloat(yesPrice.toFixed(2)),
-      noPrice: parseFloat((1 - yesPrice).toFixed(2)),
-      category: marketInfo ? marketInfo.category : "General",
-      endsAt: marketInfo && marketInfo.end_date_iso ? new Date(marketInfo.end_date_iso) : undefined,
-    };
   }
 }
