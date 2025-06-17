@@ -1,11 +1,4 @@
 // src/components/homepage/HeroSection.tsx
-import HeroBetDisplay from './HeroBetDisplay';
-
-export default function HeroSection() {
-  return (
-    <section className="w-full -mx-3 md:-mx-4 bg-gradient-to-b from-primary/5 via-background to-background dark:from-primary/10 md:rounded-b-xl md:shadow-lg">
-      {/* The HeroBetDisplay component will be contained by its own internal max-width for the card content */}
-      <HeroBetDisplay />
-    </section>
-  );
-}
+// This file is no longer needed as HeroBetDisplay is moved to /challenge page
+// and the homepage structure is simplified.
+// Leaving content empty to signify its removal or it can be deleted.

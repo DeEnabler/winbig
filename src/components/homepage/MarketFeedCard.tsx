@@ -5,10 +5,10 @@ import type { LiveMarket } from '@/types';
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart2, CalendarDays, TrendingUp, Tag, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { CalendarDays, Tag, ThumbsUp, ThumbsDown, TrendingUp } from 'lucide-react'; // Removed BarChart2
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { formatDistanceToNowStrict } from 'date-fns';
+import { formatDistanceToNowStrict, parseISO } from 'date-fns'; // Added parseISO
 import { useRouter } from 'next/navigation';
 import { useEntryContext } from '@/contexts/EntryContext';
 import { motion } from 'framer-motion';
@@ -24,45 +24,58 @@ export default function MarketFeedCard({ market }: MarketFeedCardProps) {
   const handleBetNavigation = (choice: 'YES' | 'NO') => {
     const params = new URLSearchParams();
     params.set('predictionId', market.id);
-    params.set('choice', choice);
-    // For feed cards, we generally don't pre-fill challenge details unless a specific flow demands it
-    // params.set('confirmChallenge', 'true'); // This would imply direct bet confirmation intent
+    // We navigate to the match page; the match page itself will handle if it's a challenge confirmation or a new bet.
+    // For a feed card, it's usually initiating a new bet or challenge.
+    // The MatchPage will use `predictionId` to load details.
     
-    const url = appendEntryParams(`/match/feed_bet_${market.id}?${params.toString()}`);
+    // It's better to construct the shareable URL with original referrer if this card becomes part of a challenge flow
+    // For now, it's direct navigation based on market.id and choice.
+    const challengeMatchId = `feed_bet_${market.id}_${Date.now()}`; // Create a unique match ID for this interaction
+    
+    // Append choice for the match page to pre-select
+    params.set('choice', choice); 
+    // Optionally, add a referrer if it's part of a "share this feed item" feature later
+    // params.set('referrer', 'feed_user_xyz'); 
+    params.set('confirmChallenge', 'true'); // Indicate user intends to confirm a bet on the next screen
+
+    const url = appendEntryParams(`/match/${challengeMatchId}?${params.toString()}`);
     router.push(url);
   };
 
-  const endsAtTime = market.endsAt ? market.endsAt.getTime() : Date.now() + 2 * 60 * 60 * 1000; // Default 2 hours if no endsAt
+  const endsAtDate = typeof market.endsAt === 'string' ? parseISO(market.endsAt) : market.endsAt;
+  const endsAtTime = endsAtDate ? endsAtDate.getTime() : Date.now() + 2 * 60 * 60 * 1000; 
   const timeLeft = formatDistanceToNowStrict(endsAtTime, { addSuffix: true });
-  const isEndingSoon = endsAtTime - Date.now() < 3 * 60 * 60 * 1000; // Less than 3 hours
+  const isEndingSoon = endsAtTime - Date.now() < 3 * 60 * 60 * 1000; 
   const hasEnded = endsAtTime < Date.now();
 
-  const oddsYesPercentage = Math.round(market.yesPrice * 100);
+  const oddsYesPercentage = Math.max(1, Math.min(99, Math.round(market.yesPrice * 100)));
   const oddsNoPercentage = 100 - oddsYesPercentage;
 
-  // Simplified Payout Teaser
-  const payoutYes = market.yesPrice > 0 ? (1 / market.yesPrice).toFixed(1) : 'N/A';
-  const payoutNo = market.noPrice > 0 ? (1 / market.noPrice).toFixed(1) : 'N/A';
+  const payoutYes = market.yesPrice > 0 && market.yesPrice < 1 ? (1 / market.yesPrice).toFixed(1) : 'N/A';
+  const payoutNo = market.noPrice > 0 && market.noPrice < 1 ? (1 / market.noPrice).toFixed(1) : 'N/A';
 
+  const imageUrl = market.imageUrl || `https://placehold.co/600x300.png?text=${encodeURIComponent(market.category || 'Market')}`;
+  const aiHintText = market.aiHint || market.category || "general event";
 
   return (
     <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        whileHover={{ y: -5, boxShadow: "0px 10px 20px rgba(var(--primary-rgb), 0.1)"}} // Use CSS variable for shadow if defined
+        whileHover={{ y: -5, boxShadow: "0px 10px 20px rgba(var(--primary-rgb, 160 32 240), 0.1)"}}
     >
     <Card className="bg-card text-card-foreground rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 ease-out overflow-hidden flex flex-col h-full">
-      {market.imageUrl && (
+      {imageUrl && (
         <div className="relative w-full h-36">
           <NextImage
-            src={market.imageUrl || `https://placehold.co/600x300.png?text=${encodeURIComponent(market.category || 'Market')}`}
+            src={imageUrl}
             alt={market.question}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             style={{ objectFit: 'cover' }}
-            data-ai-hint={market.aiHint || market.category || "general event"}
+            data-ai-hint={aiHintText}
             className="rounded-t-xl"
+            priority={false} // Non-priority for feed images
           />
         </div>
       )}
@@ -94,7 +107,6 @@ export default function MarketFeedCard({ market }: MarketFeedCardProps) {
             <div className="flex items-center animate-pulse">
                  <TrendingUp className="w-3 h-3 mr-1 text-primary" /> <span>Trending</span>
             </div>
-            {/* Optional: Add more badges like bettor count if available in LiveMarket type */}
         </div>
       </CardContent>
       <CardFooter className="p-0 border-t">

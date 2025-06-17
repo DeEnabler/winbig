@@ -11,13 +11,11 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function StickyCtaBanner() {
   const router = useRouter();
-  const { appendEntryParams } = useEntryContext();
+  const { appendEntryParams, source: entrySource } = useEntryContext(); // Renamed source to entrySource
   const { isConnected } = useAccount();
   const { toast } = useToast();
 
-  // Example: Check for a specific entry param to show a bonus version
-  const { source } = useEntryContext();
-  const showBonusCTA = source === 'x_promo'; // Example: show bonus if source is 'x_promo'
+  const showBonusCTA = entrySource === 'x_promo'; 
 
   const handleCTAClick = () => {
     if (!isConnected) {
@@ -28,16 +26,13 @@ export default function StickyCtaBanner() {
             toast({ variant: "destructive", title: "Error", description: "Wallet connection service not available." });
         }
     } else {
-      // If connected, maybe navigate to a special betting page or show a list of boostable markets
-      // For MVP, let's navigate to the earn page if they are already connected.
-      router.push(appendEntryParams('/earn'));
-      toast({ title: "Let's Go!", description: "Check out ways to earn or find a hot market!" });
+      router.push(appendEntryParams('/challenge')); // Navigate to challenge page for a quick bet
+      toast({ title: "Let's Go!", description: "Check out the featured challenge or find more markets!" });
     }
   };
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm p-3 border-t border-border shadow-lg md:hidden z-40">
-      {/* Mobile First Sticky CTA */}
       <Button
         onClick={handleCTAClick}
         size="lg"

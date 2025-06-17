@@ -1,19 +1,19 @@
-
 // src/components/layout/Navbar.tsx
 'use client';
 
 import Link from 'next/link';
-import { Home, Menu, X, Coins, DollarSign, ListChecks } from 'lucide-react'; // Removed Settings2
+import { Home, Menu, X, Coins, DollarSign, ListChecks, ShieldQuestion } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/common/Logo';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { mockCurrentUser } from '@/lib/mockData';
-import ConnectWalletButton from '@/components/wallet/ConnectWallet'; // Using this for consistency with other ConnectWalletButton styling
+import ConnectWalletButton from '@/components/wallet/ConnectWallet'; 
 
 const navItems = [
   { href: '/', label: 'Bet', icon: Home },
+  { href: '/challenge', label: 'Challenge', icon: ShieldQuestion },
   { href: '/positions', label: 'Positions', icon: ListChecks },
   { href: '/earn', label: 'Earn', icon: DollarSign },
 ];
@@ -44,20 +44,19 @@ export default function Navbar() {
                 )}
               >
                 <Link href={item.href}>
-                  <item.icon className="mr-2 h-5 w-5" /> {/* Increased icon size */}
+                  <item.icon className="mr-2 h-5 w-5" />
                   {item.label}
                 </Link>
               </Button>
             ))}
           </nav>
           <div className="hidden md:flex items-center space-x-2 border-l pl-4 ml-2">
-            <Coins className="h-5 w-5 text-yellow-500" /> {/* Kept icon size consistent */}
+            <Coins className="h-5 w-5 text-yellow-500" /> 
             <span className="text-sm font-semibold text-foreground">
               {mockCurrentUser.xp.toLocaleString()} XP
             </span>
           </div>
           <div className="hidden md:block ml-2">
-             {/* ConnectWalletButton here will pick up the lg size and rounded-lg from its own definition */}
             <ConnectWalletButton />
           </div>
 
@@ -89,7 +88,7 @@ export default function Navbar() {
                 )}
               >
                 <Link href={item.href}>
-                  <item.icon className="mr-3 h-5 w-5" /> {/* Consistent icon size */}
+                  <item.icon className="mr-3 h-5 w-5" /> 
                   {item.label}
                 </Link>
               </Button>

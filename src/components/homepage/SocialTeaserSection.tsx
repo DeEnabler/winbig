@@ -11,28 +11,28 @@ const teasers = [
     icon: <Crown className="w-8 h-8 text-yellow-500" />,
     title: "Top 10 Bettors This Week",
     description: "See who's dominating the leaderboards!",
-    link: "/leaderboard", // Assuming a future leaderboard page
+    link: "/leaderboard", 
     color: "bg-yellow-500/10 dark:bg-yellow-500/20",
   },
   {
     icon: <Flame className="w-8 h-8 text-orange-500" />,
     title: "Most Flexed Bets",
     description: "Which predictions are going viral on X?",
-    link: "/#feed-flexed", // Placeholder link
+    link: "/#feed-flexed", 
     color: "bg-orange-500/10 dark:bg-orange-500/20",
   },
   {
     icon: <Swords className="w-8 h-8 text-red-500" />,
     title: "Epic Rivalries",
     description: "Witness head-to-head challenges heating up.",
-    link: "/#feed-rivalries", // Placeholder link
+    link: "/#feed-rivalries", 
     color: "bg-red-500/10 dark:bg-red-500/20",
   },
    {
     icon: <Users className="w-8 h-8 text-blue-500" />,
     title: "Community Picks",
     description: "What is the hive-mind betting on today?",
-    link: "/#feed-community", // Placeholder link
+    link: "/#feed-community", 
     color: "bg-blue-500/10 dark:bg-blue-500/20",
   },
 ];
