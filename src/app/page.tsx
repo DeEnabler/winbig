@@ -1,20 +1,12 @@
-
 // src/app/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import ChallengeInvite from '@/components/challenges/ChallengeInvite';
-import type { LiveMarket } from '@/types'; // Changed from ChallengeInviteProps to LiveMarket
-import { mockPredictions } from '@/lib/mockData'; // For fallback
+import type { LiveMarket } from '@/types';
+import { mockPredictions, mockOpponentUser } from '@/lib/mockData'; // Import mockOpponentUser
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
-
-// PageLiveMarket is now essentially LiveMarket for consistency
-// interface PageLiveMarket {
-//   id: string;
-//   question: string;
-//   yesPrice?: number; // Added to carry over odds
-// }
 
 export default function HomePage() {
   const [market, setMarket] = useState<LiveMarket | null>(null);
@@ -35,16 +27,16 @@ export default function HomePage() {
         const data = await response.json();
 
         if (data.success && data.markets && data.markets.length > 0) {
-          const firstApiMarket = data.markets[0] as LiveMarket; // Cast to LiveMarket
-          setMarket(firstApiMarket); // This will now include yesPrice and noPrice
+          const firstApiMarket = data.markets[0] as LiveMarket;
+          setMarket(firstApiMarket);
         } else if (data.success && data.markets && data.markets.length === 0) {
           setError('No live markets available at the moment. Displaying a sample prediction.');
           const fallbackMarket: LiveMarket = {
             id: mockPredictions[0].id,
             question: mockPredictions[0].text,
             category: mockPredictions[0].category,
-            yesPrice: 0.5, // Default for mock
-            noPrice: 0.5,  // Default for mock
+            yesPrice: 0.5,
+            noPrice: 0.5,
           };
           setMarket(fallbackMarket);
         } else {
@@ -92,11 +84,12 @@ export default function HomePage() {
         {!isLoading && market && (
           <ChallengeInvite
             matchId={`live_${market.id}`}
-            referrerName="Community Pick"
+            // Use mockOpponentUser.username to display their stats
+            referrerName={error ? "Community Pick" : mockOpponentUser.username}
             predictionQuestion={market.question}
             predictionId={market.id}
-            referrerOriginalChoice='YES' // This could be more dynamic if needed
-            initialYesPrice={market.yesPrice} // Pass the fetched yesPrice
+            referrerOriginalChoice='YES' 
+            initialYesPrice={market.yesPrice}
           />
         )}
         {!isLoading && !market && !error && (
