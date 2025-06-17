@@ -11,6 +11,8 @@ const credentialManager = new EphemeralCredentialManager();
 // Using Polygon Mainnet as per research agent's recommendation for better market data
 const marketService = new LiveMarketService(credentialManager, 'polygon'); 
 
+export const dynamic = 'force-dynamic'; // Ensures the route is not cached
+
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const category = searchParams.get('category') || undefined;
