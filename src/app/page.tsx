@@ -1,3 +1,4 @@
+
 // src/app/page.tsx
 'use client';
 
@@ -6,6 +7,8 @@ import ChallengeInvite from '@/components/challenges/ChallengeInvite';
 import type { ChallengeInviteProps } from '@/types';
 import { mockOpponentUser, mockPredictions } from '@/lib/mockData'; // For fallback
 import { Skeleton } from '@/components/ui/skeleton'; // For loading state
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 
 // Define a simple Market type based on expected API response for this page
 interface PageLiveMarket {
@@ -27,14 +30,13 @@ export default function HomePage() {
       try {
         const response = await fetch('/api/markets/live-odds'); // Fetches default/popular markets
         if (!response.ok) {
-          const errorData = await response.text();
+          const errorData = await response.json(); // Try to parse error JSON
           console.error('API Error Response:', errorData);
-          throw new Error(`Failed to fetch market data: ${response.status} ${response.statusText}`);
+          throw new Error(errorData.message || `Failed to fetch market data: ${response.status} ${response.statusText}`);
         }
         const data = await response.json();
 
         if (data.success && data.markets && data.markets.length > 0) {
-          // Map only necessary fields to PageLiveMarket
           const firstApiMarket = data.markets[0];
           setMarket({
             id: firstApiMarket.id,
@@ -72,51 +74,30 @@ export default function HomePage() {
     fetchMarketData();
   }, []);
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] py-8">
-        <div className="w-full max-w-md mx-auto space-y-4 p-4">
-          <Skeleton className="h-12 w-3/4 mx-auto" /> {/* Referrer Name Area */}
-          <Skeleton className="h-8 w-1/2 mx-auto" /> {/* Referrer Stats Area */}
-          <Skeleton className="h-16 w-full mt-2" /> {/* Prediction Question Area */}
-          <Skeleton className="h-10 w-full" /> {/* Live Activity / Odds Bar Area */}
-          <Skeleton className="h-12 w-full" /> {/* Button 1 */}
-          <Skeleton className="h-12 w-full" /> {/* Button 2 */}
-          <Skeleton className="h-6 w-3/4 mx-auto mt-2" /> {/* Footer text */}
-        </div>
-      </div>
-    );
-  }
-
-  let challengeProps: ChallengeInviteProps;
-
-  if (market) {
-    challengeProps = {
-      matchId: `live_${market.id}`, // Use the market ID for matchId context
-      referrerName: "Community Pick", // Default for a generally displayed market from API
-      predictionQuestion: market.question,
-      predictionId: market.id, // Use the market ID as the prediction ID
-      referrerOriginalChoice: 'YES', // Default choice for a generally displayed market
-    };
-  } else {
-    // Fallback if market is still null after loading and error handling (should be rare)
-    challengeProps = {
-      matchId: 'fallback_challenge_mock',
-      referrerName: mockOpponentUser.username,
-      predictionQuestion: mockPredictions[0].text,
-      predictionId: mockPredictions[0].id,
-      referrerOriginalChoice: 'YES',
-    };
-  }
-
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] py-8">
-      {error && (
-        <div className="mb-4 p-3 bg-yellow-100 dark:bg-yellow-700/30 border border-yellow-400 dark:border-yellow-600 text-yellow-700 dark:text-yellow-200 rounded-md text-sm text-center max-w-md mx-auto">
-          <p>{error}</p>
-        </div>
-      )}
-      <ChallengeInvite {...challengeProps} />
-    </div>
+    <ErrorBoundary fallback={<p className="text-center text-destructive p-4">Could not load market data. Please try again later.</p>}>
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] py-8">
+        {isLoading && (
+          <LoadingSpinner message="Fetching live market..." />
+        )}
+        {!isLoading && error && (
+          <div className="mb-4 p-3 bg-yellow-100 dark:bg-yellow-700/30 border border-yellow-400 dark:border-yellow-600 text-yellow-700 dark:text-yellow-200 rounded-md text-sm text-center max-w-md mx-auto">
+            <p>{error}</p>
+          </div>
+        )}
+        {!isLoading && market && (
+          <ChallengeInvite
+            matchId={`live_${market.id}`}
+            referrerName="Community Pick"
+            predictionQuestion={market.question}
+            predictionId={market.id}
+            referrerOriginalChoice='YES'
+          />
+        )}
+        {!isLoading && !market && !error && (
+           <p className="text-center text-muted-foreground">No market to display.</p>
+        )}
+      </div>
+    </ErrorBoundary>
   );
 }

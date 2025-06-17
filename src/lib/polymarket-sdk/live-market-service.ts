@@ -80,9 +80,8 @@ export class LiveMarketService {
     console.log(`Raw markets received from API: ${allRawMarkets.length}`);
 
     // Debugging and Filtering Logic
-    console.log('🔍 DEBUG: Analyzing first 5 markets for filtering...');
     const now = new Date();
-
+    console.log('🔍 DEBUG: Analyzing first 5 markets for filtering...');
     allRawMarkets.slice(0, 5).forEach((market: any, index: number) => {
       console.log(`\n📊 Market ${index + 1} (ID: ${market.condition_id || 'N/A'}):`);
       console.log(`  Question: ${market.question}`);
@@ -106,30 +105,51 @@ export class LiveMarketService {
         console.log(`  ❌ No end_date_iso field!`);
       }
       
-      const passesFilter = market.active === true && market.closed === false && isValidDate && isFutureDated;
+      const passesPrimaryFilter = market.active === true && market.closed === false && isValidDate && isFutureDated;
       console.log(`  Condition (endDate > now): ${isFutureDated}`);
-      console.log(`  Would pass current filter (active & not closed & future date): ${passesFilter}`);
+      console.log(`  Would pass primary filter (active & not closed & future date): ${passesPrimaryFilter}`);
     });
     console.log(`\n⏰ Current time for filter comparison: ${now.toISOString()}`);
     
-    const filteredMarkets = allRawMarkets.filter((market: any) => {
+    let filteredMarkets = allRawMarkets.filter((market: any) => {
       if (typeof market.active !== 'boolean' || typeof market.closed !== 'boolean') {
-        console.warn(`Market ${market.condition_id || 'N/A'} missing active/closed flags or wrong type. Skipping.`);
         return false;
       }
       if (!market.end_date_iso) {
-          console.warn(`Market ${market.condition_id || 'N/A'} missing end_date_iso. Skipping.`);
           return false;
       }
       const endDate = new Date(market.end_date_iso);
       if (isNaN(endDate.getTime())) {
-          console.warn(`Market ${market.condition_id || 'N/A'} has invalid end_date_iso: ${market.end_date_iso}. Skipping.`);
           return false;
       }
       return market.active === true && market.closed === false && endDate > now;
     });
     
     console.log(`Markets after (active: true && closed: false && future-dated) filtering: ${filteredMarkets.length}`);
+
+    if (filteredMarkets.length === 0) {
+      console.log('⚠️ No active markets found with primary filter. Trying with relaxed criteria (recently active)...');
+      filteredMarkets = allRawMarkets.filter(market => {
+        if (typeof market.active !== 'boolean') return false; // Skip if no active flag
+        // Keep active markets even if closed, if they ended recently
+        if (market.active === true) {
+            if (market.closed === true && market.end_date_iso) {
+                const endDate = new Date(market.end_date_iso);
+                if (isNaN(endDate.getTime())) return false;
+                const daysSinceEnd = (now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24);
+                return daysSinceEnd <= 7; // Ended within last 7 days
+            }
+            // If active and not closed, it's a candidate (future date check already handled if we got here)
+            // For this fallback, we might accept active & !closed even if end_date is slightly passed if we removed strict future check
+            // However, primary filter already handles active & !closed & future.
+            // So this fallback primarily targets active & *closed* but *recent*.
+            return market.closed === false; // This will be redundant if primary filter failed, but good for clarity
+        }
+        return false;
+      });
+      console.log(`Markets after relaxed (recently active or active & !closed) filtering: ${filteredMarkets.length}`);
+    }
+
 
     let categoryFilteredMarkets = filteredMarkets;
     if (category) {
@@ -139,7 +159,7 @@ export class LiveMarketService {
       console.log(`Markets after category ('${category}') filtering: ${categoryFilteredMarkets.length}`);
     }
 
-    const liveMarkets: LiveMarket[] = categoryFilteredMarkets.map((market: any) => ({
+    const liveMarketsResult: LiveMarket[] = categoryFilteredMarkets.map((market: any) => ({
       id: market.condition_id,
       question: market.question,
       yesPrice: 0.50, 
@@ -148,8 +168,8 @@ export class LiveMarketService {
       endsAt: market.end_date_iso ? new Date(market.end_date_iso) : undefined,
     }));
     
-    console.log(`✅ Mapped ${liveMarkets.length} active markets. Applying final user limit of ${limit}.`);
-    return liveMarkets.slice(0, limit);
+    console.log(`✅ Mapped ${liveMarketsResult.length} markets. Applying final user limit of ${limit}.`);
+    return liveMarketsResult.slice(0, limit);
   }
 
   async getMarketDetails(marketId: string): Promise<LiveMarket | null> {

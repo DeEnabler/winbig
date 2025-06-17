@@ -33,7 +33,7 @@ export default async function RootLayout({
 
   // Reconstruct the cookie string in the format "name1=value1; name2=value2"
   // This is a common way to pass cookies to client-side providers for SSR hydration.
-  const allCookiesArray = await cookieStore.getAll(); // Await the call
+  const allCookiesArray = await cookieStore.getAll(); // ✅ Now awaited
   const rawCookieHeader = allCookiesArray.length > 0
     ? allCookiesArray.map(cookie => `${cookie.name}=${encodeURIComponent(cookie.value)}`).join('; ')
     : null; // Pass null if no cookies, as expected by cookieToInitialState
