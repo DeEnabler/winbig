@@ -24,12 +24,13 @@ export const metadata: Metadata = {
   description: 'Instantly challenge others on high-emotion predictions. Swipe, bet, and share virally on X!',
 };
 
+// Ensure RootLayout is an async function
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const cookieStore = cookies(); // Get the cookie store
+  const cookieStore = cookies(); 
 
   // Reconstruct the cookie string in the format "name1=value1; name2=value2"
   // This is a common way to pass cookies to client-side providers for SSR hydration.

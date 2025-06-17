@@ -1,4 +1,3 @@
-
 // src/lib/polymarket-sdk/live-market-service.ts
 import { ClobClient } from '@polymarket/clob-client';
 import { Wallet, providers as EthersProviders } from 'ethers'; // Using ethers v5
@@ -79,48 +78,17 @@ export class LiveMarketService {
     const allRawMarkets = marketDataPayload.data || [];
     console.log(`Raw markets received from API: ${allRawMarkets.length}`);
 
-    const now = new Date();
-    
-    // Primary Filter: Active, Not Closed, Ends in the future
+    // **Applying simpler filter: active: true && closed: false (ignoring date for this test)**
     let filteredMarkets = allRawMarkets.filter((market: any) => {
-      if (typeof market.active !== 'boolean' || typeof market.closed !== 'boolean') {
-        return false;
-      }
-      if (!market.end_date_iso) {
-          return false;
-      }
-      const endDate = new Date(market.end_date_iso);
-      if (isNaN(endDate.getTime())) {
-          return false;
-      }
-      return market.active === true && market.closed === false && endDate > now;
+      return market.active === true && market.closed === false;
     });
-    console.log(`Markets after primary filter (active & !closed & future-dated): ${filteredMarkets.length}`);
+    console.log(`Markets after (active: true && closed: false) filtering: ${filteredMarkets.length}`);
 
-    // Fallback Filter: If no markets from primary, try active markets that ended recently
-    if (filteredMarkets.length === 0) {
-      console.log('⚠️ No markets from primary filter. Applying fallback: active & recently ended (within 7 days).');
-      filteredMarkets = allRawMarkets.filter(market => {
-        if (typeof market.active !== 'boolean' || !market.active) { // Must be active
-            return false;
-        }
-        if (!market.end_date_iso) { // Must have an end date for this fallback
-            return false;
-        }
-        const endDate = new Date(market.end_date_iso);
-        if (isNaN(endDate.getTime())) {
-            return false;
-        }
-        const daysSinceEnd = (now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24);
-        // Include if active and ended within the last 7 days (closed status doesn't matter here as long as it was active)
-        return daysSinceEnd <= 7 && daysSinceEnd >= 0; // daysSinceEnd >= 0 ensures it's in the past
-      });
-      console.log(`Markets after fallback filter (active & recently ended): ${filteredMarkets.length}`);
-    }
-    
-    // Debugging: Log first 5 markets that pass any filtering or from raw if none pass
+    // Debugging: Log first few markets (either from the filtered set or raw if filter yielded 0)
     const marketsToLog = filteredMarkets.length > 0 ? filteredMarkets : allRawMarkets;
-    console.log('🔍 DEBUG: Analyzing first few markets (either filtered or raw if filter yielded 0)...');
+    console.log('🔍 DEBUG: Analyzing first few markets (post simple filter or raw if filter yielded 0)...');
+    const now = new Date(); // For context if we re-introduce date checks
+
     marketsToLog.slice(0, 5).forEach((market: any, index: number) => {
       console.log(`\n📊 Market ${index + 1} (ID: ${market.condition_id || 'N/A'}):`);
       console.log(`  Question: ${market.question}`);
@@ -131,19 +99,26 @@ export class LiveMarketService {
         const endDate = new Date(market.end_date_iso);
         console.log(`  Parsed End Date: ${!isNaN(endDate.getTime()) ? endDate.toISOString() : 'Invalid Date'}`);
         console.log(`  Is Valid Date: ${!isNaN(endDate.getTime())}`);
+        // Log against current time for context, even if not used in current filter
         console.log(`  Condition (endDate > now): ${!isNaN(endDate.getTime()) && endDate > now}`);
       } else {
         console.log(`  ❌ No end_date_iso field!`);
       }
-       const passesPrimary = market.active === true && market.closed === false && market.end_date_iso && new Date(market.end_date_iso) > now;
-       console.log(`  Would pass primary filter: ${passesPrimary}`);
+      // Log how it would fare against the more complete original filter for info
+      const passesOriginalFilter = market.active === true &&
+                                  market.closed === false &&
+                                  market.end_date_iso &&
+                                  !isNaN(new Date(market.end_date_iso).getTime()) &&
+                                  new Date(market.end_date_iso) > now;
+      console.log(`  Would pass original complete filter (active & !closed & future date): ${passesOriginalFilter}`);
     });
     console.log(`\n⏰ Current time for filter comparison: ${now.toISOString()}`);
+    // End Debugging
 
-
+    // Category filter (applied after the primary status filter)
     let categoryFilteredMarkets = filteredMarkets;
-    if (category) {
-      categoryFilteredMarkets = filteredMarkets.filter((market: any) => 
+    if (category && categoryFilteredMarkets.length > 0) {
+      categoryFilteredMarkets = categoryFilteredMarkets.filter((market: any) => 
         market.category?.toLowerCase() === category.toLowerCase()
       );
       console.log(`Markets after category ('${category}') filtering: ${categoryFilteredMarkets.length}`);
@@ -152,8 +127,8 @@ export class LiveMarketService {
     const liveMarketsResult: LiveMarket[] = categoryFilteredMarkets.map((market: any) => ({
       id: market.condition_id,
       question: market.question,
-      yesPrice: 0.50, 
-      noPrice: 0.50,  
+      yesPrice: 0.50, // Placeholder, ideally fetch orderbook or use price from market object if available
+      noPrice: 0.50,  // Placeholder
       category: market.category || "General",
       endsAt: market.end_date_iso ? new Date(market.end_date_iso) : undefined,
     }));
@@ -170,11 +145,12 @@ export class LiveMarketService {
 
     console.log(`🔍 Fetching details for market ID (conditionId): ${marketId} on ${this.currentNetwork.name}`);
     
-    const marketsListPayload = await this.clobClient.getMarkets();
+    const marketsListPayload = await this.clobClient.getMarkets(); // This could be inefficient if called often
     const marketInfo = marketsListPayload.data.find((m: any) => m.condition_id === marketId);
 
     if (!marketInfo) {
         console.warn(`❓ Market info not found for market ID ${marketId} in getMarkets() list.`);
+        // To still try to get orderbook data if marketInfo is missing from the general list
     }
     
     const orderbook = await this.clobClient.getOrderBook(marketId);
@@ -182,11 +158,12 @@ export class LiveMarketService {
     if (!orderbook || !orderbook.bids || !orderbook.asks) {
         console.warn(`❓ No orderbook data found for market ${marketId}`);
         if (!marketInfo) return null; 
+        // Fallback if orderbook fails but we have market info
         return { 
             id: marketId,
             question: marketInfo.question,
-            yesPrice: 0.50,
-            noPrice: 0.50,
+            yesPrice: 0.50, // Default placeholder
+            noPrice: 0.50,  // Default placeholder
             category: marketInfo.category || "General",
             endsAt: marketInfo.end_date_iso ? new Date(marketInfo.end_date_iso) : undefined,
         };
@@ -195,20 +172,21 @@ export class LiveMarketService {
     const bestBid = orderbook.bids[0] ? parseFloat(orderbook.bids[0].price) : null;
     const bestAsk = orderbook.asks[0] ? parseFloat(orderbook.asks[0].price) : null;
 
-    let yesPrice = 0.5;
+    let yesPrice = 0.5; // Default if no bid/ask
     if (bestBid !== null && bestAsk !== null) {
         yesPrice = (bestBid + bestAsk) / 2;
     } else if (bestBid !== null) {
-        yesPrice = bestBid; 
+        yesPrice = bestBid; // Or some logic to adjust if only one side exists
     } else if (bestAsk !== null) {
-        yesPrice = bestAsk; 
+        yesPrice = bestAsk; // Or some logic
     }
     
+    // Ensure price is within valid probability range (0.01 to 0.99)
     yesPrice = Math.max(0.01, Math.min(0.99, yesPrice));
 
     return {
       id: marketId,
-      question: marketInfo ? marketInfo.question : 'Question not found for this ID',
+      question: marketInfo ? marketInfo.question : 'Question not found for this ID', // Use marketInfo if available
       yesPrice: parseFloat(yesPrice.toFixed(2)),
       noPrice: parseFloat((1 - yesPrice).toFixed(2)),
       category: marketInfo ? marketInfo.category : "General",
