@@ -1,127 +1,94 @@
-
 // src/components/homepage/MarketFeedSection.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
 import type { LiveMarket } from '@/types';
-import MarketFeedCard from './MarketFeedCard'; // Simplified version
-// import { Button } from '@/components/ui/button';
-// import { LoadingSpinner } from '@/components/LoadingSpinner';
-// import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-// import { AlertTriangle } from 'lucide-react';
+import MarketFeedCard from './MarketFeedCard'; // Simplified version for now
+import useDataFetch from '@/hooks/useDataFetch'; // Import the new hook
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertTriangle } from 'lucide-react';
+// LoadingSpinner and Button are not used in this specific simplified step with useDataFetch + Suspense
+// Suspense boundary in page.tsx will handle loading UI.
+
+interface ApiMarketResponse {
+  success: boolean;
+  markets?: LiveMarket[];
+  marketCount?: number;
+  message?: string;
+  error?: string;
+}
 
 export default function MarketFeedSection() {
-  const [feedMarkets, setFeedMarkets] = useState<LiveMarket[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  // const [offset, setOffset] = useState(0);
-  const feedLimit = 3; // Fetch only 3 for simplified initial test
-  // const [canLoadMore, setCanLoadMore] = useState(true);
+  // Using the new Suspense-compatible hook
+  // Limit remains 3 for this testing phase.
+  const { data: apiResponse, error: fetchError } = useDataFetch<ApiMarketResponse>('/api/markets/live-odds?limit=3&offset=0');
 
-  const fetchFeedMarkets = async (currentOffset: number, initialLoad = false) => {
-    if (initialLoad) {
-      setIsLoading(true);
-    }
-    setError(null);
-    console.log(`[MarketFeedSection SIMPLIFIED] Fetching markets. Initial: ${initialLoad}, Offset: ${currentOffset}, Limit: ${feedLimit}`);
-
-    try {
-      const response = await fetch(`/api/markets/live-odds?limit=${feedLimit}&offset=${currentOffset}`);
-      
-      console.log('[MarketFeedSection SIMPLIFIED] API Response Status:', response.status);
-      const contentType = response.headers.get("content-type");
-      console.log('[MarketFeedSection SIMPLIFIED] API Response Content-Type:', contentType);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`[MarketFeedSection SIMPLIFIED] API Error - Response not OK (Status: ${response.status}). Response Text Snippet:`, errorText.substring(0, 500));
-        throw new Error(`API request failed: ${response.status}. Server sent ${contentType || 'unknown content type'}. Snippet: ${errorText.substring(0,100)}...`);
-      }
-      
-      if (!contentType || !contentType.includes("application/json")) {
-        const responseText = await response.text();
-        console.error(`[MarketFeedSection SIMPLIFIED] API Error - Expected JSON, got ${contentType}. Response Text:`, responseText.substring(0, 500));
-        throw new Error(`API response was not JSON (got ${contentType}). Check API implementation. Content: ${responseText.substring(0,100)}...`);
-      }
-      
-      const data = await response.json();
-      console.log('[MarketFeedSection SIMPLIFIED] API Response Data:', data);
-
-      if (data.success && data.markets) {
-        if (data.markets.length === 0) {
-          console.log('[MarketFeedSection SIMPLIFIED] API returned 0 new markets.');
-          // setCanLoadMore(false);
-          if (initialLoad && feedMarkets.length === 0) {
-             console.log('[MarketFeedSection SIMPLIFIED] Initial load returned 0 markets. Setting error message.');
-             setError("No live markets found at the moment (from initial load).");
-          }
-        } else {
-          console.log('[MarketFeedSection SIMPLIFIED] Setting markets:', data.markets);
-          setFeedMarkets(initialLoad ? data.markets : [...feedMarkets, ...data.markets]); // Simplified update for initial load test
-          // setOffset(currentOffset + data.markets.length);
-          // setCanLoadMore(data.markets.length >= feedLimit);
-        }
-      } else {
-        console.error('[MarketFeedSection SIMPLIFIED] API response success was false or markets array missing:', data.message || 'Malformed success response');
-        throw new Error(data.message || "Failed to parse feed markets from successful API response.");
-      }
-    } catch (err) {
-      console.error("[MarketFeedSection SIMPLIFIED] Error in fetchFeedMarkets' try-catch block:", err);
-      const errorMessage = err instanceof Error ? err.message : "Could not load market feed.";
-      setError(errorMessage);
-      // setCanLoadMore(false);
-    } finally {
-      if (initialLoad) {
-        setIsLoading(false);
-      }
-      console.log('[MarketFeedSection SIMPLIFIED] Fetching complete. isLoading (for initial):', isLoading);
-    }
-  };
-
-  useEffect(() => {
-    fetchFeedMarkets(0, true);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // const handleLoadMore = () => {
-  //   if (!isLoading && canLoadMore) {
-  //     fetchFeedMarkets(offset, false);
-  //   }
-  // };
-
-  if (isLoading && feedMarkets.length === 0) {
-    return <div className="text-center p-4">Loading Trending Markets (Simplified Feed)...</div>;
+  if (fetchError) {
+    // If useDataFetch resolved with an error, throw it so ErrorBoundary can catch it.
+    console.error("[MarketFeedSection] Error from useDataFetch:", fetchError);
+    throw fetchError; // This will be caught by the nearest ErrorBoundary
   }
 
-  if (error && feedMarkets.length === 0) {
+  // If apiResponse is null, Suspense is still waiting (useDataFetch threw a promise).
+  // The Suspense fallback in page.tsx will be shown.
+  if (!apiResponse) {
+    // This state should ideally not be reached if Suspense is working correctly,
+    // as useDataFetch would throw a promise. But as a fallback:
+    console.log("[MarketFeedSection] apiResponse is null, Suspense should be active.");
+    return <div className="text-center p-4">Preparing market feed...</div>;
+  }
+
+  // Handle cases where the API response itself indicates failure (e.g., { success: false, message: "..." })
+  if (apiResponse.success === false) {
+    console.error("[MarketFeedSection] API reported failure:", apiResponse.message || apiResponse.error);
+    throw new Error(apiResponse.message || apiResponse.error || "API request failed but did not return a specific error message.");
+  }
+
+  const feedMarkets = apiResponse.markets;
+
+  if (!feedMarkets || feedMarkets.length === 0) {
     return (
-      <div className="my-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-        <p className="font-bold">Error Loading Markets (Simplified Feed):</p>
-        <p>{error}</p>
-      </div>
+      <section className="space-y-4">
+        <h2 className="text-2xl font-bold text-center md:text-left">
+          Trending Markets
+        </h2>
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>No Markets Available</AlertTitle>
+          <AlertDescription>
+            There are no trending markets to display at the moment. Please check back later.
+          </AlertDescription>
+        </Alert>
+      </section>
     );
   }
-  
-  if (feedMarkets.length === 0 && !isLoading && !error) {
-     return <p className="text-center text-gray-500 py-4">No markets to display right now (Simplified Feed).</p>;
-  }
+
+  // "Load More" functionality is still removed for this focused test.
+  // The Suspense fallback will be shown by page.tsx while data is loading.
 
   return (
     <section className="space-y-4">
       <h2 className="text-2xl font-bold text-center md:text-left">
-        Trending Markets (Simplified Feed)
+        Trending Markets
       </h2>
-      
-      {feedMarkets.map((market) => (
-        <MarketFeedCard key={market.id || Math.random()} market={market} />
-      ))}
-
-      {/* "Load More" button and related logic removed for this step */}
-      {error && feedMarkets.length > 0 && ( // Show inline error if some markets loaded but a subsequent issue occurred (less likely in this simplified view)
-        <div className="mt-4 p-2 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
-          <p>An issue occurred: {error}</p>
-        </div>
-      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        {feedMarkets.map((market) => {
+          // Basic validation for key properties to prevent simple render errors
+          if (!market || !market.id || typeof market.question !== 'string') {
+            console.warn("[MarketFeedSection] Invalid market data object in feed:", market);
+            return (
+              <div key={market?.id || Math.random()} className="p-4 border border-destructive bg-destructive/10 rounded-lg">
+                <h3 className="font-bold text-sm text-destructive">Error: Invalid Market Data</h3>
+                <p className="text-xs">Market data is incomplete or malformed.</p>
+              </div>
+            );
+          }
+          return <MarketFeedCard key={market.id} market={market} />;
+        })}
+      </div>
+      {/* 
+        "Load More" button and related logic are still disabled for this test.
+        If the initial load works correctly with Suspense, we can re-add pagination.
+      */}
     </section>
   );
 }
