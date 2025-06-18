@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Home, Menu, X, Coins, DollarSign, ListChecks, ShieldQuestion } from 'lucide-react'; 
+import { Home, Menu, X, Coins, DollarSign, ListChecks, ShieldQuestion, BarChart3, Info } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/common/Logo';
 import { useState, useEffect } from 'react';
@@ -12,10 +12,12 @@ import { mockCurrentUser } from '@/lib/mockData';
 import ConnectWalletButton from '@/components/wallet/ConnectWallet'; 
 
 const navItems = [
-  { href: '/', label: 'Bet', icon: Home },
-  { href: '/challenge', label: 'Challenge', icon: ShieldQuestion },
-  { href: '/positions', label: 'Positions', icon: ListChecks },
+  { href: '/', label: 'Home', icon: Home }, // Changed 'Bet' to 'Home' for clarity
+  { href: '/challenge', label: 'Featured', icon: ShieldQuestion }, // Changed 'Challenge' to 'Featured'
+  { href: '/positions', label: 'My Bets', icon: ListChecks }, // Changed 'Positions' to 'My Bets'
   { href: '/earn', label: 'Earn', icon: DollarSign },
+  { href: '/leaderboard', label: 'Leaders', icon: BarChart3 }, // Added Leaderboard
+  // { href: '/faq', label: 'FAQ', icon: Info }, // Optional: if FAQ page is desired
 ];
 
 export default function Navbar() {
@@ -32,25 +34,25 @@ export default function Navbar() {
         <Logo />
         <div className="flex items-center space-x-2 lg:space-x-4">
           {/* Desktop Navigation & XP */}
-          <nav className="hidden md:flex items-center space-x-2 lg:space-x-4">
+          <nav className="hidden md:flex items-center space-x-1 lg:space-x-2">
             {navItems.map((item) => (
               <Button
                 key={item.href}
                 variant={pathname === item.href ? 'secondary' : 'ghost'}
                 asChild
                 className={cn(
-                  "text-sm font-medium",
+                  "text-sm font-medium px-3 py-2", // Adjusted padding
                   pathname === item.href ? "text-primary-foreground bg-primary hover:bg-primary/90" : "hover:bg-accent hover:text-accent-foreground"
                 )}
               >
                 <Link href={item.href}>
-                  <item.icon className="mr-2 h-5 w-5" />
+                  <item.icon className="mr-1.5 h-4 w-4" /> {/* Slightly smaller icon and margin */}
                   {item.label}
                 </Link>
               </Button>
             ))}
           </nav>
-          <div className="hidden md:flex items-center space-x-2 border-l pl-4 ml-2">
+          <div className="hidden md:flex items-center space-x-2 border-l pl-3 ml-1"> {/* Adjusted padding/margin */}
             <Coins className="h-5 w-5 text-yellow-500" /> 
             <span className="text-sm font-semibold text-foreground">
               {mockCurrentUser.xp.toLocaleString()} XP
@@ -83,7 +85,7 @@ export default function Navbar() {
                 variant={pathname === item.href ? 'secondary' : 'ghost'}
                 asChild
                 className={cn(
-                  "w-full justify-start text-base",
+                  "w-full justify-start text-base py-3", // Increased py for better touch target
                   pathname === item.href ? "text-primary-foreground bg-primary hover:bg-primary/90" : "hover:bg-accent hover:text-accent-foreground"
                 )}
               >
