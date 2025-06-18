@@ -239,14 +239,20 @@ export class LiveMarketService {
     }
 
     const endsAtDate = rawMarketData.end_date_iso || rawMarketData.endDate ? new Date(rawMarketData.end_date_iso || rawMarketData.endDate) : undefined;
+    const marketCategory = rawMarketData.category || "General";
+    const imageUrl = rawMarketData.image_url || `https://placehold.co/600x300.png?text=${encodeURIComponent(marketCategory)}`;
+    const aiHint = rawMarketData.ai_hint || marketCategory.toLowerCase().split(' ').slice(0,2).join(' ') || "event";
+
 
     return {
       id: marketId,
       question: rawMarketData.question || "N/A",
       yesPrice: parseFloat(yesPriceNum.toFixed(2)),
       noPrice: parseFloat(noPriceNum.toFixed(2)),
-      category: rawMarketData.category || "General",
+      category: marketCategory,
       endsAt: endsAtDate,
+      imageUrl: imageUrl,
+      aiHint: aiHint,
     };
   }
 

@@ -1,3 +1,4 @@
+
 // src/components/homepage/MarketFeedCard.tsx
 'use client';
 
@@ -54,7 +55,7 @@ export default function MarketFeedCard({ market }: MarketFeedCardProps) {
 
 
   const imageUrl = market.imageUrl || `https://placehold.co/600x300.png?text=${encodeURIComponent(market.category || 'Market')}`;
-  const aiHintText = market.aiHint || market.category || "general event";
+  const aiHintText = market.aiHint || market.category?.toLowerCase().split(' ').slice(0,2).join(' ') || "general event";
 
   // Placeholder for volume - this would need to come from API
   const volumeTraded = Math.floor(Math.random() * 100000) + 5000; 

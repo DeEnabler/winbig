@@ -157,7 +157,7 @@ export interface OpenPosition {
   bonusApplied?: boolean; // Was a bonus applied to this bet?
 }
 
-// Interface for LiveMarketService to use (already present in your types, ensuring it's used)
+// Interface for LiveMarketService to use
 export interface LiveMarket {
   id: string; // conditionId from Polymarket
   question: string;
@@ -165,5 +165,7 @@ export interface LiveMarket {
   noPrice: number;  // 1 - yesPrice
   category?: string;
   endsAt?: Date;
+  imageUrl?: string; // Added to ensure it's part of the type
+  aiHint?: string;   // Added to ensure it's part of the type
   // Add other relevant fields: volume, liquidity, etc. as needed
 }
