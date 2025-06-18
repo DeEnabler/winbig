@@ -1,8 +1,9 @@
+
 // src/components/homepage/HowItWorksSection.tsx
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Lightbulb, MousePointerSquare, TrendingUp, Info } from 'lucide-react';
+import { Lightbulb, MousePointerSquareDashed, TrendingUp, Info } from 'lucide-react'; // Changed MousePointerSquare to MousePointerSquareDashed
 import { Button } from '../ui/button';
 import Link from 'next/link';
 
@@ -13,7 +14,7 @@ const steps = [
     description: 'Browse live predictions on sports, crypto, politics, and more.',
   },
   {
-    icon: <MousePointerSquare className="w-10 h-10 text-primary mb-3" />,
+    icon: <MousePointerSquareDashed className="w-10 h-10 text-primary mb-3" />, // Changed MousePointerSquare to MousePointerSquareDashed
     title: '2. Place Your Bet',
     description: 'Choose YES or NO and decide how much you want to stake.',
   },
@@ -46,7 +47,7 @@ export default function HowItWorksSection() {
         </div>
         <div className="text-center mt-8 md:mt-12">
           <Button size="lg" variant="outline" asChild className="text-base rounded-lg">
-            <Link href="/faq"> 
+            <Link href="/faq"> {/* Assuming /faq will exist or be created */}
               <Info className="w-5 h-5 mr-2" />
               Learn More & FAQ
             </Link>
