@@ -4,125 +4,112 @@
 import { useEffect, useState } from 'react';
 import type { LiveMarket } from '@/types';
 import MarketFeedCard from './MarketFeedCard';
-import { LoadingSpinner } from '@/components/LoadingSpinner';
-import { Button } from '@/components/ui/button';
-import { mockPredictions } from '@/lib/mockData'; // For fallback
+// import { LoadingSpinner } from '@/components/LoadingSpinner'; // Temporarily removed
+// import { Button } from '@/components/ui/button'; // Temporarily removed
+// import { mockPredictions } from '@/lib/mockData'; // Temporarily removed for clean test
 
 export default function MarketFeedSection() {
   const [feedMarkets, setFeedMarkets] = useState<LiveMarket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [offset, setOffset] = useState(1); // Start after hero market, adjust if hero is removed
-  const feedLimit = 6; // Number of markets to fetch per "page"
-  const [canLoadMore, setCanLoadMore] = useState(true);
+  // const [offset, setOffset] = useState(0); // Simplified: only initial load
+  const feedLimit = 3; // Fetch fewer for initial simple test
+  // const [canLoadMore, setCanLoadMore] = useState(true); // Temporarily removed
 
-  const fetchFeedMarkets = async (currentOffset: number, initialLoad = false) => {
+  const fetchFeedMarkets = async () => {
     setIsLoading(true);
     setError(null);
+    console.log('[MarketFeedSection] Fetching initial markets...');
     try {
-      // If initialLoad, offset should be 0 to get first batch for feed
-      const fetchOffset = initialLoad ? 0 : currentOffset;
-      const response = await fetch(`/api/markets/live-odds?limit=${feedLimit}&offset=${fetchOffset}`);
+      const response = await fetch(`/api/markets/live-odds?limit=${feedLimit}&offset=0`);
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('[MarketFeedSection] API Error:', errorData);
         throw new Error(errorData.message || `Failed to fetch feed markets: ${response.status}`);
       }
       const data = await response.json();
+      console.log('[MarketFeedSection] API Response Data:', data);
+
       if (data.success && data.markets) {
         if (data.markets.length === 0) {
-          setCanLoadMore(false);
-          if (initialLoad) { // No markets at all
-             setError("No live markets found for the feed. Showing samples.");
-             const fallbackFeed: LiveMarket[] = mockPredictions.slice(0, 3).map(p => ({
-                id: `fallback_feed_${p.id}`,
-                question: p.text,
-                category: p.category,
-                yesPrice: Math.random() * 0.6 + 0.2,
-                noPrice: 1 - (Math.random() * 0.6 + 0.2),
-                endsAt: p.endsAt || new Date(Date.now() + (Math.random() * 10 + 1) * 24 * 60 * 60 * 1000),
-                imageUrl: p.imageUrl || `https://placehold.co/600x300.png?text=${encodeURIComponent(p.category || 'Market')}`,
-                aiHint: p.aiHint || p.category
-            }));
-            setFeedMarkets(fallbackFeed);
-          }
+          // setCanLoadMore(false); // Temporarily removed
+          setError("No live markets found for the feed (API returned empty).");
+          setFeedMarkets([]); // Ensure it's empty
         } else {
-          setFeedMarkets(prev => initialLoad ? data.markets : [...prev, ...data.markets]); 
-          setOffset(fetchOffset + data.markets.length);
-          if (data.markets.length < feedLimit) {
-            setCanLoadMore(false);
-          } else {
-            setCanLoadMore(true);
-          }
+          console.log('[MarketFeedSection] Setting markets:', data.markets);
+          setFeedMarkets(data.markets);
+          // setOffset(data.markets.length); // Temporarily removed
+          // setCanLoadMore(data.markets.length >= feedLimit); // Temporarily removed
         }
       } else {
+        console.error('[MarketFeedSection] Failed to parse markets or unsuccessful response:', data.message);
         throw new Error(data.message || "Failed to parse feed markets.");
       }
     } catch (err) {
-      console.error("Error fetching feed markets:", err);
+      console.error("[MarketFeedSection] Error fetching feed markets:", err);
       const errorMessage = err instanceof Error ? err.message : "Could not load market feed.";
       setError(errorMessage);
-       if (initialLoad && feedMarkets.length === 0) { 
-            const fallbackFeed: LiveMarket[] = mockPredictions.slice(0, 3).map(p => ({
-                id: `fallback_err_feed_${p.id}`,
-                question: p.text,
-                category: p.category,
-                yesPrice: Math.random() * 0.6 + 0.2,
-                noPrice: 1 - (Math.random() * 0.6 + 0.2),
-                endsAt: p.endsAt || new Date(Date.now() + (Math.random() * 10 + 1) * 24 * 60 * 60 * 1000),
-                imageUrl: p.imageUrl || `https://placehold.co/600x300.png?text=${encodeURIComponent(p.category || 'Market')}`,
-                aiHint: p.aiHint || p.category
-            }));
-            setFeedMarkets(fallbackFeed);
-            setCanLoadMore(false);
-        }
+      setFeedMarkets([]); // Clear markets on error
     } finally {
       setIsLoading(false);
+      console.log('[MarketFeedSection] Fetching complete. isLoading:', false);
     }
   };
 
   useEffect(() => {
-    fetchFeedMarkets(0, true); // Fetch initial batch for feed
+    fetchFeedMarkets();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, []);
 
-  const handleLoadMore = () => {
-    if (!isLoading && canLoadMore) {
-      fetchFeedMarkets(offset);
-    }
-  };
+  // Temporarily removed Load More logic
+  // const handleLoadMore = () => {
+  //   if (!isLoading && canLoadMore) {
+  //     fetchFeedMarkets(offset);
+  //   }
+  // };
+
+  if (isLoading) {
+    return <div className="text-center p-8">Loading markets (simplified)...</div>;
+  }
+
+  if (error) {
+    return <div className="text-center p-8 text-destructive">Error loading markets: {error} (Simplified View)</div>;
+  }
+
+  if (feedMarkets.length === 0 && !isLoading && !error) {
+     return <p className="text-center text-muted-foreground py-8">(Simplified) No markets to display. API might have returned none, or an error occurred before setting markets.</p>;
+  }
+  
+  console.log('[MarketFeedSection] Rendering feedMarkets. Count:', feedMarkets.length, feedMarkets);
 
   return (
     <section className="space-y-6">
       <h2 className="text-3xl font-bold tracking-tight text-center md:text-left">
-        Trending Markets
+        Trending Markets (Simplified Feed)
       </h2>
-      {error && feedMarkets.length > 0 && (
-        <div className="my-2 p-2 bg-yellow-100 dark:bg-yellow-700/30 border border-yellow-400 dark:border-yellow-600 text-yellow-700 dark:text-yellow-200 rounded-md text-xs text-center">
-          <p>{error}</p>
-        </div>
-      )}
       
-      {feedMarkets.length === 0 && !isLoading && !error && (
-         <p className="text-center text-muted-foreground py-8">No markets to display in the feed currently.</p>
-      )}
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        {feedMarkets.map((market) => (
-          <MarketFeedCard key={market.id} market={market} />
-        ))}
+        {feedMarkets.map((market) => {
+          if (!market || !market.id) {
+            console.warn('[MarketFeedSection] Rendering: Invalid market object encountered in feedMarkets', market);
+            return <div key={Date.now() + Math.random()} className="border p-2 text-xs text-red-500">Invalid market data in list</div>;
+          }
+          console.log('[MarketFeedSection] Rendering MarketFeedCard for market ID:', market.id);
+          return <MarketFeedCard key={market.id} market={market} />;
+        })}
       </div>
-      {isLoading && <div className="py-8"><LoadingSpinner message="Loading markets..." /></div>}
-      
-      {!isLoading && canLoadMore && feedMarkets.length > 0 && (
+
+      {/* Temporarily removed "Load More" button */}
+      {/* {!isLoading && canLoadMore && feedMarkets.length > 0 && (
         <div className="text-center mt-8">
           <Button onClick={handleLoadMore} variant="outline" size="lg">
             Load More Markets
           </Button>
         </div>
       )}
-      {!isLoading && !canLoadMore && feedMarkets.length > feedLimit && (
+      {!isLoading && !canLoadMore && feedMarkets.length >= feedLimit && ( // Show if loaded at least one page
          <p className="text-center text-muted-foreground py-4 text-sm">No more markets to load.</p>
-      )}
+      )} */}
     </section>
   );
 }
