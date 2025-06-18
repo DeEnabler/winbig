@@ -1,6 +1,8 @@
 
 import type { ReactNode } from 'react';
 import Navbar from './Navbar';
+import Link from 'next/link'; // Added this import
+
 // HeroBetDisplay is now part of specific pages like /challenge or the new HeroNewSection
 
 interface AppLayoutProps {
