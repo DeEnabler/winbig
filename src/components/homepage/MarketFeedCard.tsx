@@ -6,7 +6,7 @@ import type { LiveMarket } from '@/types';
 import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CalendarDays, Tag, ThumbsUp, ThumbsDown, TrendingUp, BarChart2 } from 'lucide-react'; // Added BarChart2 for volume
+import { CalendarDays, Tag, ThumbsUp, ThumbsDown, TrendingUp, BarChart2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { formatDistanceToNowStrict, parseISO } from 'date-fns';
@@ -25,39 +25,32 @@ export default function MarketFeedCard({ market }: MarketFeedCardProps) {
   const handleBetNavigation = (choice: 'YES' | 'NO') => {
     const params = new URLSearchParams();
     params.set('predictionId', market.id);
-    // Create a unique matchId for this bet attempt from the feed
     const challengeMatchId = `feed_bet_${market.id}_${Date.now()}`;
     params.set('choice', choice);
-    // This implies the user is confirming a bet choice by clicking on the feed card.
     params.set('confirmChallenge', 'true'); 
-    // Optional: could pass referrer if relevant, but homepage feed typically doesn't have one per card.
 
     const url = appendEntryParams(`/match/${challengeMatchId}?${params.toString()}`);
     router.push(url);
   };
 
   const endsAtDate = typeof market.endsAt === 'string' ? parseISO(market.endsAt) : market.endsAt;
-  const endsAtTime = endsAtDate ? endsAtDate.getTime() : Date.now() + 2 * 60 * 60 * 1000; // Fallback if no endsAt
+  const endsAtTime = endsAtDate ? endsAtDate.getTime() : Date.now() + 2 * 60 * 60 * 1000;
   const timeLeft = formatDistanceToNowStrict(endsAtTime, { addSuffix: true });
-  const isEndingSoon = endsAtTime - Date.now() < 3 * 60 * 60 * 1000; // Example: less than 3 hours
+  const isEndingSoon = endsAtTime - Date.now() < 3 * 60 * 60 * 1000;
   const hasEnded = endsAtTime < Date.now();
 
-  // Ensure prices are valid numbers and within 0.01-0.99 range for display
   const validYesPrice = typeof market.yesPrice === 'number' ? Math.max(0.01, Math.min(0.99, market.yesPrice)) : 0.5;
   const validNoPrice = typeof market.noPrice === 'number' ? Math.max(0.01, Math.min(0.99, market.noPrice)) : 0.5;
 
   const oddsYesPercentage = Math.round(validYesPrice * 100);
   const oddsNoPercentage = Math.round(validNoPrice * 100);
   
-  // Payout calculation should reflect the cost
   const payoutYes = validYesPrice > 0 && validYesPrice < 1 ? (1 / validYesPrice).toFixed(1) : 'N/A';
   const payoutNo = validNoPrice > 0 && validNoPrice < 1 ? (1 / validNoPrice).toFixed(1) : 'N/A';
 
-
-  const imageUrl = market.imageUrl || `https://placehold.co/600x300.png?text=${encodeURIComponent(market.category || 'Market')}`;
+  const imageUrl = market.imageUrl || 'https://placehold.co/600x300.png?text=Error';
   const aiHintText = market.aiHint || market.category?.toLowerCase().split(' ').slice(0,2).join(' ') || "general event";
 
-  // Placeholder for volume - this would need to come from API
   const volumeTraded = Math.floor(Math.random() * 100000) + 5000; 
 
   return (
@@ -66,8 +59,10 @@ export default function MarketFeedCard({ market }: MarketFeedCardProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         whileHover={{ y: -5 }}
+        // No h-full on motion.div, let it wrap the Card's height
     >
-    <Card className="w-full bg-card text-card-foreground rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 ease-out overflow-hidden flex flex-col h-full">
+    {/* Added min-h-[400px] to ensure card has a minimum height */}
+    <Card className="w-full bg-card text-card-foreground rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 ease-out overflow-hidden flex flex-col min-h-[420px]">
       {imageUrl && (
         <div className="relative w-full h-36">
           <NextImage
@@ -96,56 +91,38 @@ export default function MarketFeedCard({ market }: MarketFeedCardProps) {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-3 pt-1 flex-grow">
-        <div className="space-y-1.5">
-            <div className="flex justify-between items-center text-xs font-medium">
-                <span className="text-green-600 dark:text-green-400">YES {oddsYesPercentage}% (Win {payoutYes}x)</span>
-                <span className="text-red-600 dark:text-red-400">{oddsNoPercentage}% NO (Win {payoutNo}x)</span>
+      {/* flex-grow will allow this section to take available space */}
+      <CardContent className="p-3 pt-1 flex-grow flex flex-col justify-between">
+        <div>
+            <div className="space-y-1.5 mb-2">
+                <div className="flex justify-between items-center text-xs font-medium">
+                    <span className="text-green-600 dark:text-green-400">YES {oddsYesPercentage}% (Win {payoutYes}x)</span>
+                    <span className="text-red-600 dark:text-red-400">{oddsNoPercentage}% NO (Win {payoutNo}x)</span>
+                </div>
+                <Progress value={oddsYesPercentage} className="h-1.5 rounded-full"
+                    aria-label={`Odds: Yes ${oddsYesPercentage}%, No ${oddsNoPercentage}%`}
+                />
             </div>
-            <Progress value={oddsYesPercentage} className="h-1.5 rounded-full"
-                aria-label={`Odds: Yes ${oddsYesPercentage}%, No ${oddsNoPercentage}%`}
-            />
-        </div>
-        <div className="flex items-center justify-between text-xs text-muted-foreground mt-1.5 space-x-2">
-            <div className="flex items-center">
-                 <BarChart2 className="w-3 h-3 mr-1 text-blue-500" /> <span>Vol: ${volumeTraded.toLocaleString()}</span>
-            </div>
-            <div className="flex items-center animate-pulse">
-                 <TrendingUp className="w-3 h-3 mr-1 text-primary" /> <span>Trending</span>
+            <div className="flex items-center justify-between text-xs text-muted-foreground mt-1.5 space-x-2">
+                <div className="flex items-center">
+                     <BarChart2 className="w-3 h-3 mr-1 text-blue-500" /> <span>Vol: ${volumeTraded.toLocaleString()}</span>
+                </div>
+                <div className="flex items-center animate-pulse">
+                     <TrendingUp className="w-3 h-3 mr-1 text-primary" /> <span>Trending</span>
+                </div>
             </div>
         </div>
       </CardContent>
-      {/* "Place Bet" button, now as part of the card, potentially opening a modal or navigating */}
-      <CardFooter className="p-0 border-t">
-        {/* Full width button for placing bet, or separate YES/NO if preferred */}
+      <CardFooter className="p-0 border-t mt-auto"> {/* mt-auto pushes footer to bottom if content is short */}
         <Button
             variant="ghost"
             className="w-full h-12 rounded-none rounded-b-xl bg-primary/10 hover:bg-primary/20 text-primary text-sm font-semibold"
-            onClick={() => handleBetNavigation('YES')} // Defaulting to YES for simplicity, ideally modal would let choose
+            onClick={() => handleBetNavigation('YES')}
             disabled={hasEnded}
             aria-label={`Place Bet on ${market.question}`}
           >
             Place Bet
           </Button>
-        {/* Or keep Yes/No if that's preferred for quick choice */}
-        {/* <div className="grid grid-cols-2 w-full">
-          <Button
-            variant="ghost"
-            className="w-full h-12 rounded-none rounded-bl-xl bg-green-500/10 hover:bg-green-500/20 text-green-700 dark:text-green-400 text-sm font-semibold"
-            onClick={() => handleBetNavigation('YES')}
-            disabled={hasEnded}
-          >
-            <ThumbsUp className="w-4 h-4 mr-1.5" /> YES
-          </Button>
-          <Button
-            variant="ghost"
-            className="w-full h-12 rounded-none rounded-br-xl bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-400 text-sm font-semibold"
-            onClick={() => handleBetNavigation('NO')}
-            disabled={hasEnded}
-          >
-            <ThumbsDown className="w-4 h-4 mr-1.5" /> NO
-          </Button>
-        </div> */}
       </CardFooter>
     </Card>
     </motion.div>
