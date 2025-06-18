@@ -26,17 +26,25 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     // Log the error and errorInfo to the console for more detailed debugging
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
-    console.error('Error Message:', error.toString());
+    console.error('ErrorBoundary caught an error:', error);
+    console.error('Error Name:', error.name);
+    console.error('Error Message:', error.message);
     console.error('Component Stack:', errorInfo.componentStack);
     this.setState({ error, errorInfo });
   }
 
   render() {
     if (this.state.hasError) {
-      return this.props.fallback || (
+      // If a custom fallback is provided, render it.
+      if (this.props.fallback) {
+        // If the fallback is a function, pass the error to it (optional, based on how you want to use it)
+        // For now, just rendering the node. Modify if you want to pass error to fallback prop.
+        return this.props.fallback;
+      }
+      // Default fallback with error details
+      return (
         <div className="p-4 border border-destructive/50 rounded-md bg-destructive/10 text-center">
-          <h2 className="text-lg font-semibold text-destructive">Something went wrong</h2>
+          <h2 className="text-lg font-semibold text-destructive">Something went wrong on the page</h2>
           <p className="text-destructive/80">
             {this.state.error?.message || 'An unexpected error occurred'}
           </p>
