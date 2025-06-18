@@ -11,46 +11,84 @@ interface FetchResult<T> {
 // This is a simplified cache. In a real app, you might use SWR, React Query, or context.
 const cache = new Map<string, any>();
 
-export default function useDataFetch<T>(url: string): FetchResult<T> {
-  const [data, setData] = useState<T | null>(cache.get(url) || null);
+export default function useDataFetch<T>(relativePath: string): FetchResult<T> {
+  const [data, setData] = useState<T | null>(cache.get(relativePath) || null);
   const [error, setError] = useState<Error | null>(null);
 
-  if (cache.has(url) && data === null) {
+  if (error) { // If an error was already set (e.g., from a previous failed attempt or URL construction)
+    return { data: null, error };
+  }
+
+  if (cache.has(relativePath) && data === null) {
     // If cache has it, and data is null, it means we've set it from cache
     // and if it was truly null in cache, this is fine.
-    // Or if data was already set by cache.get(url) above.
+    // Or if data was already set by cache.get(relativePath) above.
   } else if (data === null && !error) {
     // Data not in memory state, not in cache (or cache miss), and no error yet.
     // This is where Suspense kicks in.
-    throw new Promise<void>((resolve, reject) => {
-      fetch(url)
+    throw new Promise<void>((resolve, rejectThisPromise) => {
+      let absoluteUrl: string;
+      try {
+        // Construct absolute URL.
+        // NEXT_PUBLIC_APP_URL should be set in your .env file.
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+        if (!appUrl) {
+          // This is a critical configuration error.
+          throw new Error(
+            'NEXT_PUBLIC_APP_URL is not defined. Cannot make API calls.'
+          );
+        }
+        // new URL() constructor requires a base if the first argument is relative.
+        absoluteUrl = new URL(relativePath, appUrl).toString();
+      } catch (e) {
+        console.error("Error constructing absolute URL in useDataFetch:", e, "Relative path:", relativePath);
+        const constructionError = e instanceof Error ? e : new Error("Failed to construct absolute URL for fetch");
+        setError(constructionError); // Set error state
+        resolve(); // Resolve the promise to allow Suspense to show error or component to re-render with error
+        return; // Stop further execution of the promise callback
+      }
+
+      fetch(absoluteUrl)
         .then(response => {
           if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            // Attempt to get more details from the response body for non-JSON errors
+            return response.text().then(text => {
+              let errorMsg = `HTTP error! status: ${response.status} for URL: ${absoluteUrl}. Response: ${text.substring(0, 100)}...`;
+              if (response.headers.get("Content-Type")?.includes("text/html")) {
+                 errorMsg = `API returned HTML, not JSON. Status: ${response.status}. Check API endpoint or Vercel rewrites. Path: ${absoluteUrl}`;
+              }
+              throw new Error(errorMsg);
+            });
+          }
+          const contentType = response.headers.get("Content-Type");
+          if (!contentType || !contentType.includes("application/json")) {
+            return response.text().then(text => {
+              console.warn(`Expected JSON, got ${contentType} from ${absoluteUrl}. Body: ${text.substring(0,200)}...`);
+              throw new Error(
+                `Expected application/json, but received ${contentType} from API. Path: ${absoluteUrl}`
+              );
+            });
           }
           return response.json();
         })
         .then(fetchedData => {
-          if (fetchedData.success === false) { // Handle backend's structured error
-            console.error(`API Error in useDataFetch for ${url}:`, fetchedData.message || fetchedData.error);
-            const apiError = new Error(fetchedData.message || fetchedData.error || 'API returned success:false');
+          if (fetchedData && fetchedData.success === false) {
+            // Handle backend's structured error (e.g., { success: false, message: "..." })
+            const apiError = new Error(fetchedData.message || fetchedData.error || 'API request failed with success:false');
+            console.error(`API Error (success:false) in useDataFetch for ${absoluteUrl}:`, apiError.message);
             setError(apiError);
-            // Do not cache errors in this simple version, let it retry on next render attempt
-            // Or cache with an error marker if you want to avoid re-throwing promise
           } else {
-            cache.set(url, fetchedData);
+            cache.set(relativePath, fetchedData); // Cache based on the original relativePath
             setData(fetchedData);
           }
         })
-        .catch(fetchError => {
-          console.error(`Network/Fetch Error in useDataFetch for ${url}:`, fetchError);
-          setError(fetchError);
+        .catch(fetchOrParseError => {
+          console.error(`Fetch/Parse Error in useDataFetch for ${absoluteUrl}:`, fetchOrParseError);
+          setError(fetchOrParseError);
         })
         .finally(() => {
           // Important: resolve the promise thrown to Suspense
           // This tells Suspense that the data fetching attempt (success or fail) has completed.
-          // If successful, setData will trigger a re-render and Suspense will try again.
-          // If failed, setError will trigger a re-render, and the error can be thrown to ErrorBoundary.
           resolve();
         });
     });
