@@ -7,7 +7,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import { EntryContextProvider } from '@/contexts/EntryContext';
 import { Suspense } from 'react';
 import ContextProvider from '@/context/index';
-import { headers } from 'next/headers'; // Import headers
+import { cookies } from 'next/headers'; // Import cookies
 
 export const dynamic = 'force-dynamic'; // Ensure dynamic rendering
 
@@ -32,9 +32,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Get the cookie string correctly using headers()
-  const headersList = headers();
-  const rawCookieHeader = headersList.get('cookie') || null;
+  // Get the cookie string correctly using await cookies()
+  const cookieStore = await cookies();
+  const allCookies = cookieStore.getAll();
+  const rawCookieHeader = allCookies.length > 0
+    ? allCookies.map(c => `${c.name}=${c.value}`).join('; ')
+    : null;
 
   return (
     <html lang="en" suppressHydrationWarning>
