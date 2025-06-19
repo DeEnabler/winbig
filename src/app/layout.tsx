@@ -9,6 +9,8 @@ import { Suspense } from 'react';
 import ContextProvider from '@/context/index';
 import { cookies } from 'next/headers';
 
+export const dynamic = 'force-dynamic'; // Ensure dynamic rendering
+
 const geistSans = Geist({
   variable: '--font-geist-sans',
   subsets: ['latin'],
@@ -30,14 +32,9 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const cookieStore = cookies(); 
-
-  // Reconstruct the cookie string in the format "name1=value1; name2=value2"
-  // This is a common way to pass cookies to client-side providers for SSR hydration.
-  const allCookiesArray = await cookieStore.getAll(); // ✅ Now awaited
-  const rawCookieHeader = allCookiesArray.length > 0
-    ? allCookiesArray.map(cookie => `${cookie.name}=${encodeURIComponent(cookie.value)}`).join('; ')
-    : null; // Pass null if no cookies, as expected by cookieToInitialState
+  // Get the cookie string directly using cookies().toString()
+  // This is a simpler and often more robust way for SSR with wagmi.
+  const rawCookieHeader = cookies().toString() || null;
 
   return (
     <html lang="en" suppressHydrationWarning>
