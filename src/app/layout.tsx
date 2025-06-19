@@ -50,3 +50,6 @@ export default async function RootLayout({
         </ContextProvider>
         <Toaster />
       </body>
+    </html>
+  );
+}

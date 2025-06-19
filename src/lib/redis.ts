@@ -19,13 +19,13 @@ function connectToRedis(): Promise<void> {
   }
 
   const redisUrl = process.env.REDIS_URL;
-  const redisPassword = process.env.REDIS_PASSWORD; // Explicitly use REDIS_PASSWORD
+  // Fetch password from REDIS_TOKEN as per user's .env
+  const redisPassword = process.env.REDIS_TOKEN; 
 
-  console.log(`[Redis Client connectToRedis] Attempting to initialize. REDIS_URL set: ${!!redisUrl}, REDIS_PASSWORD set: ${!!redisPassword}`);
+  console.log(`[Redis Client connectToRedis] Attempting to initialize. REDIS_URL set: ${!!redisUrl}, REDIS_TOKEN (for password) set: ${!!redisPassword}`);
   if (redisPassword) {
-    console.log(`[Redis Client connectToRedis] REDIS_PASSWORD length: ${redisPassword.length}`);
+    console.log(`[Redis Client connectToRedis] REDIS_TOKEN (for password) length: ${redisPassword.length}`);
   }
-
 
   if (!redisUrl) {
     const errMsg = '[Redis Client] CRITICAL: REDIS_URL environment variable is not set.';
@@ -56,9 +56,7 @@ function connectToRedis(): Promise<void> {
   if (redisPassword) {
     options.password = redisPassword;
   } else {
-    // If password is not found, it might be embedded in the URL for some providers.
-    // For Upstash, password is usually separate. Log a warning if not provided.
-    console.warn('[Redis Client] REDIS_PASSWORD is not set. Assuming password (if any) is embedded in REDIS_URL or not required.');
+    console.warn('[Redis Client] REDIS_TOKEN (for password) is not set. Assuming password (if any) is embedded in REDIS_URL or not required.');
   }
 
   if (redisUrl.startsWith('rediss://')) {
@@ -66,7 +64,7 @@ function connectToRedis(): Promise<void> {
   }
   
   const loggableUrl = redisUrl.includes('@') ? redisUrl.substring(0, redisUrl.indexOf('//') + 2) + '******' + redisUrl.substring(redisUrl.indexOf('@')) : redisUrl;
-  console.log(`[Redis Client] Configuring new ioredis client. URL (sanitized): ${loggableUrl}, Password Set: ${!!redisPassword}, TLS: ${!!options.tls}, enableOfflineQueue: ${options.enableOfflineQueue}, lazyConnect: ${options.lazyConnect}`);
+  console.log(`[Redis Client] Configuring new ioredis client. URL (sanitized): ${loggableUrl}, Password Set via REDIS_TOKEN: ${!!redisPassword}, TLS: ${!!options.tls}, enableOfflineQueue: ${options.enableOfflineQueue}, lazyConnect: ${options.lazyConnect}`);
 
   const newRedisInstance = new Redis(redisUrl, options);
 
@@ -82,7 +80,7 @@ function connectToRedis(): Promise<void> {
       const sanitizedErrorUrl = err.message && err.message.includes(redisUrl) ? err.message.replace(redisUrl, loggableUrl) : err.message;
       let specificError = `[Redis Client] Event: Redis connection error: ${sanitizedErrorUrl}. URL (sanitized): ${loggableUrl}`;
       if (err.message && err.message.toUpperCase().includes('WRONGPASS')) {
-          specificError = `[Redis Client] Event: FATAL - Redis authentication failed (WRONGPASS). Please check your REDIS_PASSWORD. URL (sanitized): ${loggableUrl}`;
+          specificError = `[Redis Client] Event: FATAL - Redis authentication failed (WRONGPASS). Please check your REDIS_TOKEN (used as password). URL (sanitized): ${loggableUrl}`;
       }
       console.error(specificError, err);
       if (redisConnectionPromise && newRedisInstance.status !== 'ready') {
@@ -122,7 +120,7 @@ async function getRedisClient(): Promise<Redis.Redis> {
   
   if (!redis || redis.status !== 'ready') {
     console.error('[Redis Client getRedisClient] CRITICAL: Client is not ready or null even after connectToRedis attempt.');
-    throw new Error('Redis client is not connected or ready. Check logs for connection errors, especially WRONGPASS.');
+    throw new Error('Redis client is not connected or ready. Check logs for connection errors, especially WRONGPASS (check REDIS_TOKEN).');
   }
   console.log('[Redis Client getRedisClient] Returning established Redis client.');
   return redis;
