@@ -7,7 +7,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import { EntryContextProvider } from '@/contexts/EntryContext';
 import { Suspense } from 'react';
 import ContextProvider from '@/context/index';
-import { cookies } from 'next/headers';
+import { headers } from 'next/headers'; // Import headers
 
 export const dynamic = 'force-dynamic'; // Ensure dynamic rendering
 
@@ -32,9 +32,9 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Get the cookie string directly using cookies().toString()
-  // This is a simpler and often more robust way for SSR with wagmi.
-  const rawCookieHeader = cookies().toString() || null;
+  // Get the cookie string correctly using headers()
+  const headersList = headers();
+  const rawCookieHeader = headersList.get('cookie') || null;
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -50,6 +50,3 @@ export default async function RootLayout({
         </ContextProvider>
         <Toaster />
       </body>
-    </html>
-  );
-}

@@ -19,38 +19,46 @@ function connectToRedis(): Promise<void> {
   }
 
   const redisUrl = process.env.REDIS_URL;
-  const redisPassword = process.env.REDIS_PASSWORD;
+  const redisPassword = process.env.REDIS_PASSWORD; // Explicitly use REDIS_PASSWORD
 
-  console.log('[Redis Client connectToRedis] Attempting to initialize new Redis client instance.');
+  console.log(`[Redis Client connectToRedis] Attempting to initialize. REDIS_URL set: ${!!redisUrl}, REDIS_PASSWORD set: ${!!redisPassword}`);
+  if (redisPassword) {
+    console.log(`[Redis Client connectToRedis] REDIS_PASSWORD length: ${redisPassword.length}`);
+  }
+
 
   if (!redisUrl) {
     const errMsg = '[Redis Client] CRITICAL: REDIS_URL environment variable is not set.';
     console.error(errMsg);
-    redisConnectionPromise = null; // Clear promise on immediate failure
+    redisConnectionPromise = null;
     return Promise.reject(new Error('Redis connection string (REDIS_URL) is not configured.'));
   }
 
   if (redisUrl === PLACEHOLDER_REDIS_URL || redisUrl.includes(UPSTASH_EXAMPLE_URL_PART)) {
     const errMsg = `[Redis Client] CRITICAL: REDIS_URL is still set to a placeholder value: "${redisUrl}"`;
     console.error(errMsg);
-    redisConnectionPromise = null; // Clear promise on immediate failure
+    redisConnectionPromise = null;
     return Promise.reject(new Error(`Redis is not configured. Please update REDIS_URL in your environment variables.`));
   }
-
+  
   const options: Redis.RedisOptions = {
     maxRetriesPerRequest: 3,
-    connectTimeout: 10000, // 10 seconds
-    enableOfflineQueue: false, // Crucial: Fail fast if connection is down
+    connectTimeout: 10000,
+    enableOfflineQueue: false, 
+    lazyConnect: false, 
     retryStrategy: (times) => {
-      const delay = Math.min(times * 100, 3000); // Cap at 3 seconds
+      const delay = Math.min(times * 100, 3000); 
       console.log(`[Redis Client] Retry strategy: Attempt ${times}, retrying in ${delay}ms`);
       return delay;
     },
-    // lazyConnect: false, // Explicitly false or remove, ioredis default is eager
   };
 
   if (redisPassword) {
     options.password = redisPassword;
+  } else {
+    // If password is not found, it might be embedded in the URL for some providers.
+    // For Upstash, password is usually separate. Log a warning if not provided.
+    console.warn('[Redis Client] REDIS_PASSWORD is not set. Assuming password (if any) is embedded in REDIS_URL or not required.');
   }
 
   if (redisUrl.startsWith('rediss://')) {
@@ -58,17 +66,16 @@ function connectToRedis(): Promise<void> {
   }
   
   const loggableUrl = redisUrl.includes('@') ? redisUrl.substring(0, redisUrl.indexOf('//') + 2) + '******' + redisUrl.substring(redisUrl.indexOf('@')) : redisUrl;
-  console.log(`[Redis Client] Configuring new Redis client. URL (sanitized): ${loggableUrl}, Password Set: ${!!redisPassword}, TLS: ${!!options.tls}, enableOfflineQueue: ${options.enableOfflineQueue}`);
+  console.log(`[Redis Client] Configuring new ioredis client. URL (sanitized): ${loggableUrl}, Password Set: ${!!redisPassword}, TLS: ${!!options.tls}, enableOfflineQueue: ${options.enableOfflineQueue}, lazyConnect: ${options.lazyConnect}`);
 
-  // Create new instance
   const newRedisInstance = new Redis(redisUrl, options);
 
   redisConnectionPromise = new Promise((resolve, reject) => {
-    newRedisInstance.on('connect', () => console.log(`[Redis Client] Event: CONNECT command sent to Redis for URL (sanitized): ${loggableUrl}. Timestamp: ${new Date().toISOString()}`));
+    newRedisInstance.on('connect', () => console.log(`[Redis Client] Event: CONNECT command sent to Redis. URL (sanitized): ${loggableUrl}. Timestamp: ${new Date().toISOString()}`));
     newRedisInstance.on('ready', () => {
-      console.log(`[Redis Client] Event: Redis client READY for URL (sanitized): ${loggableUrl}. Timestamp: ${new Date().toISOString()}`);
-      redis = newRedisInstance; // Assign to global only when ready
-      redisConnectionPromise = null; 
+      console.log(`[Redis Client] Event: Redis client READY. URL (sanitized): ${loggableUrl}. Timestamp: ${new Date().toISOString()}`);
+      redis = newRedisInstance;
+      redisConnectionPromise = null;
       resolve();
     });
     newRedisInstance.on('error', (err) => {
@@ -78,61 +85,48 @@ function connectToRedis(): Promise<void> {
           specificError = `[Redis Client] Event: FATAL - Redis authentication failed (WRONGPASS). Please check your REDIS_PASSWORD. URL (sanitized): ${loggableUrl}`;
       }
       console.error(specificError, err);
-      // Only reject if this promise is still the active one and client not ready
       if (redisConnectionPromise && newRedisInstance.status !== 'ready') {
          redisConnectionPromise = null; 
-         newRedisInstance.disconnect(); // Attempt to clean up
+         newRedisInstance.disconnect();
          reject(new Error(specificError));
       } else if (newRedisInstance.status !== 'ready') {
-         // If promise was already resolved/nulled but client errored before becoming global 'redis'
          console.error("[Redis Client] Error on an instance that wasn't current primary promise, or after promise resolution.");
       }
     });
     newRedisInstance.on('reconnecting', (delay) => console.log(`[Redis Client] Event: Reconnecting to Redis in ${delay}ms... URL (sanitized): ${loggableUrl}`));
     newRedisInstance.on('end', () => {
-      console.log(`[Redis Client] Event: Connection to Redis ENDED for URL (sanitized): ${loggableUrl}. Timestamp: ${new Date().toISOString()}`);
-      if (redis === newRedisInstance) { // If this was the active global instance
-        redis = null; 
+      console.log(`[Redis Client] Event: Connection to Redis ENDED. URL (sanitized): ${loggableUrl}. Timestamp: ${new Date().toISOString()}`);
+      if (redis === newRedisInstance) {
+        redis = null;
       }
-      redisConnectionPromise = null; // Always nullify if this instance ends
+      redisConnectionPromise = null;
     });
     newRedisInstance.on('close', () => {
-      console.log(`[Redis Client] Event: Connection to Redis CLOSED for URL (sanitized): ${loggableUrl}. Timestamp: ${new Date().toISOString()}`);
+      console.log(`[Redis Client] Event: Connection to Redis CLOSED. URL (sanitized): ${loggableUrl}. Timestamp: ${new Date().toISOString()}`);
        if (redis === newRedisInstance) {
         redis = null;
        }
        redisConnectionPromise = null;
     });
   });
-
-  // Eagerly attempt to connect.
-  // The promise handles success/failure.
-  newRedisInstance.connect().catch(err => {
-    // This catch is for the direct .connect() call.
-    // The 'error' event on newRedisInstance will also fire and handle rejection.
-    console.error(`[Redis Client] Explicit connect() call failed for ${loggableUrl}:`, err);
-    if (redisConnectionPromise && newRedisInstance.status !== 'ready') { // If connection promise still pending & client not ready
-        // The 'error' event handler should cover promise rejection.
-    }
-  });
   
-  console.log('[Redis Client] New Redis client instance created. Connection attempt initiated.');
+  console.log('[Redis Client] New ioredis client instance created. Connection attempt initiated (eagerly as lazyConnect is false).');
   return redisConnectionPromise;
 }
-
 
 async function getRedisClient(): Promise<Redis.Redis> {
   if (!redis || redis.status !== 'ready') {
     console.log(`[Redis Client getRedisClient] Redis client not ready (Status: ${redis?.status || 'null'}). Ensuring connection...`);
-    await connectToRedis(); 
+    await connectToRedis();
   }
   
   if (!redis || redis.status !== 'ready') {
     console.error('[Redis Client getRedisClient] CRITICAL: Client is not ready or null even after connectToRedis attempt.');
-    throw new Error('Redis client is not connected or ready. Check logs for connection errors.');
+    throw new Error('Redis client is not connected or ready. Check logs for connection errors, especially WRONGPASS.');
   }
   console.log('[Redis Client getRedisClient] Returning established Redis client.');
   return redis;
 }
 
 export default getRedisClient;
+    
