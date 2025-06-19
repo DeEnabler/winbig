@@ -1,5 +1,5 @@
-
-// This defines types relevant to the Polymarket SDK interaction within this Next.js app
+// src/lib/polymarket-sdk/types.ts
+// Simplified as direct Polymarket interaction is removed from Next.js app for odds.
 
 export interface WalletInfo {
   address: string;
@@ -13,9 +13,11 @@ export interface PolymarketCredentials {
   passphrase: string;
 }
 
+// AuthResult might still be used if other parts of the app interact with wallets,
+// but its direct relation to EphemeralCredentialManager for Polymarket API keys is gone.
 export interface AuthResult {
-  wallet?: WalletInfo; // Made optional for cases where only creds are returned
-  credentials?: PolymarketCredentials; // Made optional
+  wallet?: WalletInfo;
+  credentials?: PolymarketCredentials;
   success: boolean;
   error?: string;
 }
@@ -24,7 +26,7 @@ export interface NetworkConfig {
   chainId: number;
   name: string;
   rpcUrl: string;
-  clobUrl: string; // URL for the CLOB API
+  clobUrl: string;
   currency: string;
   blockExplorer: string;
 }
@@ -48,26 +50,7 @@ export const NETWORKS: Record<string, NetworkConfig> = {
   }
 };
 
-// Interface for LiveMarketService to use
-export interface LiveMarket {
-  id: string; // conditionId from Polymarket
-  question: string;
-  yesPrice: number; // Probability from 0.01 to 0.99
-  noPrice: number;  // 1 - yesPrice
-  category?: string;
-  endsAt?: Date;
-  // Add other relevant fields: volume, liquidity, etc. as needed
-}
+// LiveMarket type is primarily defined in src/types/index.ts
+// This file no longer needs its own definition if it was solely for this service.
 
-// Interface for credential manager used by LiveMarketService
-export interface EphemeralCredentialManagerInterface {
-  getCredentials(network: 'amoy' | 'polygon'): Promise<AuthResult>;
-  forceRefreshCredentials(network: 'amoy' | 'polygon'): Promise<void>;
-  getCredentialStatus(): {
-    isInitialized: boolean;
-    lastRefreshed: Date | null;
-    nextRefreshAttempt: Date | null;
-    currentNetwork: string | null;
-    error: string | null;
-  };
-}
+// EphemeralCredentialManagerInterface is removed as the manager is deleted.
