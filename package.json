@@ -1,3 +1,4 @@
+
 {
   "name": "nextn",
   "version": "0.1.0",
@@ -42,7 +43,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "dotenv": "^16.5.0",
-    "ethers": "5.7.2",
+    "ethers": "^6.11.1",
     "firebase": "^11.8.1",
     "framer-motion": "11.2.10",
     "genkit": "^1.8.0",
