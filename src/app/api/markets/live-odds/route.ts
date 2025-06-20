@@ -6,19 +6,21 @@ import type { LiveMarket } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
-// Helper function to get all keys matching a pattern using SCAN
 async function scanAllKeys(redisClient: import('ioredis').Redis, pattern: string): Promise<string[]> {
   const keys: string[] = [];
   let cursor = '0';
   const startTime = Date.now();
+  console.time('[API /markets/live-odds] scanAllKeys Duration');
   try {
     do {
-      const scanResult = await redisClient.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+      // Adjust COUNT if necessary, 100 is a reasonable default
+      const scanResult = await redisClient.scan(cursor, 'MATCH', pattern, 'COUNT', 250);
       cursor = scanResult[0];
       keys.push(...scanResult[1]);
     } while (cursor !== '0');
   } finally {
     const duration = Date.now() - startTime;
+    console.timeEnd('[API /markets/live-odds] scanAllKeys Duration');
     console.log(`[API /markets/live-odds] scanAllKeys for pattern "${pattern}" took ${duration}ms. Found ${keys.length} keys.`);
   }
   return keys;
@@ -31,7 +33,7 @@ export async function GET(req: NextRequest) {
   const limitQuery = searchParams.get('limit');
   const offsetQuery = searchParams.get('offset');
 
-  const limit = limitQuery ? parseInt(limitQuery) : 20;
+  const limit = limitQuery ? parseInt(limitQuery) : 10; // Default to 10, can be adjusted
   const offset = offsetQuery ? parseInt(offsetQuery) : 0;
 
   console.log(`[API /markets/live-odds] Processing request. Limit: ${limit}, Offset: ${offset}`);
@@ -40,10 +42,9 @@ export async function GET(req: NextRequest) {
     const redisClient = await getRedisClient();
     console.log('[API /markets/live-odds] Obtained Redis client.');
 
-    const oddsMarketKeys = await scanAllKeys(redisClient, "odds:market:*");
-    console.log(`[API /markets/live-odds] Found ${oddsMarketKeys.length} odds keys using SCAN.`);
-
-    if (!oddsMarketKeys || oddsMarketKeys.length === 0) {
+    const allOddsMarketKeys = await scanAllKeys(redisClient, "odds:market:*");
+    
+    if (!allOddsMarketKeys || allOddsMarketKeys.length === 0) {
       const emptyResponseTime = Date.now();
       console.log(`[API /markets/live-odds] No market keys found. Total execution time: ${emptyResponseTime - overallStartTime}ms`);
       return NextResponse.json({
@@ -56,16 +57,32 @@ export async function GET(req: NextRequest) {
       }, { status: 200 });
     }
 
-    const marketIds = oddsMarketKeys.map(key => key.substring("odds:market:".length));
+    // Paginate the keys *before* fetching data
+    const paginatedMarketKeys = allOddsMarketKeys.slice(offset, offset + limit);
+    console.log(`[API /markets/live-odds] Total keys: ${allOddsMarketKeys.length}. Processing ${paginatedMarketKeys.length} keys for this page (offset: ${offset}, limit: ${limit}).`);
 
-    console.time('[API /markets/live-odds] pipeline.exec(odds+meta)');
+    if (paginatedMarketKeys.length === 0) {
+        console.log('[API /markets/live-odds] No keys for the current page after pagination.');
+        return NextResponse.json({
+            success: true,
+            timestamp: new Date().toISOString(),
+            marketCount: 0,
+            totalAvailable: allOddsMarketKeys.length,
+            markets: [],
+            query: { limit, offset }
+        }, { status: 200 });
+    }
+
+    const marketIdsForPage = paginatedMarketKeys.map(key => key.substring("odds:market:".length));
+
+    console.time('[API /markets/live-odds] pipeline.exec(odds+meta for page)');
     const pipeline = redisClient.pipeline();
-    marketIds.forEach(marketId => {
+    marketIdsForPage.forEach(marketId => {
       pipeline.hgetall(`odds:market:${marketId}`);
       pipeline.hgetall(`meta:market:${marketId}`);
     });
     const pipelineResults = await pipeline.exec();
-    console.timeEnd('[API /markets/live-odds] pipeline.exec(odds+meta)');
+    console.timeEnd('[API /markets/live-odds] pipeline.exec(odds+meta for page)');
 
 
     if (!pipelineResults) {
@@ -73,13 +90,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Failed to fetch data from Redis pipeline.' }, { status: 500 });
     }
 
-    console.log(`[API /markets/live-odds] Pipeline returned ${pipelineResults.length} results (odds+meta pairs). Processing...`);
     const fetchedMarkets: LiveMarket[] = [];
-
     for (let i = 0; i < pipelineResults.length; i += 2) {
       const [oddsErr, singleOddData] = pipelineResults[i];
       const [metaErr, metaData] = pipelineResults[i + 1];
-      const currentMarketId = marketIds[i / 2];
+      const currentMarketId = marketIdsForPage[i / 2]; // Use marketIdsForPage
 
       if (oddsErr) {
         console.warn(`[API /markets/live-odds] Error in pipeline result for odds of market ${currentMarketId}:`, oddsErr);
@@ -118,25 +133,18 @@ export async function GET(req: NextRequest) {
       };
       fetchedMarkets.push(marketToAdd);
     }
-
-    if (fetchedMarkets.length > 0) {
-        console.log(`[API /markets/live-odds] Successfully processed ${fetchedMarkets.length} markets.`);
-    } else {
-        console.log('[API /markets/live-odds] No valid markets assembled after processing all Redis data.');
-    }
-
-    const paginatedMarkets = fetchedMarkets.slice(offset, offset + limit);
-    console.log(`[API /markets/live-odds] Returning ${paginatedMarkets.length} markets after pagination. Total available: ${fetchedMarkets.length}.`);
+    
+    console.log(`[API /markets/live-odds] Successfully processed ${fetchedMarkets.length} markets for the page.`);
 
     const overallEndTime = Date.now();
-    console.log(`[API /markets/live-odds] Total execution time: ${overallEndTime - overallStartTime}ms`);
+    console.log(`[API /markets/live-odds] Total execution time: ${overallEndTime - overallStartTime}ms (Limit: ${limit}, Offset: ${offset})`);
 
     return NextResponse.json({
       success: true,
       timestamp: new Date().toISOString(),
-      marketCount: paginatedMarkets.length,
-      totalAvailable: fetchedMarkets.length,
-      markets: paginatedMarkets,
+      marketCount: fetchedMarkets.length, // Count for the current page
+      totalAvailable: allOddsMarketKeys.length, // Total keys found by SCAN
+      markets: fetchedMarkets,
       query: { limit, offset }
     }, { status: 200 });
 
