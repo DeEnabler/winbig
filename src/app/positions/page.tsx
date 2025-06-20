@@ -1,8 +1,7 @@
-
 // src/app/positions/page.tsx
 'use client';
 
-import type { OpenPosition, OpenPositionStatus, ShareMessageDetails, OgData } from '@/types';
+import type { OpenPosition, ShareMessageDetails, OgData } from '@/types';
 import { mockOpenPositions, mockCurrentUser } from '@/lib/mockData';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,9 +16,14 @@ import { useEntryContext } from '@/contexts/EntryContext';
 import { useToast } from '@/hooks/use-toast';
 import { useAccount } from 'wagmi';
 import { appKitModal } from '@/context/index';
-import ShareDialog from '@/components/sharing/ShareDialog';
 import { useState, useMemo } from 'react';
 import { generateXShareMessage } from '@/ai/flows/generate-x-share-message';
+import dynamic from 'next/dynamic';
+
+const ShareDialog = dynamic(() => import('@/components/sharing/ShareDialog'), {
+  ssr: false,
+  loading: () => <p>Loading...</p>
+});
 
 function formatCurrency(amount: number, includeSign = true) {
   return `${includeSign ? '$' : ''}${amount.toFixed(2)}`;
@@ -377,15 +381,17 @@ export default function PositionsPage() {
           )}
         </div>
       </div>
-      <ShareDialog
-        isOpen={isShareDialogOpen}
-        onOpenChange={setIsShareDialogOpen}
-        ogImageUrl={currentShareOgImageUrl}
-        currentShareMessage={isLoadingShareMessage ? "Generating share message..." : currentShareMessage}
-        onShareMessageChange={setCurrentShareMessage}
-        shareUrl={currentShareUrl}
-        entityContext="position_outcome"
-      />
+      {isShareDialogOpen && (
+        <ShareDialog
+          isOpen={isShareDialogOpen}
+          onOpenChange={setIsShareDialogOpen}
+          ogImageUrl={currentShareOgImageUrl}
+          currentShareMessage={isLoadingShareMessage ? "Generating share message..." : currentShareMessage}
+          onShareMessageChange={setCurrentShareMessage}
+          shareUrl={currentShareUrl}
+          entityContext="position_outcome"
+        />
+      )}
     </>
   );
 }

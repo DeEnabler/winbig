@@ -1,150 +1,34 @@
-
 // src/app/api/markets/live-odds/route.ts
 import { type NextRequest, NextResponse } from 'next/server';
-import getRedisClient from '@/lib/redis';
-import type { LiveMarket } from '@/types';
+import { getLiveMarkets } from '@/lib/marketService'; // Use the new shared service
 
 export const dynamic = 'force-dynamic';
-
-async function scanAllKeys(redisClient: import('ioredis').Redis, pattern: string): Promise<string[]> {
-  const keys: string[] = [];
-  let cursor = '0';
-  const startTime = Date.now();
-  console.time('[API /markets/live-odds] scanAllKeys Duration');
-  try {
-    do {
-      // Adjust COUNT if necessary, 100 is a reasonable default
-      const scanResult = await redisClient.scan(cursor, 'MATCH', pattern, 'COUNT', 250);
-      cursor = scanResult[0];
-      keys.push(...scanResult[1]);
-    } while (cursor !== '0');
-  } finally {
-    const duration = Date.now() - startTime;
-    console.timeEnd('[API /markets/live-odds] scanAllKeys Duration');
-    console.log(`[API /markets/live-odds] scanAllKeys for pattern "${pattern}" took ${duration}ms. Found ${keys.length} keys.`);
-  }
-  return keys;
-}
 
 export async function GET(req: NextRequest) {
   const overallStartTime = Date.now();
   console.log(`[API /markets/live-odds] Received request at ${new Date(overallStartTime).toISOString()}`);
+  
   const { searchParams } = req.nextUrl;
   const limitQuery = searchParams.get('limit');
   const offsetQuery = searchParams.get('offset');
 
-  const limit = limitQuery ? parseInt(limitQuery) : 10; // Default to 10, can be adjusted
+  const limit = limitQuery ? parseInt(limitQuery) : 10;
   const offset = offsetQuery ? parseInt(offsetQuery) : 0;
-
+  
   console.log(`[API /markets/live-odds] Processing request. Limit: ${limit}, Offset: ${offset}`);
 
   try {
-    const redisClient = await getRedisClient();
-    console.log('[API /markets/live-odds] Obtained Redis client.');
-
-    const allOddsMarketKeys = await scanAllKeys(redisClient, "odds:market:*");
-    
-    if (!allOddsMarketKeys || allOddsMarketKeys.length === 0) {
-      const emptyResponseTime = Date.now();
-      console.log(`[API /markets/live-odds] No market keys found. Total execution time: ${emptyResponseTime - overallStartTime}ms`);
-      return NextResponse.json({
-        success: true,
-        message: 'No live markets found in Redis.',
-        timestamp: new Date().toISOString(),
-        marketCount: 0,
-        markets: [],
-        totalAvailable: 0,
-      }, { status: 200 });
-    }
-
-    // Paginate the keys *before* fetching data
-    const paginatedMarketKeys = allOddsMarketKeys.slice(offset, offset + limit);
-    console.log(`[API /markets/live-odds] Total keys: ${allOddsMarketKeys.length}. Processing ${paginatedMarketKeys.length} keys for this page (offset: ${offset}, limit: ${limit}).`);
-
-    if (paginatedMarketKeys.length === 0) {
-        console.log('[API /markets/live-odds] No keys for the current page after pagination.');
-        return NextResponse.json({
-            success: true,
-            timestamp: new Date().toISOString(),
-            marketCount: 0,
-            totalAvailable: allOddsMarketKeys.length,
-            markets: [],
-            query: { limit, offset }
-        }, { status: 200 });
-    }
-
-    const marketIdsForPage = paginatedMarketKeys.map(key => key.substring("odds:market:".length));
-
-    console.time('[API /markets/live-odds] pipeline.exec(odds+meta for page)');
-    const pipeline = redisClient.pipeline();
-    marketIdsForPage.forEach(marketId => {
-      pipeline.hgetall(`odds:market:${marketId}`);
-      pipeline.hgetall(`meta:market:${marketId}`);
-    });
-    const pipelineResults = await pipeline.exec();
-    console.timeEnd('[API /markets/live-odds] pipeline.exec(odds+meta for page)');
-
-
-    if (!pipelineResults) {
-      console.error('[API /markets/live-odds] Redis pipeline.exec() returned null or undefined.');
-      return NextResponse.json({ success: false, error: 'Failed to fetch data from Redis pipeline.' }, { status: 500 });
-    }
-
-    const fetchedMarkets: LiveMarket[] = [];
-    for (let i = 0; i < pipelineResults.length; i += 2) {
-      const [oddsErr, singleOddData] = pipelineResults[i];
-      const [metaErr, metaData] = pipelineResults[i + 1];
-      const currentMarketId = marketIdsForPage[i / 2]; // Use marketIdsForPage
-
-      if (oddsErr) {
-        console.warn(`[API /markets/live-odds] Error in pipeline result for odds of market ${currentMarketId}:`, oddsErr);
-        continue;
-      }
-      if (metaErr) {
-        console.warn(`[API /markets/live-odds] Error in pipeline result for meta of market ${currentMarketId}:`, metaErr);
-      }
-
-      if (!singleOddData || Object.keys(singleOddData).length === 0) {
-        console.warn(`[API /markets/live-odds] Empty odds data in pipeline result for market ${currentMarketId}.`);
-        continue;
-      }
-
-      const yesPrice = parseFloat(singleOddData.yesPrice);
-      const noPrice = parseFloat(singleOddData.noPrice);
-
-      if (isNaN(yesPrice) || isNaN(noPrice)) {
-        console.warn(`[API /markets/live-odds] Invalid prices for market ${currentMarketId}: yes=${singleOddData.yesPrice}, no=${singleOddData.noPrice}`);
-        continue;
-      }
-
-      const marketToAdd: LiveMarket = {
-        id: currentMarketId,
-        question: metaData?.question || singleOddData.question || 'N/A - Check meta',
-        yesPrice: yesPrice,
-        noPrice: noPrice,
-        category: metaData?.category || singleOddData.category || 'General',
-        endsAt: metaData?.endsAt ? new Date(metaData.endsAt) : (singleOddData.endsAt ? new Date(singleOddData.endsAt) : undefined),
-        imageUrl: metaData?.imageUrl || singleOddData.imageUrl || `https://placehold.co/600x400.png?text=${encodeURIComponent(metaData?.category || 'Market')}`,
-        aiHint: metaData?.aiHint || singleOddData.aiHint || (metaData?.category || 'event').toLowerCase(),
-        ...(metaData?.payoutTeaser && { payoutTeaser: metaData.payoutTeaser }),
-        ...(metaData?.streakCount && { streakCount: parseInt(metaData.streakCount) }),
-        ...(metaData?.facePileCount && { facePileCount: parseInt(metaData.facePileCount) }),
-        ...(metaData?.timeLeft && { timeLeft: metaData.timeLeft }),
-      };
-      fetchedMarkets.push(marketToAdd);
-    }
-    
-    console.log(`[API /markets/live-odds] Successfully processed ${fetchedMarkets.length} markets for the page.`);
+    const marketData = await getLiveMarkets({ limit, offset });
 
     const overallEndTime = Date.now();
-    console.log(`[API /markets/live-odds] Total execution time: ${overallEndTime - overallStartTime}ms (Limit: ${limit}, Offset: ${offset})`);
+    console.log(`[API /markets/live-odds] Successfully fetched ${marketData.markets.length} markets. Total execution time: ${overallEndTime - overallStartTime}ms`);
 
     return NextResponse.json({
       success: true,
       timestamp: new Date().toISOString(),
-      marketCount: fetchedMarkets.length, // Count for the current page
-      totalAvailable: allOddsMarketKeys.length, // Total keys found by SCAN
-      markets: fetchedMarkets,
+      marketCount: marketData.markets.length,
+      totalAvailable: marketData.total,
+      markets: marketData.markets,
       query: { limit, offset }
     }, { status: 200 });
 

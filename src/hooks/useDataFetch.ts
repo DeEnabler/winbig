@@ -1,6 +1,11 @@
 // src/hooks/useDataFetch.ts
 'use client';
 
+// This hook is no longer used for the initial page load on the homepage,
+// as data is now fetched on the server. However, it's kept here as it might
+// be useful for other client-side data fetching needs or for pagination/client-side updates.
+// The logic is sound for a client-side Suspense fetch hook.
+
 import { useState } from 'react';
 
 interface FetchResult<T> {

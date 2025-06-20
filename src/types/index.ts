@@ -97,6 +97,8 @@ export interface MatchViewProps {
 
 // Props for ShareDialog
 export interface ShareDialogProps {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
   matchId?: string; // Optional, as it might not be relevant for all shares (e.g. sharing a position)
   ogImageUrl: string;
   tweetTemplates?: string[];
@@ -114,7 +116,6 @@ export interface EntryContextType {
   challenge?: boolean;
   referrer?: string;
   marketId?: string;
-  predictionId?: string; // Already present, just confirming
   appendEntryParams: (url: string) => string;
 }
 
@@ -165,7 +166,20 @@ export interface LiveMarket {
   noPrice: number;  // 1 - yesPrice
   category?: string;
   endsAt?: Date;
-  imageUrl?: string; // Added to ensure it's part of the type
-  aiHint?: string;   // Added to ensure it's part of the type
-  // Add other relevant fields: volume, liquidity, etc. as needed
+  imageUrl?: string;
+  aiHint?: string;
+  payoutTeaser?: string;
+  streakCount?: number;
+  facePileCount?: number;
+}
+
+export interface ShareMessageDetails {
+  predictionText: string;
+  outcomeDescription: string;
+  betAmount?: number;
+  finalAmount?: number;
+  potentialWinnings?: number;
+  currency?: string;
+  opponentUsername?: string;
+  callToAction?: string;
 }
