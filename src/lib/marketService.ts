@@ -3,16 +3,7 @@ import 'server-only'; // Ensures this module is only used on the server
 import getRedisClient from '@/lib/redis';
 import type { LiveMarket } from '@/types';
 
-async function scanAllKeys(redisClient: import('ioredis').Redis, pattern: string): Promise<string[]> {
-  const keys: string[] = [];
-  let cursor = '0';
-  do {
-    const [newCursor, batch] = await redisClient.scan(cursor, 'MATCH', pattern, 'COUNT', 250);
-    cursor = newCursor;
-    keys.push(...batch);
-  } while (cursor !== '0');
-  return keys;
-}
+// The scanAllKeys function is now obsolete and has been removed.
 
 interface GetLiveMarketsParams {
   limit?: number;
@@ -26,22 +17,26 @@ interface LiveMarketsResponse {
 
 export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
   const redisClient = await getRedisClient();
-  const allOddsMarketKeys = await scanAllKeys(redisClient, "odds:market:*");
+  
+  // NEW: Use SMEMBERS to get all active market IDs from the dedicated set.
+  const activeMarketIds = await redisClient.smembers('active_market_ids');
 
-  if (!allOddsMarketKeys || allOddsMarketKeys.length === 0) {
+  if (!activeMarketIds || activeMarketIds.length === 0) {
+    console.log('[MarketService] No active market IDs found in the "active_market_ids" set.');
     return { markets: [], total: 0 };
   }
+  
+  const totalMarkets = activeMarketIds.length;
 
-  const paginatedMarketKeys = allOddsMarketKeys.slice(offset, offset + limit);
+  // Paginate the market IDs.
+  const paginatedMarketIds = activeMarketIds.slice(offset, offset + limit);
 
-  if (paginatedMarketKeys.length === 0) {
-    return { markets: [], total: allOddsMarketKeys.length };
+  if (paginatedMarketIds.length === 0) {
+    return { markets: [], total: totalMarkets };
   }
 
-  const marketIdsForPage = paginatedMarketKeys.map(key => key.substring("odds:market:".length));
-
   const pipeline = redisClient.pipeline();
-  marketIdsForPage.forEach(marketId => {
+  paginatedMarketIds.forEach(marketId => {
     pipeline.hgetall(`odds:market:${marketId}`);
     pipeline.hgetall(`meta:market:${marketId}`);
   });
@@ -55,7 +50,7 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
   for (let i = 0; i < pipelineResults.length; i += 2) {
     const [oddsErr, singleOddData] = pipelineResults[i];
     const [metaErr, metaData] = pipelineResults[i + 1];
-    const currentMarketId = marketIdsForPage[i / 2];
+    const currentMarketId = paginatedMarketIds[i / 2];
 
     if (oddsErr || metaErr || !singleOddData) {
       console.warn(`Error fetching data for market ${currentMarketId}. OddsErr: ${oddsErr}, MetaErr: ${metaErr}`);
@@ -86,7 +81,7 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
     fetchedMarkets.push(marketToAdd);
   }
 
-  return { markets: fetchedMarkets, total: allOddsMarketKeys.length };
+  return { markets: fetchedMarkets, total: totalMarkets };
 }
 
 export async function getMarketDetails(marketId: string): Promise<LiveMarket | null> {
