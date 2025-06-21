@@ -38,12 +38,12 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
   });
 
   try {
-    const pipelineResults = await pipeline.exec();
+    const pipelineResults = await pipeline.exec<Array<Record<string, string> | null>>();
     
     const fetchedMarkets: LiveMarket[] = [];
     for (let i = 0; i < pipelineResults.length; i += 2) {
-      const singleOddData = pipelineResults[i] as Record<string, string> | null;
-      const metaData = pipelineResults[i+1] as Record<string, string> | null;
+      const singleOddData = pipelineResults[i];
+      const metaData = pipelineResults[i + 1];
       const currentMarketId = paginatedMarketIds[i / 2];
 
       if (!singleOddData) {
@@ -78,7 +78,6 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
 
   } catch (error) {
     console.error('[MarketService] CRITICAL ERROR executing Redis pipeline:', error);
-    // Re-throw or handle as appropriate for your app's error strategy
     throw new Error('Failed to fetch market data from Redis.');
   }
 }
@@ -92,10 +91,10 @@ export async function getMarketDetails(marketId: string): Promise<LiveMarket | n
         const pipeline = redisClient.pipeline();
         pipeline.hgetall(oddsKey);
         pipeline.hgetall(metaKey);
-        const results = await pipeline.exec();
+        const results = await pipeline.exec<Array<Record<string, string> | null>>();
 
-        const oddsData = results[0] as Record<string, string> | null;
-        const metaData = results[1] as Record<string, string> | null;
+        const oddsData = results[0];
+        const metaData = results[1];
         
         if (!oddsData || Object.keys(oddsData).length === 0) {
           return null;
@@ -119,7 +118,7 @@ export async function getMarketDetails(marketId: string): Promise<LiveMarket | n
           aiHint: metaData?.aiHint || oddsData.aiHint || 'event',
           payoutTeaser: metaData?.payoutTeaser,
           streakCount: metaData?.streakCount ? parseInt(metaData.streakCount) : undefined,
-      facePileCount: metaData?.facePileCount ? parseInt(metaData.facePileCount) : undefined,
+          facePileCount: metaData?.facePileCount ? parseInt(metaData.facePileCount) : undefined,
         };
         return market;
     } catch(error) {
