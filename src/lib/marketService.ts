@@ -1,3 +1,4 @@
+
 // src/lib/marketService.ts
 import 'server-only';
 import getRedisClient from '@/lib/redis';
@@ -6,47 +7,31 @@ import type { LiveMarket } from '@/types';
 /**
  * A helper function to construct a LiveMarket object from its constituent parts from Redis.
  * @param marketId The ID of the market.
- * @param metadata The hash data from the `meta:market:{id}` key.
- * @param oddsJson The JSON string data from the `market:{id}` key.
+ * @param jsonData The parsed JSON data from the `market:{id}` key.
  * @returns A LiveMarket object or null if the data is invalid.
  */
-function constructMarket(
+function constructMarketFromJson(
     marketId: string,
-    metadata: Record<string, string> | null,
-    oddsJson: string | null
+    jsonData: any 
 ): LiveMarket | null {
-    if (!metadata || typeof metadata.question !== 'string') {
-        console.warn(`[MarketService] Skipping market ${marketId} due to invalid or missing metadata.`, metadata);
+    if (!jsonData || typeof jsonData.question !== 'string' || !jsonData.question) {
+        console.warn(`[MarketService] Skipping market ${marketId} due to invalid or missing question in JSON data.`);
         return null;
     }
 
-    let yesPrice = 0.5; // Default price if odds are missing
-    let noPrice = 0.5;
-    
-    if (oddsJson) {
-        try {
-            const oddsData = JSON.parse(oddsJson);
-            if (typeof oddsData.yes_price === 'number') {
-                yesPrice = Math.max(0.01, Math.min(0.99, oddsData.yes_price));
-                noPrice = 1 - yesPrice;
-            }
-        } catch (e) {
-            console.error(`[MarketService] Failed to parse odds JSON for market ${marketId}`, e);
-            // Use default prices if JSON is malformed
-        }
-    } else {
-        console.warn(`[MarketService] No odds data found for market ${marketId}. Using default 50/50 odds.`);
-    }
+    const yesPrice = typeof jsonData.yes_price === 'number' ? jsonData.yes_price : 0.5;
+    const noPrice = typeof jsonData.no_price === 'number' ? jsonData.no_price : 1 - yesPrice;
+    const category = jsonData.category || 'General';
 
     return {
         id: marketId,
-        question: metadata.question,
+        question: jsonData.question,
         yesPrice: parseFloat(yesPrice.toFixed(2)),
         noPrice: parseFloat(noPrice.toFixed(2)),
-        category: metadata.category || 'General',
-        endsAt: metadata.end_date_iso ? new Date(metadata.end_date_iso) : undefined,
-        imageUrl: metadata.image_url || `https://placehold.co/600x400.png`,
-        aiHint: metadata.ai_hint || metadata.category?.toLowerCase() || 'event',
+        category: category,
+        endsAt: jsonData.end_date_iso ? new Date(jsonData.end_date_iso) : undefined,
+        imageUrl: jsonData.image_url || `https://placehold.co/600x400.png`,
+        aiHint: jsonData.ai_hint || category.toLowerCase() || 'event',
         payoutTeaser: `Bet YES to win ${(1 / yesPrice).toFixed(1)}x`,
     };
 }
@@ -66,7 +51,7 @@ interface LiveMarketsResponse {
 
 /**
  * Fetches a paginated list of live markets on-demand from Redis using the correct data structure.
- * This is highly efficient, using one command to get IDs and one pipeline to fetch all data.
+ * This is highly efficient, using one command to get IDs and one MGET to fetch all data.
  *
  * @param params - An object containing limit and offset for pagination.
  * @returns A promise that resolves to an object with the list of markets and the total count.
@@ -86,25 +71,27 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
         return { markets: [], total: totalMarkets };
     }
     
-    const pipeline = redis.pipeline();
-    paginatedMarketIds.forEach(id => {
-        pipeline.hgetall(`meta:market:${id}`);
-        pipeline.get(`market:${id}`); 
-    });
-
-    const results = await pipeline.exec();
+    const marketKeys = paginatedMarketIds.map(id => `market:${id}`);
+    const marketDataStrings = await redis.mget<string[]>(...marketKeys);
 
     const fetchedMarkets: LiveMarket[] = [];
-    for (let i = 0; i < paginatedMarketIds.length; i++) {
-        const marketId = paginatedMarketIds[i];
-        const metadata = results[i * 2] as Record<string, string> | null;
-        const oddsJson = results[i * 2 + 1] as string | null;
-
-        const market = constructMarket(marketId, metadata, oddsJson);
-        if (market) {
-            fetchedMarkets.push(market);
+    marketDataStrings.forEach((jsonString, index) => {
+        if (!jsonString) {
+            // Market data might have expired between smembers and mget, or was never set.
+            // This is expected and not an error.
+            return; 
         }
-    }
+        try {
+            const marketId = paginatedMarketIds[index];
+            const data = JSON.parse(jsonString);
+            const market = constructMarketFromJson(marketId, data);
+            if (market) {
+                fetchedMarkets.push(market);
+            }
+        } catch (e) {
+            console.error(`[MarketService] Failed to parse JSON for market at index ${index}. Data: "${jsonString}"`, e);
+        }
+    });
 
     return { markets: fetchedMarkets, total: totalMarkets };
 }
@@ -117,10 +104,17 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
 export async function getMarketDetails(marketId: string): Promise<LiveMarket | null> {
     const redis = getRedisClient();
     
-    const [metadata, oddsJson] = await Promise.all([
-        redis.hgetall(`meta:market:${marketId}`),
-        redis.get(`market:${marketId}`),
-    ]);
+    const jsonString = await redis.get<string>(`market:${marketId}`);
+    if (!jsonString) {
+      console.warn(`[MarketService] No data found for market ID ${marketId}. It may have expired or does not exist.`);
+      return null;
+    }
 
-    return constructMarket(marketId, metadata as Record<string, string> | null, oddsJson as string | null);
+    try {
+        const data = JSON.parse(jsonString);
+        return constructMarketFromJson(marketId, data);
+    } catch (e) {
+        console.error(`[MarketService] Failed to parse JSON for single market ${marketId}. Data: "${jsonString}"`, e);
+        return null;
+    }
 }
