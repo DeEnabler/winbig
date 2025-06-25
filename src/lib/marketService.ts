@@ -10,9 +10,6 @@ const METADATA_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 /**
  * Fetches static metadata for a SINGLE market from the Polymarket Gamma API.
  * Uses an in-memory cache to avoid redundant API calls.
- * This function should only be called when viewing a single market's details, not for lists.
- * @param marketId The condition ID of the market.
- * @returns The market metadata object or null if not found.
  */
 async function getMarketMetadata(marketId: string): Promise<any | null> {
   const now = Date.now();
@@ -40,25 +37,23 @@ async function getMarketMetadata(marketId: string): Promise<any | null> {
 /**
  * A flexible helper to construct a LiveMarket object.
  * Handles both lightweight (odds only) and full (odds + metadata) data.
- * @param marketId The ID of the market.
- * @param oddsData The market's odds data from `market:{id}`.
- * @param metadata Optional: The market's metadata from the Polymarket API.
- * @returns A LiveMarket object or null if the odds data is invalid.
  */
 function constructMarket(
     marketId: string,
     oddsData: any | null,
     metadata?: any | null
 ): LiveMarket | null {
+    console.log(`[DIAGNOSTIC] constructMarket called for ID: ${marketId.slice(0,10)}...`);
     if (!oddsData || typeof oddsData.yes_price !== 'number') {
-        console.warn(`[MarketService] Skipping market ${marketId}: Invalid or missing live odds data from Redis.`);
+        console.error(`[DIAGNOSTIC] constructMarket validation FAILED for ${marketId}. 'oddsData' or 'oddsData.yes_price' is invalid. Received oddsData:`, oddsData);
         return null;
     }
+    console.log(`[DIAGNOSTIC] constructMarket validation PASSED for ${marketId}.`);
 
     const yesPrice = oddsData.yes_price;
     const noPrice = oddsData.no_price ?? (1 - yesPrice);
     
-    // Use metadata if available, otherwise use placeholders for the lightweight view, as per the guide.
+    // Use metadata if available, otherwise use placeholders for the lightweight view
     const question = metadata?.question || `Market ID: ${marketId}`;
     const category = metadata?.category || "General";
     const imageUrl = metadata?.image_url || `https://placehold.co/600x400.png`;
@@ -93,58 +88,77 @@ interface LiveMarketsResponse {
 /**
  * [LIGHTWEIGHT & FAST] Fetches a paginated list of live markets for the homepage.
  * This is the LEAN version. It ONLY fetches odds from Redis.
- * It does NOT fetch external metadata to ensure speed and reliability, preventing timeouts.
- * @param params - An object containing limit and offset for pagination.
- * @returns A promise that resolves to an object with the list of markets and the total count.
  */
 export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
+    console.log('--- [DIAGNOSTIC] getLiveMarkets initiated ---');
     const redis = getRedisClient();
     
-    const allMarketIds = await redis.smembers('active_market_ids');
-    const totalMarkets = allMarketIds.length;
+    try {
+        const allMarketIds = await redis.smembers('active_market_ids');
+        const totalMarkets = allMarketIds.length;
+        console.log(`[DIAGNOSTIC] Found ${totalMarkets} total market IDs in 'active_market_ids' set.`);
 
-    if (totalMarkets === 0) {
-      return { markets: [], total: 0 };
-    }
-    
-    const paginatedMarketIds = allMarketIds.slice(offset, offset + limit);
-
-    if (paginatedMarketIds.length === 0) {
-        return { markets: [], total: totalMarkets };
-    }
-
-    const oddsKeys = paginatedMarketIds.map(id => `market:${id}`);
-    const oddsJsonStrings = oddsKeys.length ? await redis.mget<Array<string | null>>(...oddsKeys) : [];
-
-    const fetchedMarkets: LiveMarket[] = [];
-    for (let i = 0; i < paginatedMarketIds.length; i++) {
-        const marketId = paginatedMarketIds[i];
-        const oddsJsonString = oddsJsonStrings[i];
-
-        let oddsData = null;
-        if (oddsJsonString) {
-            try {
-                oddsData = JSON.parse(oddsJsonString);
-            } catch (e) {
-                console.error(`[MarketService] Failed to parse JSON for market odds ${marketId}. Data: "${oddsJsonString}"`, e);
-            }
+        if (totalMarkets === 0) {
+            console.log("[DIAGNOSTIC] No active markets found in set. Returning empty array.");
+            return { markets: [], total: 0 };
         }
         
-        // Construct the market WITHOUT metadata. It will use placeholders. This is the key fix.
-        const market = constructMarket(marketId, oddsData);
-        if (market) {
-            fetchedMarkets.push(market);
-        }
-    }
+        const paginatedMarketIds = allMarketIds.slice(offset, offset + limit);
+        console.log(`[DIAGNOSTIC] Sliced to ${paginatedMarketIds.length} IDs for this page (offset: ${offset}, limit: ${limit}).`);
 
-    return { markets: fetchedMarkets, total: totalMarkets };
+        if (paginatedMarketIds.length === 0) {
+            console.log("[DIAGNOSTIC] Paginated IDs list is empty. Returning empty array.");
+            return { markets: [], total: totalMarkets };
+        }
+
+        const oddsKeys = paginatedMarketIds.map(id => `market:${id}`);
+        console.log(`[DIAGNOSTIC] Constructed Redis keys for MGET. Sample key: "${oddsKeys[0]}"`);
+
+        const oddsJsonStrings = oddsKeys.length ? await redis.mget<Array<string | null>>(...oddsKeys) : [];
+        console.log(`[DIAGNOSTIC] Raw response from MGET for ${oddsKeys.length} keys:`, JSON.stringify(oddsJsonStrings, null, 2));
+
+        const fetchedMarkets: LiveMarket[] = [];
+        for (let i = 0; i < paginatedMarketIds.length; i++) {
+            const marketId = paginatedMarketIds[i];
+            const oddsJsonString = oddsJsonStrings[i];
+            console.log(`[DIAGNOSTIC] Processing item ${i+1}/${paginatedMarketIds.length}: ID ${marketId.slice(0, 10)}...`);
+
+            if (!oddsJsonString) {
+                console.error(`[DIAGNOSTIC] ERROR for ${marketId}: MGET returned null. The key 'market:${marketId}' likely does not exist or has expired.`);
+                continue; // Skip to the next market
+            }
+
+            let oddsData = null;
+            try {
+                oddsData = JSON.parse(oddsJsonString);
+                console.log(`[DIAGNOSTIC] Successfully parsed JSON for ${marketId}.`);
+            } catch (e) {
+                console.error(`[DIAGNOSTIC] FATAL PARSE ERROR for ${marketId}. The data is not valid JSON. Raw Data: "${oddsJsonString}". Error:`, e);
+                continue; // Skip to the next market
+            }
+            
+            const market = constructMarket(marketId, oddsData); // No metadata needed for this lightweight call
+            if (market) {
+                console.log(`[DIAGNOSTIC] Successfully constructed market object for ${marketId}.`);
+                fetchedMarkets.push(market);
+            } else {
+                console.error(`[DIAGNOSTIC] CRITICAL ERROR for ${marketId}: constructMarket returned null even after successful parsing. Check validation logic within constructMarket.`);
+            }
+        }
+
+        console.log(`--- [DIAGNOSTIC] getLiveMarkets FINISHED. Returning ${fetchedMarkets.length} markets. ---`);
+        return { markets: fetchedMarkets, total: totalMarkets };
+
+    } catch (error) {
+        console.error('--- [DIAGNOSTIC] FATAL UNHANDLED EXCEPTION in getLiveMarkets ---', error);
+        return { markets: [], total: 0 }; // Graceful failure
+    }
 }
+
 
 /**
  * [HEAVY & ON-DEMAND] Fetches the COMPLETE details for a single market by its ID.
  * This is for detail pages. It fetches both Redis odds and external metadata.
- * @param marketId - The ID of the market to fetch.
- * @returns A promise that resolves to a full LiveMarket object or null if not found.
  */
 export async function getMarketDetails(marketId: string): Promise<LiveMarket | null> {
     const redis = getRedisClient();
