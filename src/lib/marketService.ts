@@ -43,13 +43,12 @@ function constructMarket(
     oddsData: any | null,
     metadata?: any | null
 ): LiveMarket | null {
-    // A market MUST have either odds or metadata to be constructed.
+    // This now gracefully handles the case where data is temporarily unavailable from Redis
+    // without logging an error, as per the user's analysis.
     if (!oddsData && !metadata) {
-        console.error(`[MarketService] Skipping market ${marketId}: Both odds and metadata are null.`);
         return null;
     }
     
-    // Odds data is optional for fallback construction, but if it exists, it must be valid.
     const hasValidOdds = oddsData && typeof oddsData.yes_price === 'number';
     
     // Use metadata if available, otherwise use placeholders
@@ -64,7 +63,7 @@ function constructMarket(
     const noPrice = hasValidOdds ? (oddsData.no_price ?? (1 - yesPrice)) : 0;
 
     // A market is only valid if it has a price or full metadata
-    if (yesPrice === 0 && noPrice === 0 && !metadata?.question) {
+    if (!hasValidOdds && !metadata) {
         return null;
     }
 
@@ -125,19 +124,14 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
                 try {
                     oddsData = JSON.parse(oddsJsonString);
                 } catch (e) {
-                    console.error(`[MarketService] Failed to parse JSON for market odds ${marketId}. Data: "${oddsJsonString}"`, e);
+                    // It's better to log a warning here than an error, as this can happen with malformed data.
+                    console.warn(`[MarketService] Failed to parse JSON for market odds ${marketId}. Data: "${oddsJsonString}"`, e);
                 }
             }
-
-            // As per the guide, we only construct with what Redis gives us.
-            // No external API calls here. `constructMarket` will handle it.
-            if (!oddsData) {
-                 // Even if odds are null (expired), we can try to construct with metadata later if needed.
-                 // For now, this is the lean implementation.
-                 return constructMarket(marketId, null, null);
-            }
             
+            // `constructMarket` will now gracefully handle null oddsData without erroring.
             return constructMarket(marketId, oddsData, null);
+
         }).filter((m): m is LiveMarket => m !== null);
         
         return { markets: fetchedMarkets, total: totalMarkets };
@@ -171,6 +165,7 @@ export async function getMarketDetails(marketId: string): Promise<LiveMarket | n
         }
     }
     
+    // Fallback if Redis fails but metadata succeeds
     if (!oddsData && !metadata) {
       console.warn(`[MarketService] No data found for market ${marketId} in either Redis or the API.`);
       return null;
