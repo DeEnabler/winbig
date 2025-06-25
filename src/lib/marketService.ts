@@ -1,3 +1,4 @@
+
 // src/lib/marketService.ts
 import 'server-only';
 import getRedisClient from '@/lib/redis';
@@ -78,7 +79,7 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
     }
 
     // 2. Use SSCAN to iterate through keys without loading the whole set into memory.
-    let cursor: string | number = 0; // Initialize as number, but it becomes a string from sscan
+    let cursor: number = 0; // The @upstash/redis sscan cursor is a number.
     const collectedIds: string[] = [];
     const targetCount = offset + limit;
     
@@ -86,7 +87,7 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
         const [nextCursor, members] = await redis.sscan('active_market_ids', cursor, { count: 100 });
         collectedIds.push(...members);
         cursor = nextCursor;
-    } while (cursor !== '0' && collectedIds.length < targetCount); // FIX: Check against string '0'
+    } while (cursor !== 0 && collectedIds.length < targetCount); // FIX: Check against number 0
 
     // 3. Slice the collected IDs to get just the page we need.
     const paginatedMarketIds = collectedIds.slice(offset, offset + limit);
