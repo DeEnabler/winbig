@@ -23,10 +23,10 @@ export default function MarketFeedCard({ market }: MarketFeedCardProps) {
     );
   }
 
-  // Display only the ID if the full question isn't available on this partial object
-  const displayTitle = market.question.startsWith("Market ID:") 
-    ? market.question 
-    : market.question.substring(0, 70) + (market.question.length > 70 ? '...' : '');
+  // Display the question if available, otherwise show the placeholder from the service.
+  const displayTitle = market.question.length > 50 
+    ? market.question.substring(0, 70) + (market.question.length > 70 ? '...' : '')
+    : market.question;
 
   const yesPercent = (market.yesPrice * 100).toFixed(0);
   const noPercent = (market.noPrice * 100).toFixed(0);

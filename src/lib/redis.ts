@@ -5,25 +5,20 @@ let redis: Redis | null = null;
 
 /**
  * Returns a singleton instance of the Upstash Redis client.
- * This client is configured using environment variables and is intended for read-only operations.
+ * This client is configured using environment variables.
  */
 function getRedisClient(): Redis {
   if (redis) {
     return redis;
   }
 
-  // --- BEGIN TRUTH-SEEKING LOGS ---
-  console.log('--- [DIAGNOSTIC] REDIS CLIENT INITIALIZATION ---');
-  console.log(`[DIAGNOSTIC] Runtime value for UPSTASH_REDIS_REST_URL: "${process.env.UPSTASH_REDIS_REST_URL}"`);
-  console.log(`[DIAGNOSTIC] Runtime value for UPSTASH_REDIS_REST_TOKEN is: ${process.env.UPSTASH_REDIS_REST_TOKEN ? '****** (set)' : '!!!!!!!! NOT SET or EMPTY !!!!!!!!'}`);
-  console.log('-------------------------------------------------');
-  // --- END TRUTH-SEEKING LOGS ---
-
   const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  // The guide recommends a read-only token for the web client.
+  // We'll prioritize it if available, otherwise fall back to the main token.
+  const token = process.env.UPSTASH_REDIS_REST_READ_ONLY_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
 
   if (!url || !token) {
-    const errorMessage = 'CRITICAL: Upstash Redis credentials are not set in environment variables (UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN).';
+    const errorMessage = 'CRITICAL: Upstash Redis credentials are not set in environment variables (UPSTASH_REDIS_REST_URL and a TOKEN are required).';
     console.error(`[Redis Client] ${errorMessage}`);
     throw new Error(errorMessage);
   }
@@ -46,7 +41,7 @@ export default getRedisClient;
  * Since @upstash/redis is connectionless (HTTP-based), this primarily checks if credentials are provided.
  */
 export function getRedisStatus() {
-  const isConfigured = !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  const isConfigured = !!(process.env.UPSTASH_REDIS_REST_URL && (process.env.UPSTASH_REDIS_REST_READ_ONLY_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN));
   return {
     // "connected" means it's configured and ready to send requests.
     connected: isConfigured, 

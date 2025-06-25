@@ -159,9 +159,10 @@ export interface OpenPosition {
 }
 
 // Interface for LiveMarketService to use
+// This is now aligned with the guide: question and other metadata are optional.
 export interface LiveMarket {
   id: string; // conditionId from Polymarket
-  question: string;
+  question: string; // Can be a placeholder like "Market ID: ..."
   yesPrice: number; // Probability from 0.01 to 0.99
   noPrice: number;  // 1 - yesPrice
   category?: string;

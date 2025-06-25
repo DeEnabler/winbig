@@ -53,7 +53,7 @@ function constructMarket(
     const hasValidOdds = oddsData && typeof oddsData.yes_price === 'number';
     
     // Use metadata if available, otherwise use placeholders
-    const question = metadata?.question || `Market ID: ${marketId}`;
+    const question = metadata?.question || `Market ID: ${marketId.slice(0, 8)}...`;
     const category = metadata?.category || "General";
     const imageUrl = metadata?.image_url || `https://placehold.co/600x400.png`;
     const aiHint = metadata?.ai_hint || category.toLowerCase().split(' ').slice(0, 2).join(' ') || 'event';
@@ -62,6 +62,11 @@ function constructMarket(
     // Use live odds if available, otherwise use placeholder values
     const yesPrice = hasValidOdds ? oddsData.yes_price : 0;
     const noPrice = hasValidOdds ? (oddsData.no_price ?? (1 - yesPrice)) : 0;
+
+    // A market is only valid if it has a price or full metadata
+    if (yesPrice === 0 && noPrice === 0 && !metadata?.question) {
+        return null;
+    }
 
     return {
         id: marketId,
@@ -89,38 +94,30 @@ interface LiveMarketsResponse {
 }
 
 /**
- * [RESILIENT & SCALABLE] Fetches a paginated list of live markets.
- * This function is designed to be memory-efficient and prevent server crashes.
+ * [ALIGNED WITH GUIDE] Fetches a paginated list of live markets from Redis.
+ * This function is fast and makes no external API calls.
  */
 export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
     const redis = getRedisClient();
     
     try {
-        const totalMarkets = await redis.scard('active_market_ids');
+        const marketIds = await redis.smembers('active_market_ids');
+        const totalMarkets = marketIds.length;
+
         if (totalMarkets === 0) {
             return { markets: [], total: 0 };
         }
 
-        // Use SSCAN to iterate over the set without loading all keys into memory.
-        // This is crucial for preventing out-of-memory errors on large sets.
-        // Note: This simple implementation fetches from the beginning of the set.
-        // For true offset pagination, a more complex iteration or a different data structure would be needed.
-        // This is sufficient to fix the server crash and render the homepage.
-        if (offset > 0) {
-            console.warn("[MarketService] SSCAN is used for fetching, which doesn't support offsets. Returning empty for offset > 0.");
-            return { markets: [], total: totalMarkets };
-        }
-
-        const [cursor, paginatedMarketIds] = await redis.sscan('active_market_ids', 0, { count: limit });
+        const paginatedMarketIds = marketIds.slice(offset, offset + limit);
         
         if (paginatedMarketIds.length === 0) {
             return { markets: [], total: totalMarkets };
         }
 
         const oddsKeys = paginatedMarketIds.map(id => `market:${id}`);
-        const oddsJsonStrings = oddsKeys.length ? await redis.mget<Array<string | null>>(...oddsKeys) : [];
+        const oddsJsonStrings = await redis.mget<Array<string | null>>(...oddsKeys);
 
-        const marketPromises = paginatedMarketIds.map(async (marketId, i) => {
+        const fetchedMarkets = paginatedMarketIds.map((marketId, i) => {
             const oddsJsonString = oddsJsonStrings[i];
             let oddsData = null;
 
@@ -132,23 +129,16 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
                 }
             }
 
-            // For the fast homepage view, we only need live odds.
-            // The constructMarket function can handle metadata being null and will create a placeholder.
-            // A fallback to getMarketMetadata can be added here if it's critical to show the question
-            // even if odds are missing, but that risks re-introducing the N+1 problem.
-            // For now, we prioritize speed and stability.
+            // As per the guide, we only construct with what Redis gives us.
+            // No external API calls here. `constructMarket` will handle it.
             if (!oddsData) {
-                console.warn(`[MarketService] Skipping market ${marketId}: Invalid or missing live odds data from Redis.`);
-                // As a fallback, we could fetch metadata, but this is slower.
-                // const metadata = await getMarketMetadata(marketId);
-                // return constructMarket(marketId, null, metadata);
-                return null;
+                 // Even if odds are null (expired), we can try to construct with metadata later if needed.
+                 // For now, this is the lean implementation.
+                 return constructMarket(marketId, null, null);
             }
             
             return constructMarket(marketId, oddsData, null);
-        });
-
-        const fetchedMarkets = (await Promise.all(marketPromises)).filter((m): m is LiveMarket => m !== null);
+        }).filter((m): m is LiveMarket => m !== null);
         
         return { markets: fetchedMarkets, total: totalMarkets };
 
@@ -182,6 +172,7 @@ export async function getMarketDetails(marketId: string): Promise<LiveMarket | n
     }
     
     if (!oddsData && !metadata) {
+      console.warn(`[MarketService] No data found for market ${marketId} in either Redis or the API.`);
       return null;
     }
 
