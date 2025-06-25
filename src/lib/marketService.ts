@@ -2,7 +2,6 @@
 import 'server-only';
 import getRedisClient from '@/lib/redis';
 import type { LiveMarket } from '@/types';
-import fetch from 'node-fetch';
 
 // Simple in-memory cache for market metadata to avoid hitting the API on every request.
 const metadataCache = new Map<string, { data: any; timestamp: number }>();
@@ -19,13 +18,16 @@ async function getMarketMetadata(marketId: string): Promise<any | null> {
   const cachedEntry = metadataCache.get(marketId);
 
   if (cachedEntry && (now - cachedEntry.timestamp < METADATA_CACHE_TTL)) {
+    // console.log(`[MarketService] Using cached metadata for ${marketId}.`);
     return cachedEntry.data;
   }
 
   try {
+    // console.log(`[MarketService] Fetching fresh metadata for ${marketId} from Polymarket API.`);
     const response = await fetch(`https://gamma-api.polymarket.com/markets/${marketId}`);
     if (!response.ok) {
       console.warn(`[MarketService] Failed to fetch metadata for ${marketId} from Polymarket API. Status: ${response.status}`);
+      // Don't cache failed attempts to allow for quick retries
       return null;
     }
     const metadata = await response.json();
@@ -50,6 +52,7 @@ function constructMarket(
     metadata: any | null,
     oddsData: any | null
 ): LiveMarket | null {
+    // A market without metadata (like a question) is not useful to display.
     if (!metadata || typeof metadata.question !== 'string' || !metadata.question) {
         console.warn(`[MarketService] Skipping market ${marketId}: Invalid or missing metadata from API, especially 'question'.`);
         return null;
