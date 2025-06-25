@@ -52,13 +52,11 @@ function constructMarket(
     metadata: any | null,
     oddsData: any | null
 ): LiveMarket | null {
-    // A market without metadata (like a question) is not useful to display.
     if (!metadata || typeof metadata.question !== 'string' || !metadata.question) {
         console.warn(`[MarketService] Skipping market ${marketId}: Invalid or missing metadata from API, especially 'question'.`);
         return null;
     }
 
-    // Odds data is less critical; we can show a market with default/stale odds if needed, but for a live feed, we'll skip if missing.
     if (!oddsData) {
         console.warn(`[MarketService] Skipping market ${marketId}: Missing live odds data from Redis.`);
         return null;
@@ -94,22 +92,34 @@ interface LiveMarketsResponse {
 }
 
 /**
- * Fetches a paginated list of live markets.
- * This function now correctly fetches metadata from the Polymarket API
- * and live odds from Redis, then combines them.
+ * Fetches a paginated list of live markets using an efficient SSCAN loop.
+ * This function fetches metadata from the Polymarket API and live odds from Redis, then combines them.
  * @param params - An object containing limit and offset for pagination.
  * @returns A promise that resolves to an object with the list of markets and the total count.
  */
 export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
     const redis = getRedisClient();
-    const allMarketIds = await redis.smembers('active_market_ids');
-    const totalMarkets = allMarketIds.length;
-
+    
+    // Efficiently get the total count without loading all members
+    const totalMarkets = await redis.scard('active_market_ids');
     if (totalMarkets === 0) {
       return { markets: [], total: 0 };
     }
 
-    const paginatedMarketIds = allMarketIds.slice(offset, offset + limit);
+    // Efficiently iterate through the set to get just the IDs we need for this page
+    let cursor = 0;
+    const collectedMarketIds: string[] = [];
+    const neededIds = offset + limit;
+
+    if (totalMarkets > 0) {
+      do {
+          const [nextCursor, members] = await redis.sscan('active_market_ids', cursor, { count: 100 });
+          collectedMarketIds.push(...members);
+          cursor = nextCursor;
+      } while (cursor !== 0 && collectedMarketIds.length < neededIds);
+    }
+    
+    const paginatedMarketIds = collectedMarketIds.slice(offset, offset + limit);
 
     if (paginatedMarketIds.length === 0) {
         return { markets: [], total: totalMarkets };
