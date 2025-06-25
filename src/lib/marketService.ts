@@ -47,7 +47,9 @@ function constructMarket(
     const hasValidOdds = oddsData && typeof oddsData.yes_price === 'number' && typeof oddsData.no_price === 'number';
 
     if (!hasValidOdds && !metadata) {
-        console.error(`[DIAGNOSTIC] Skipping market ${marketId}: Both odds and metadata are null.`);
+        // This can happen if a market ID is in the active set but its odds key has expired in Redis
+        // and the external metadata fetch also failed. This is not an error, just a temporary state.
+        console.warn(`[DIAGNOSTIC] Skipping market ${marketId}: Both odds and metadata are null.`);
         return null;
     }
 
@@ -89,7 +91,8 @@ interface LiveMarketsResponse {
 
 /**
  * [DEFINITIVE FIX] Fetches a paginated list of live markets.
- * This version is resilient to cache misses in Redis.
+ * This version is resilient to cache misses in Redis. If odds are missing,
+ * it falls back to fetching metadata to ensure a card can always be displayed.
  */
 export async function getLiveMarkets({ limit = 3, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
     console.log("--- [DIAGNOSTIC] getLiveMarkets initiated ---");
@@ -129,7 +132,8 @@ export async function getLiveMarkets({ limit = 3, offset = 0 }: GetLiveMarketsPa
                     console.error(`[DIAGNOSTIC] JSON Parse ERROR for ${marketId}:`, e);
                 }
             } else {
-                 console.error(`[DIAGNOSTIC] ERROR for ${marketId}: MGET returned null. The key 'market:${marketId}' likely does not exist or has expired.`);
+                 // THIS IS NOT AN ERROR. It's a cache miss. We will now fetch metadata as a fallback.
+                 console.warn(`[DIAGNOSTIC] CACHE MISS for ${marketId}: MGET returned null. The key 'market:${marketId}' likely does not exist or has expired.`);
             }
 
             // Fallback to fetching metadata if odds are missing, to ensure a card can be displayed
