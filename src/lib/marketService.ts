@@ -3,7 +3,7 @@ import 'server-only';
 import getRedisClient from '@/lib/redis';
 import type { LiveMarket } from '@/types';
 
-// Simple in-memory cache for market metadata to avoid hitting the API on every request.
+// In-memory cache for market METADATA to avoid hitting the Polymarket API on every request.
 const metadataCache = new Map<string, { data: any; timestamp: number }>();
 const METADATA_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
@@ -19,8 +19,10 @@ async function getMarketMetadata(marketId: string): Promise<any | null> {
   const cachedEntry = metadataCache.get(marketId);
 
   if (cachedEntry && (now - cachedEntry.timestamp < METADATA_CACHE_TTL)) {
+    console.log(`[MarketService] Cache HIT for metadata: ${marketId}`);
     return cachedEntry.data;
   }
+  console.log(`[MarketService] Cache MISS for metadata: ${marketId}. Fetching from API.`);
 
   try {
     const response = await fetch(`https://gamma-api.polymarket.com/markets/${marketId}`);
@@ -50,18 +52,19 @@ function constructMarket(
     oddsData: any | null,
     metadata?: any | null
 ): LiveMarket | null {
-    if (!oddsData) {
-        console.warn(`[MarketService] Skipping market ${marketId}: Missing live odds data from Redis.`);
+    if (!oddsData || typeof oddsData.yes_price !== 'number') {
+        console.warn(`[MarketService] Skipping market ${marketId}: Invalid or missing live odds data from Redis.`);
         return null;
     }
 
-    const yesPrice = typeof oddsData.yes_price === 'number' ? oddsData.yes_price : 0.5;
-    const noPrice = typeof oddsData.no_price === 'number' ? oddsData.no_price : (1 - yesPrice);
+    const yesPrice = oddsData.yes_price;
+    const noPrice = oddsData.no_price ?? (1 - yesPrice);
     
-    // Default values if metadata is not provided (for list view)
+    // Use metadata if provided, otherwise use placeholders for list view
     const question = metadata?.question || `Market ID: ${marketId}`;
     const category = metadata?.category || "General";
     const imageUrl = metadata?.image_url || `https://placehold.co/600x400.png`;
+    // A simple aiHint generation from category as a fallback.
     const aiHint = metadata?.ai_hint || category.toLowerCase().split(' ').slice(0, 2).join(' ') || 'event';
     const endsAt = metadata?.end_date_iso ? new Date(metadata.end_date_iso) : undefined;
 
@@ -133,6 +136,7 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
         }
         
         // Construct market with ONLY odds data. No external metadata fetch here.
+        // This is the key change to prevent the N+1 API call bottleneck.
         const market = constructMarket(marketId, oddsData);
         if (market) {
             fetchedMarkets.push(market);
