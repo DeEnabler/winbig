@@ -1,4 +1,3 @@
-
 // src/lib/marketService.ts
 import 'server-only';
 import getRedisClient from '@/lib/redis';
@@ -11,6 +10,7 @@ const METADATA_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 /**
  * Fetches static metadata for a SINGLE market from the Polymarket Gamma API.
  * Uses an in-memory cache to avoid redundant API calls.
+ * This function should only be called when viewing a single market's details, not for lists.
  * @param marketId The condition ID of the market.
  * @returns The market metadata object or null if not found.
  */
@@ -39,6 +39,7 @@ async function getMarketMetadata(marketId: string): Promise<any | null> {
 
 /**
  * Constructs a LiveMarket object from odds and optional metadata.
+ * It is tolerant to missing metadata, as the list view won't have it.
  * @param marketId The ID of the market.
  * @param oddsData The market's odds data from `market:{id}`.
  * @param metadata Optional: The market's metadata from the Polymarket API.
@@ -49,19 +50,15 @@ function constructMarket(
     oddsData: any | null,
     metadata?: any | null
 ): LiveMarket | null {
-    // Enhanced logging to be more specific about the failure.
-    if (!oddsData) {
-        console.warn(`[MarketService] Skipping market ${marketId}: Odds data object is null. Key may not exist in Redis.`);
-        return null;
-    }
-    if (typeof oddsData.yes_price !== 'number') {
-        console.warn(`[MarketService] Skipping market ${marketId}: 'yes_price' field is missing or not a number. Received type: ${typeof oddsData.yes_price}.`);
+    if (!oddsData || typeof oddsData.yes_price !== 'number') {
+        console.warn(`[MarketService] Skipping market ${marketId}: Invalid or missing live odds data from Redis.`);
         return null;
     }
 
     const yesPrice = oddsData.yes_price;
     const noPrice = oddsData.no_price ?? (1 - yesPrice);
     
+    // The question and other metadata are now OPTIONAL. They will only exist for detail views.
     const question = metadata?.question || `Market ID: ${marketId}`;
     const category = metadata?.category || "General";
     const imageUrl = metadata?.image_url || `https://placehold.co/600x400.png`;
@@ -95,8 +92,8 @@ interface LiveMarketsResponse {
 
 /**
  * Fetches a paginated list of live markets.
- * This is lightweight: it ONLY fetches odds from Redis.
- * It does NOT fetch external metadata.
+ * This is the LEAN version for the homepage. It ONLY fetches odds from Redis.
+ * It does NOT fetch external metadata to ensure speed and reliability.
  * @param params - An object containing limit and offset for pagination.
  * @returns A promise that resolves to an object with the list of markets (with partial data) and the total count.
  */
@@ -111,6 +108,7 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
       return { markets: [], total: 0 };
     }
 
+    // Using smembers is acceptable here as long as the subsequent processing is lightweight.
     const allMarketIds = await redis.smembers('active_market_ids');
     const paginatedMarketIds = allMarketIds.slice(offset, offset + limit);
 
@@ -138,6 +136,7 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
             }
         }
         
+        // Construct the market WITHOUT metadata. It will be partial but valid.
         const market = constructMarket(marketId, oddsData);
         if (market) {
             fetchedMarkets.push(market);
@@ -149,13 +148,15 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
 
 /**
  * Fetches the COMPLETE details for a single market by its ID.
- * This function fetches both Redis odds and external metadata.
+ * This is the "heavy" function used for detail pages.
+ * It fetches both Redis odds and external metadata.
  * @param marketId - The ID of the market to fetch.
  * @returns A promise that resolves to a full LiveMarket object or null if not found.
  */
 export async function getMarketDetails(marketId: string): Promise<LiveMarket | null> {
     const redis = getRedisClient();
     
+    // Fetch odds and metadata concurrently.
     const [oddsJsonString, metadata] = await Promise.all([
         redis.get<string | null>(`market:${marketId}`),
         getMarketMetadata(marketId) 
@@ -170,5 +171,6 @@ export async function getMarketDetails(marketId: string): Promise<LiveMarket | n
         }
     }
 
+    // Construct the market WITH full metadata.
     return constructMarket(marketId, oddsData, metadata);
 }
