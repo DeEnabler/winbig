@@ -1,3 +1,4 @@
+
 import { Redis } from '@upstash/redis';
 
 let redis: Redis | null = null;
@@ -10,6 +11,13 @@ function getRedisClient(): Redis {
   if (redis) {
     return redis;
   }
+
+  // --- BEGIN TRUTH-SEEKING LOGS ---
+  console.log('--- [DIAGNOSTIC] REDIS CLIENT INITIALIZATION ---');
+  console.log(`[DIAGNOSTIC] Runtime value for UPSTASH_REDIS_REST_URL: "${process.env.UPSTASH_REDIS_REST_URL}"`);
+  console.log(`[DIAGNOSTIC] Runtime value for UPSTASH_REDIS_REST_TOKEN is: ${process.env.UPSTASH_REDIS_REST_TOKEN ? '****** (set)' : '!!!!!!!! NOT SET or EMPTY !!!!!!!!'}`);
+  console.log('-------------------------------------------------');
+  // --- END TRUTH-SEEKING LOGS ---
 
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
