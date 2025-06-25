@@ -58,7 +58,7 @@ function constructMarket(
     const yesPrice = oddsData.yes_price;
     const noPrice = oddsData.no_price ?? (1 - yesPrice);
     
-    // Use metadata if available, otherwise use placeholders for the lightweight view.
+    // Use metadata if available, otherwise use placeholders for the lightweight view, as per the guide.
     const question = metadata?.question || `Market ID: ${marketId}`;
     const category = metadata?.category || "General";
     const imageUrl = metadata?.image_url || `https://placehold.co/600x400.png`;
@@ -130,7 +130,7 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
             }
         }
         
-        // Construct the market WITHOUT metadata. It will be partial but valid.
+        // Construct the market WITHOUT metadata. It will use placeholders. This is the key fix.
         const market = constructMarket(marketId, oddsData);
         if (market) {
             fetchedMarkets.push(market);
