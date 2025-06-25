@@ -12,10 +12,16 @@ function getRedisClient(): Redis {
     return redis;
   }
 
+  // --- [DIAGNOSTIC] High-visibility logging for environment variables ---
+  console.log("--- [DIAGNOSTIC] REDIS CLIENT INITIALIZATION ---");
   const url = process.env.UPSTASH_REDIS_REST_URL;
-  // The guide recommends a read-only token for the web client.
-  // We'll prioritize it if available, otherwise fall back to the main token.
-  const token = process.env.UPSTASH_REDIS_REST_READ_ONLY_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.UPSTASH_REDIS_REST_READ_ONLY_TOKEN;
+  
+  console.log(`[DIAGNOSTIC] Runtime value for UPSTASH_REDIS_REST_URL: "${url}"`);
+  console.log(`[DIAGNOSTIC] Runtime value for UPSTASH_REDIS_REST_TOKEN is: ${token ? '****** (set)' : '!!!!!!!!!! (NOT SET)'}`);
+  console.log("-------------------------------------------------");
+  // --- End of Diagnostic Logging ---
+
 
   if (!url || !token) {
     const errorMessage = 'CRITICAL: Upstash Redis credentials are not set in environment variables (UPSTASH_REDIS_REST_URL and a TOKEN are required).';
@@ -24,7 +30,7 @@ function getRedisClient(): Redis {
   }
   
   // This log is useful for confirming the correct configuration is loaded.
-  console.log(`[Redis Client] Initializing @upstash/redis client for URL: ${url.substring(0,25)}...`);
+  console.log(`[Redis Client] Initializing new @upstash/redis client for URL: ${url.substring(0,25)}...`);
   
   const newRedisInstance = new Redis({
     url: url,
