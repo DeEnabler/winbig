@@ -38,8 +38,8 @@ async function getMarketMetadata(marketId: string): Promise<any | null> {
 }
 
 /**
- * Constructs a LiveMarket object from odds and optional metadata.
- * It is tolerant to missing metadata, as the list view won't have it.
+ * A flexible helper to construct a LiveMarket object.
+ * Handles both lightweight (odds only) and full (odds + metadata) data.
  * @param marketId The ID of the market.
  * @param oddsData The market's odds data from `market:{id}`.
  * @param metadata Optional: The market's metadata from the Polymarket API.
@@ -58,7 +58,7 @@ function constructMarket(
     const yesPrice = oddsData.yes_price;
     const noPrice = oddsData.no_price ?? (1 - yesPrice);
     
-    // The question and other metadata are now OPTIONAL. They will only exist for detail views.
+    // Use metadata if available, otherwise use placeholders for the lightweight view.
     const question = metadata?.question || `Market ID: ${marketId}`;
     const category = metadata?.category || "General";
     const imageUrl = metadata?.image_url || `https://placehold.co/600x400.png`;
@@ -91,25 +91,22 @@ interface LiveMarketsResponse {
 }
 
 /**
- * Fetches a paginated list of live markets.
- * This is the LEAN version for the homepage. It ONLY fetches odds from Redis.
- * It does NOT fetch external metadata to ensure speed and reliability.
+ * [LIGHTWEIGHT & FAST] Fetches a paginated list of live markets for the homepage.
+ * This is the LEAN version. It ONLY fetches odds from Redis.
+ * It does NOT fetch external metadata to ensure speed and reliability, preventing timeouts.
  * @param params - An object containing limit and offset for pagination.
- * @returns A promise that resolves to an object with the list of markets (with partial data) and the total count.
+ * @returns A promise that resolves to an object with the list of markets and the total count.
  */
 export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
     const redis = getRedisClient();
     
-    // Diagnostic Log 1: Verify Redis URL being used by the app.
-    console.log(`[MarketService DIAGNOSTIC] Connecting to Redis URL: ${process.env.UPSTASH_REDIS_REST_URL?.substring(0,35)}...`);
+    const allMarketIds = await redis.smembers('active_market_ids');
+    const totalMarkets = allMarketIds.length;
 
-    const totalMarkets = await redis.scard('active_market_ids');
     if (totalMarkets === 0) {
       return { markets: [], total: 0 };
     }
-
-    // Using smembers is acceptable here as long as the subsequent processing is lightweight.
-    const allMarketIds = await redis.smembers('active_market_ids');
+    
     const paginatedMarketIds = allMarketIds.slice(offset, offset + limit);
 
     if (paginatedMarketIds.length === 0) {
@@ -118,9 +115,6 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
 
     const oddsKeys = paginatedMarketIds.map(id => `market:${id}`);
     const oddsJsonStrings = oddsKeys.length ? await redis.mget<Array<string | null>>(...oddsKeys) : [];
-
-    // Diagnostic Log 2: Show the raw data received from Redis mget.
-    console.log(`[MarketService DIAGNOSTIC] Raw response from redis.mget for ${oddsKeys.length} keys:`, JSON.stringify(oddsJsonStrings));
 
     const fetchedMarkets: LiveMarket[] = [];
     for (let i = 0; i < paginatedMarketIds.length; i++) {
@@ -147,9 +141,8 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
 }
 
 /**
- * Fetches the COMPLETE details for a single market by its ID.
- * This is the "heavy" function used for detail pages.
- * It fetches both Redis odds and external metadata.
+ * [HEAVY & ON-DEMAND] Fetches the COMPLETE details for a single market by its ID.
+ * This is for detail pages. It fetches both Redis odds and external metadata.
  * @param marketId - The ID of the market to fetch.
  * @returns A promise that resolves to a full LiveMarket object or null if not found.
  */
@@ -168,7 +161,12 @@ export async function getMarketDetails(marketId: string): Promise<LiveMarket | n
             oddsData = JSON.parse(oddsJsonString);
         } catch (e) {
             console.error(`[MarketService] Failed to parse JSON for single market odds ${marketId}. Data: "${oddsJsonString}"`, e);
+            // If odds are corrupt for a detail page, we can't proceed.
+            return null;
         }
+    } else {
+        // If there are no live odds, we can't show the market detail.
+        return null;
     }
 
     // Construct the market WITH full metadata.
