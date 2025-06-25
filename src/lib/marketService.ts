@@ -1,12 +1,13 @@
+
 // src/lib/marketService.ts
 import 'server-only';
 import getRedisClient from '@/lib/redis';
 import type { LiveMarket } from '@/types';
 
 /**
- * A helper function to construct a LiveMarket object from its constituent parts from Redis.
+ * Constructs a LiveMarket object from a single JSON data source from Redis.
  * @param marketId The ID of the market.
- * @param marketData The market's data from Redis.
+ * @param marketData The market's data from Redis, parsed from JSON.
  * @returns A LiveMarket object or null if the data is invalid.
  */
 function constructMarket(
@@ -14,20 +15,19 @@ function constructMarket(
     marketData: Record<string, any> | null
 ): LiveMarket | null {
     if (!marketData) {
-        console.warn(`[MarketService] Skipping market ${marketId} due to null market data.`);
+        console.warn(`[MarketService] Skipping market ${marketId}: market data is null.`);
         return null;
     }
-    
+
     // The question is essential for display.
     if (typeof marketData.question !== 'string' || !marketData.question) {
-        console.warn(`[MarketService] Skipping market ${marketId} due to missing or invalid question. Data:`, marketData);
+        console.warn(`[MarketService] Skipping market ${marketId}: missing or invalid 'question' field. Data:`, marketData);
         return null;
     }
 
     const yesPrice = typeof marketData.yes_price === 'number' ? marketData.yes_price : 0.5;
     const noPrice = typeof marketData.no_price === 'number' ? marketData.no_price : (1 - yesPrice);
     const category = marketData.category || 'General';
-
     const payoutTeaser = `Bet YES to win ${(1 / (yesPrice || 0.5)).toFixed(1)}x`;
 
     return {
@@ -57,17 +57,14 @@ interface LiveMarketsResponse {
 }
 
 /**
- * Fetches a paginated list of live markets from Redis.
- * This version uses 'smembers' for stability. While less scalable for millions of keys than 'sscan',
- * it avoids potential infinite loops in complex environments and is suitable for thousands of keys.
- *
+ * Fetches a paginated list of live markets from Redis using the optimized schema.
  * @param params - An object containing limit and offset for pagination.
  * @returns A promise that resolves to an object with the list of markets and the total count.
  */
 export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
     const redis = getRedisClient();
 
-    // 1. Get all active market IDs. This is simpler and more stable than sscan for moderate numbers of keys.
+    // 1. Get all active market IDs. This is safe for thousands of keys. For millions, SSCAN would be better.
     const allMarketIds = await redis.smembers('active_market_ids');
     const totalMarkets = allMarketIds.length;
 

@@ -37,12 +37,12 @@ console.log("[Reown Context] AppKit Metadata:", metadata);
 export let appKitModal: AppKitModal;
 
 if (!projectId || projectId === 'undefined' || projectId === PLACEHOLDER_PROJECT_ID) {
-  const errorMessage = `[Reown Context] CRITICAL ERROR: NEXT_PUBLIC_REOWN_PROJECT_ID is not configured or is placeholder. Reown AppKit will not be initialized. Current value: "${projectId}"`;
-  console.error(errorMessage);
+  const warningMessage = `[Reown Context] WARNING: NEXT_PUBLIC_REOWN_PROJECT_ID is not configured. Reown AppKit is not initialized. Wallet functionality will be disabled. Current value: "${projectId}"`;
+  console.warn(warningMessage);
+  // Create a mock modal that provides feedback in the console instead of a disruptive alert.
   appKitModal = {
     open: () => {
-      alert("Wallet connection is not configured. Please check NEXT_PUBLIC_REOWN_PROJECT_ID in your environment variables.");
-      console.error("[Reown Context] appKitModal.open() called but AppKit is not initialized due to missing Project ID.");
+      console.warn("[Reown Context] Wallet connection attempted, but AppKit is not initialized due to missing Project ID.");
     },
   } as unknown as AppKitModal;
 } else {
@@ -68,7 +68,6 @@ if (!projectId || projectId === 'undefined' || projectId === PLACEHOLDER_PROJECT
     console.error("[Reown Context] Error initializing Reown AppKit:", error);
     appKitModal = {
       open: () => {
-        alert("Error initializing wallet connection services. Please check the console.");
         console.error("[Reown Context] appKitModal.open() called but AppKit failed to initialize.", error);
       },
     } as unknown as AppKitModal;

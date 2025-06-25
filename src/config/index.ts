@@ -12,11 +12,9 @@ export const projectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID;
 const PLACEHOLDER_PROJECT_ID = 'your_reown_project_id_here';
 
 if (!projectId || projectId === 'undefined' || projectId === PLACEHOLDER_PROJECT_ID) {
-  const message = `CRITICAL ERROR: NEXT_PUBLIC_REOWN_PROJECT_ID is not defined, is "undefined", or is still the placeholder "${PLACEHOLDER_PROJECT_ID}". Please set this environment variable. Current value: "${projectId}"`;
-  console.error(message);
-  // In a real app, you might throw an error here or have a fallback,
-  // but for now, console logging to avoid breaking the build during this step.
-  // throw new Error(message);
+  const message = `[Reown Config] WARNING: NEXT_PUBLIC_REOWN_PROJECT_ID is not set. Wallet functionality will be disabled in the UI. Please set this in your .env file for production. Current value: "${projectId}"`;
+  console.warn(message);
+  // This is no longer a critical error that throws, allowing the app to run in dev.
 } else {
   console.log('[Reown Config] Using Project ID:', projectId);
 }
