@@ -22,8 +22,9 @@ function getRedisClient(): Redis {
     console.error(`[Redis Client] ${errorMessage}`);
     throw new Error(errorMessage);
   }
-
-  console.log(`[Redis Client] Initializing new @upstash/redis client for URL: ${url.substring(0,25)}...`);
+  
+  // This log is useful for confirming the correct configuration is loaded.
+  console.log(`[Redis Client] Initializing @upstash/redis client for URL: ${url.substring(0,25)}...`);
   
   const newRedisInstance = new Redis({
     url: url,
