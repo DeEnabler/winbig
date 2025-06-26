@@ -158,12 +158,11 @@ export interface OpenPosition {
   bonusApplied?: boolean; // Was a bonus applied to this bet?
 }
 
-// Interface for LiveMarketService to use
-// This is now aligned with the guide: question and other metadata are optional.
+// This is the definitive structure for the LiveMarket object
 export interface LiveMarket {
   id: string; // conditionId from Polymarket
-  question: string; // Can be a placeholder like "Market ID: ..."
-  yesPrice: number; // Probability from 0.01 to 0.99
+  question: string;
+  yesPrice: number; // Probability from 0.00 to 1.00
   noPrice: number;  // 1 - yesPrice
   category?: string;
   endsAt?: Date;
@@ -173,6 +172,7 @@ export interface LiveMarket {
   streakCount?: number;
   facePileCount?: number;
 }
+
 
 export interface ShareMessageDetails {
   predictionText: string;
