@@ -17,11 +17,9 @@ async function getMarketMetadata(marketId: string): Promise<any | null> {
   const cachedEntry = metadataCache.get(marketId);
 
   if (cachedEntry && (now - cachedEntry.timestamp < METADATA_CACHE_TTL)) {
-    console.log(`[DIAGNOSTIC] METADATA CACHE HIT for ${marketId}`);
     return cachedEntry.data;
   }
   
-  console.log(`[DIAGNOSTIC] METADATA CACHE MISS for ${marketId}. Fetching from Polymarket API.`);
   try {
     const response = await fetch(`https://gamma-api.polymarket.com/markets/${marketId}`);
     if (!response.ok) {
@@ -43,16 +41,17 @@ async function getMarketMetadata(marketId: string): Promise<any | null> {
  */
 function constructMarket(
     marketId: string,
-    oddsData: any | null,
+    oddsData: any | null, // Expects { yes, no, last_updated }
     metadata?: any | null
 ): LiveMarket | null {
-    console.log(`[DIAGNOSTIC] Constructing market for ID ${marketId.slice(0,12)}...`);
-    const hasValidOdds = oddsData && typeof oddsData.yes_price === 'number' && typeof oddsData.no_price === 'number';
-
-    if (!hasValidOdds && !metadata) {
-        console.warn(`[DIAGNOSTIC] Skipping market ${marketId}: Both odds and metadata are null.`);
-        return null;
+    // If we have no metadata, we cannot display a meaningful card.
+    if (!metadata) {
+      console.warn(`[DIAGNOSTIC] Skipping market ${marketId}: Metadata is required but was not provided or fetched.`);
+      return null;
     }
+
+    // Check for a valid odds object with the correct properties.
+    const hasValidOdds = oddsData && typeof oddsData.yes === 'number' && typeof oddsData.no === 'number';
 
     // Use metadata if available, otherwise create placeholders.
     const question = metadata?.question || `Market ID: ${marketId.slice(0, 12)}...`;
@@ -62,10 +61,9 @@ function constructMarket(
     const endsAt = metadata?.end_date_iso ? new Date(metadata.end_date_iso) : undefined;
     
     // Use live odds if available, otherwise use placeholder values (e.g., 0).
-    const yesPrice = hasValidOdds ? oddsData.yes_price : 0;
-    const noPrice = hasValidOdds ? oddsData.no_price : 0;
+    const yesPrice = hasValidOdds ? oddsData.yes : 0;
+    const noPrice = hasValidOdds ? oddsData.no : 0;
 
-    console.log(`[DIAGNOSTIC] Successfully constructed market: ${question.substring(0,20)}...`);
     return {
         id: marketId,
         question: question,
@@ -92,67 +90,55 @@ interface LiveMarketsResponse {
 }
 
 /**
- * [DEFINITIVE FIX] Fetches a paginated list of live markets.
- * This version is resilient to cache misses in Redis. If odds are missing,
- * it falls back to fetching metadata to ensure a card can always be displayed.
+ * Fetches a paginated list of live markets from Redis.
+ * It is designed to be resilient to temporary cache misses for individual markets.
  */
 export async function getLiveMarkets({ limit = 3, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
-    console.log("\n--- [DIAGNOSTIC] getLiveMarkets initiated ---");
     const redis = getRedisClient();
     
     try {
-        console.log("[DIAGNOSTIC] Step 1: Fetching market IDs from 'active_market_ids' set.");
         const marketIds = await redis.smembers('active_market_ids');
         const totalMarkets = marketIds.length;
-        console.log(`[DIAGNOSTIC] Step 2: Found ${totalMarkets} total market IDs.`);
 
         if (totalMarkets === 0) {
-            console.warn("[DIAGNOSTIC] No market IDs found in 'active_market_ids' set. Returning empty.");
             return { markets: [], total: 0 };
         }
 
         const paginatedMarketIds = marketIds.slice(offset, offset + limit);
-        console.log(`[DIAGNOSTIC] Step 3: Sliced to ${paginatedMarketIds.length} IDs for this page (offset: ${offset}, limit: ${limit}).`);
 
         if (paginatedMarketIds.length === 0) {
             return { markets: [], total: totalMarkets };
         }
 
-        const oddsKeys = paginatedMarketIds.map(id => `market:${id}`);
-        console.log(`[DIAGNOSTIC] Step 4: Constructed Redis keys for MGET. Sample key: "${oddsKeys[0]}"`);
+        // CRITICAL FIX: Use the correct "odds:" prefix as per the architect's guidance.
+        const oddsKeys = paginatedMarketIds.map(id => `odds:${id}`);
         
         const oddsJsonStrings = await redis.mget<Array<string | null>>(...oddsKeys);
-        console.log(`[DIAGNOSTIC] Step 5: Raw response from MGET for ${oddsKeys.length} keys:`, oddsJsonStrings);
 
         const marketPromises = paginatedMarketIds.map(async (marketId, i) => {
-            console.log(`\n[DIAGNOSTIC] > Processing item ${i+1}/${paginatedMarketIds.length}: ID ${marketId}`);
             const oddsJsonString = oddsJsonStrings[i];
             let oddsData = null;
 
             if (oddsJsonString) {
                 try {
+                    // CRITICAL FIX: Parse the correct JSON schema { yes, no, ... }
                     oddsData = JSON.parse(oddsJsonString);
-                    console.log(`[DIAGNOSTIC] > Successfully parsed odds for ${marketId.slice(0,12)}...`);
                 } catch (e) {
-                    console.error(`[DIAGNOSTIC] > JSON Parse ERROR for ${marketId}:`, e);
+                    console.error(`[MarketService] JSON Parse ERROR for market ${marketId}:`, e);
+                    // Continue without odds data, will fallback to metadata-only display.
                 }
             } else {
-                 console.warn(`[DIAGNOSTIC] > CACHE MISS for ${marketId}: MGET returned null.`);
-            }
-
-            // Fallback to fetching metadata if odds are missing, to ensure a card can be displayed
-            if (!oddsData) {
-                console.log(`[DIAGNOSTIC] > Odds missing for ${marketId}. Initiating metadata fallback.`);
-                const metadata = await getMarketMetadata(marketId);
-                return constructMarket(marketId, null, metadata);
+                 console.warn(`[MarketService] Odds data from Redis is null for market: ${marketId}. Will rely on metadata fallback.`);
             }
             
-            // If odds are present, no need for external metadata call for the list view
-            return constructMarket(marketId, oddsData, null); 
+            // Metadata is required for a useful display, so it's always fetched.
+            // This is acceptable as it's cached in-memory.
+            const metadata = await getMarketMetadata(marketId);
+            
+            return constructMarket(marketId, oddsData, metadata);
         });
 
         const fetchedMarkets = (await Promise.all(marketPromises)).filter((m): m is LiveMarket => m !== null);
-        console.log(`\n--- [DIAGNOSTIC] getLiveMarkets FINISHED. Returning ${fetchedMarkets.length} constructed markets. ---\n`);
         return { markets: fetchedMarkets, total: totalMarkets };
 
     } catch (error) {
@@ -170,23 +156,24 @@ export async function getMarketDetails(marketId: string): Promise<LiveMarket | n
     const redis = getRedisClient();
     
     // Fetch odds and metadata concurrently for performance.
+    // CRITICAL FIX: Use the correct "odds:" prefix.
     const [oddsJsonString, metadata] = await Promise.all([
-        redis.get<string | null>(`market:${marketId}`),
-        getMarketMetadata(marketId) // This is the external API call, now isolated here.
+        redis.get<string | null>(`odds:${marketId}`),
+        getMarketMetadata(marketId)
     ]);
 
     let oddsData = null;
     if (oddsJsonString) {
         try {
+            // CRITICAL FIX: Parse the correct JSON schema { yes, no, ... }
             oddsData = JSON.parse(oddsJsonString);
         } catch (e) {
             console.error(`[MarketService] Failed to parse JSON for single market odds ${marketId}. Data: "${oddsJsonString}"`, e);
         }
     }
     
-    // If we can't find *any* data for this market, it's truly not found.
-    if (!oddsData && !metadata) {
-      console.warn(`[MarketService] No data found for market ${marketId} in either Redis or the API.`);
+    if (!metadata) {
+      console.warn(`[MarketService] No metadata found for market ${marketId}. Cannot construct market details.`);
       return null;
     }
 
