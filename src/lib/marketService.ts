@@ -1,3 +1,4 @@
+
 // src/lib/marketService.ts
 import 'server-only';
 import getRedisClient from '@/lib/redis';
@@ -22,38 +23,36 @@ async function getMarketMetadata(marketId: string): Promise<any | null> {
   try {
     const response = await fetch(`https://gamma-api.polymarket.com/markets/${marketId}`);
     if (!response.ok) {
-      console.warn(`[MarketService] Failed to fetch metadata for ${marketId}. Status: ${response.status}`);
-      return null;
+      console.warn(`[MarketService] Failed to fetch metadata for ${marketId} from Polymarket API. Status: ${response.status}`);
+      return null; // Return null on failure, don't throw
     }
     const metadata = await response.json();
     metadataCache.set(marketId, { data: metadata, timestamp: now });
     return metadata;
   } catch (error) {
     console.error(`[MarketService] CRITICAL ERROR fetching metadata for ${marketId}:`, error);
-    return null;
+    return null; // Return null on exception
   }
 }
 
 /**
  * A flexible helper to construct a LiveMarket object from various data sources.
+ * This is now more resilient to missing metadata.
  */
 function constructMarket(
     marketId: string,
     oddsData: { yes: number; no: number; ts: number } | null,
-    metadata?: any | null
-): LiveMarket | null {
-    if (!metadata && !oddsData) {
-      console.warn(`[MarketService] Skipping market ${marketId}: Both odds and metadata are null.`);
-      return null;
-    }
-
-    const question = metadata?.question || `Market ID: ${marketId.slice(0, 12)}...`;
+    metadata: any | null
+): LiveMarket {
+    // If metadata fails, create a stub market so the UI doesn't break.
+    const question = metadata?.question || `Market ${marketId.slice(0, 8)}...`;
     const category = metadata?.category || "General";
     const imageUrl = metadata?.image_url || `https://placehold.co/600x400.png`;
     const aiHint = metadata?.ai_hint || category.toLowerCase().split(' ').slice(0, 2).join(' ') || 'event';
     const endsAt = metadata?.end_date_iso ? new Date(metadata.end_date_iso) : undefined;
     
-    const yesPrice = oddsData ? oddsData.yes : 0.5; // Default to 50/50 if no odds
+    // Odds data can be null, default to 50/50 if so.
+    const yesPrice = oddsData ? oddsData.yes : 0.5;
     const noPrice = oddsData ? oddsData.no : 0.5;
 
     return {
@@ -112,14 +111,20 @@ export async function getLiveMarkets({ limit = 3, offset = 0 }: GetLiveMarketsPa
                     oddsData = JSON.parse(oddsJsonString);
                 } catch (e) {
                     console.error(`[MarketService] JSON Parse ERROR for market ${marketId}:`, e);
+                    // Continue with null oddsData
                 }
             }
             
+            // Always fetch metadata, which will use a cache.
+            // This is necessary because odds data from redis does not contain it.
             const metadata = await getMarketMetadata(marketId);
+
+            // ConstructMarket will now always return a market, even a stub.
             return constructMarket(marketId, oddsData, metadata);
         });
 
-        const fetchedMarkets = (await Promise.all(marketPromises)).filter((m): m is LiveMarket => m !== null);
+        const fetchedMarkets = await Promise.all(marketPromises);
+        
         console.log(`[MarketService] Successfully constructed ${fetchedMarkets.length} of ${paginatedMarketIds.length} requested markets.`);
         return { markets: fetchedMarkets, total: totalMarkets };
 
@@ -150,8 +155,9 @@ export async function getMarketDetails(marketId: string): Promise<LiveMarket | n
         }
     }
     
-    if (!metadata && !oddsData) {
-      console.warn(`[MarketService] No data at all found for market ${marketId}.`);
+    // For the detail view, we require metadata. If it's null, we can't show the page.
+    if (!metadata) {
+      console.warn(`[MarketService] No metadata found for market detail view ${marketId}.`);
       return null;
     }
 
