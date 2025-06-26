@@ -32,6 +32,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  console.log("--- [Layout] RootLayout rendering on server ---");
   // Get the cookie string correctly using await cookies()
   const cookieStore = await cookies();
   const allCookies = cookieStore.getAll();

@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic'; // Ensure the page is dynamically render
 
 // This is now an async Server Component
 export default async function HomePage() {
+  console.log("--- [Homepage] Server Component rendering ---");
   let markets: LiveMarket[] = [];
   let error: string | null = null;
 
