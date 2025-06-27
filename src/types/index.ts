@@ -158,15 +158,17 @@ export interface OpenPosition {
   bonusApplied?: boolean; // Was a bonus applied to this bet?
 }
 
-// This is the definitive structure for the LiveMarket object
+// This is the definitive structure for the LiveMarket object, sourced from Redis
 export interface LiveMarket {
   id: string; // conditionId from Polymarket
   question: string;
   yesPrice: number; // Probability from 0.00 to 1.00
   noPrice: number;  // 1 - yesPrice
-  category?: string;
+  category: string;
+  imageUrl: string;
+  // These fields are no longer guaranteed to be available from the primary Redis source.
+  // They are now optional and the UI must handle their absence.
   endsAt?: Date;
-  imageUrl?: string;
   aiHint?: string;
   payoutTeaser?: string;
   streakCount?: number;

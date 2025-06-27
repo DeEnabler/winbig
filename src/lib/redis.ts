@@ -15,10 +15,11 @@ function getRedisClient(): Redis {
   // --- [DIAGNOSTIC] High-visibility logging for environment variables ---
   console.log("--- [DIAGNOSTIC] REDIS CLIENT INITIALIZATION ---");
   const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.UPSTASH_REDIS_REST_READ_ONLY_TOKEN;
+  // Use the token from the definitive script first, then fall back to others.
+  const token = process.env.REDIS_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || process.env.UPSTASH_REDIS_REST_READ_ONLY_TOKEN;
   
   console.log(`[DIAGNOSTIC] Runtime value for UPSTASH_REDIS_REST_URL: "${url}"`);
-  console.log(`[DIAGNOSTIC] Runtime value for UPSTASH_REDIS_REST_TOKEN is: ${token ? '****** (set)' : '!!!!!!!!!! (NOT SET)'}`);
+  console.log(`[DIAGNOSTIC] Runtime value for Redis Token is: ${token ? '****** (set)' : '!!!!!!!!!! (NOT SET)'}`);
   console.log("-------------------------------------------------");
   // --- End of Diagnostic Logging ---
 
@@ -48,7 +49,7 @@ export default getRedisClient;
  * Since @upstash/redis is connectionless (HTTP-based), this primarily checks if credentials are provided.
  */
 export function getRedisStatus() {
-  const isConfigured = !!(process.env.UPSTASH_REDIS_REST_URL && (process.env.UPSTASH_REDIS_REST_READ_ONLY_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN));
+  const isConfigured = !!(process.env.UPSTASH_REDIS_REST_URL && (process.env.REDIS_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || process.env.UPSTASH_REDIS_REST_READ_ONLY_TOKEN));
   return {
     // "connected" means it's configured and ready to send requests.
     connected: isConfigured, 
