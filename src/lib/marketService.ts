@@ -1,4 +1,3 @@
-
 import 'server-only';
 import getRedisClient from '@/lib/redis';
 import type { LiveMarket } from '@/types';
@@ -32,16 +31,19 @@ function constructMarket(marketId: string, oddsData: any | null, metaData: Redis
     return null;
   }
 
-  // Use default odds if live odds data is missing or invalid
-  const yesPrice = oddsData?.yes ?? 0.50;
-  const noPrice = oddsData?.no ?? 0.50;
+  // --- THIS IS THE CORRECTED BLOCK ---
+  // We now have four distinct price points. For this UI, we will display
+  // the price to BUY Yes and the price to BUY No.
+  const yesBuyPrice = oddsData ? oddsData.yes_buy_price : 0.50;
+  const noBuyPrice = oddsData ? oddsData.no_buy_price : 0.50;
 
   return {
     id: marketId,
     question: metaData.question,
     category: metaData.category || 'General',
-    yesPrice: parseFloat(yesPrice.toFixed(2)),
-    noPrice: parseFloat(noPrice.toFixed(2)),
+    // Map the correct properties from the new schema
+    yesPrice: parseFloat(Number(yesBuyPrice).toFixed(2)),
+    noPrice: parseFloat(Number(noBuyPrice).toFixed(2)),
     imageUrl: `https://placehold.co/600x400.png`,
     aiHint: metaData.category?.toLowerCase() || 'general',
   };
