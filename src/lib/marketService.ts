@@ -1,20 +1,18 @@
+
 import 'server-only';
 import getRedisClient from '@/lib/redis';
 import type { LiveMarket } from '@/types';
 
-// This is the interface for the data we get from Redis odds key
 interface RedisOddsData {
   yes_price: number;
   no_price: number;
   ts: number;
 }
 
-// This is the interface for the data we get from Redis metadata hash
 interface RedisMetadata {
   question: string;
   category: string;
   slug: string;
-  // any other fields...
 }
 
 interface GetLiveMarketsParams {
@@ -29,31 +27,33 @@ interface LiveMarketsResponse {
 
 /**
  * Constructs a LiveMarket object from Redis data.
- * This function expects that metadata exists, as guaranteed by the fixed producer.
  * @param marketId The condition ID of the market.
- * @param oddsData The parsed JSON object from the 'market:{id}' key. Can be null if odds haven't been written yet.
- * @param metaData The object from the 'meta:market:{id}' hash. Should not be null.
+ * @param oddsData The parsed JSON object from the 'market:{id}' key.
+ * @param metaData The object from the 'meta:market:{id}' hash.
  * @returns A LiveMarket object or null if essential metadata is missing.
  */
-function constructMarket(marketId: string, oddsData: RedisOddsData | null, metaData: RedisMetadata | null): LiveMarket | null {
-  // The producer now guarantees metadata. If it's missing, it's an unexpected state.
+function constructMarket(marketId: string, oddsData: RedisOddsData | null, metaData: RedisMetadata): LiveMarket | null {
   if (!metaData || !metaData.question) {
     console.warn(`[MarketService] Missing essential metadata in Redis for market ${marketId}. Skipping.`);
     return null;
   }
 
+  if (!oddsData) {
+      console.warn(`[MarketService] Missing odds for market ${marketId}. Displaying with N/A odds.`);
+  }
+
+  const category = metaData.category || 'General';
+
   return {
     id: marketId,
     question: metaData.question,
-    category: metaData.category || 'General',
-    // Provide a default if odds are momentarily missing (e.g., race condition on new market)
+    category: category,
     yesPrice: oddsData ? parseFloat(oddsData.yes_price.toFixed(2)) : 0.50,
     noPrice: oddsData ? parseFloat(oddsData.no_price.toFixed(2)) : 0.50,
     imageUrl: `https://placehold.co/600x400.png`,
-    aiHint: metaData.category?.toLowerCase() || 'event'
+    aiHint: category.toLowerCase(),
   };
 }
-
 
 /**
  * Fetches a paginated list of live markets by reading all data directly from Redis
@@ -87,17 +87,21 @@ export async function getLiveMarkets({ limit = 3, offset = 0 }: GetLiveMarketsPa
     const markets: LiveMarket[] = [];
     for (let i = 0; i < paginatedMarketIds.length; i++) {
       const marketId = paginatedMarketIds[i];
-      const oddsJsonString = results[i * 2] as string | null;
+      const oddsDataString = results[i * 2] as string | null;
       const metaData = results[i * 2 + 1] as RedisMetadata | null;
 
+      if (!metaData) {
+        console.warn(`[MarketService] Missing METADATA for market ${marketId}. Skipping.`);
+        continue;
+      }
+      
       let oddsData: RedisOddsData | null = null;
-      if (oddsJsonString) {
-        try {
-          oddsData = JSON.parse(oddsJsonString);
-        } catch (e) {
-          console.error(`[MarketService] Failed to parse odds JSON for market ${marketId}`, e);
-          // Don't skip the market, just proceed without odds data
-        }
+      if (oddsDataString) {
+          try {
+              oddsData = JSON.parse(oddsDataString);
+          } catch(e) {
+              console.error(`[MarketService] Could not parse odds JSON for market ${marketId}. Invalid data: ${oddsDataString}`);
+          }
       }
 
       const market = constructMarket(marketId, oddsData, metaData);
@@ -121,18 +125,22 @@ export async function getLiveMarkets({ limit = 3, offset = 0 }: GetLiveMarketsPa
 export async function getMarketDetails(marketId: string): Promise<LiveMarket | null> {
     const redis = getRedisClient();
     try {
-        const [oddsJsonString, metaData] = await Promise.all([
-            redis.get<string | null>(`market:${marketId}`),
-            redis.hgetall<RedisMetadata | null>(`meta:market:${marketId}`)
-        ]);
-
+        const pipeline = redis.pipeline();
+        pipeline.get(`market:${marketId}`);
+        pipeline.hgetall(`meta:market:${marketId}`);
+        const [oddsDataString, metaData] = await pipeline.exec() as [string | null, RedisMetadata | null];
+        
         let oddsData: RedisOddsData | null = null;
-        if (oddsJsonString) {
+        if (oddsDataString) {
             try {
-              oddsData = JSON.parse(oddsJsonString);
+              oddsData = JSON.parse(oddsDataString);
             } catch (e) {
               console.error(`[MarketService] Failed to parse odds JSON for single market ${marketId}`, e);
             }
+        }
+
+        if (!metaData) {
+            return null;
         }
 
         return constructMarket(marketId, oddsData, metaData);
