@@ -3,12 +3,6 @@ import 'server-only';
 import getRedisClient from '@/lib/redis';
 import type { LiveMarket } from '@/types';
 
-interface RedisOddsData {
-  yes_price: number;
-  no_price: number;
-  ts: number;
-}
-
 interface RedisMetadata {
   question: string;
   category: string;
@@ -32,28 +26,31 @@ interface LiveMarketsResponse {
  * @param metaData The object from the 'meta:market:{id}' hash.
  * @returns A LiveMarket object or null if essential metadata is missing.
  */
-function constructMarket(marketId: string, oddsData: RedisOddsData | null, metaData: RedisMetadata): LiveMarket | null {
+function constructMarket(marketId: string, oddsData: any | null, metaData: RedisMetadata): LiveMarket | null {
   if (!metaData || !metaData.question) {
     console.warn(`[MarketService] Missing essential metadata in Redis for market ${marketId}. Skipping.`);
     return null;
   }
 
-  const category = metaData.category || 'General';
+  // Use default odds if live odds data is missing or invalid
+  const yesPrice = oddsData?.yes ?? 0.50;
+  const noPrice = oddsData?.no ?? 0.50;
 
   return {
     id: marketId,
     question: metaData.question,
-    category: category,
-    yesPrice: oddsData ? parseFloat(oddsData.yes_price.toFixed(2)) : 0.50,
-    noPrice: oddsData ? parseFloat(oddsData.no_price.toFixed(2)) : 0.50,
+    category: metaData.category || 'General',
+    yesPrice: parseFloat(yesPrice.toFixed(2)),
+    noPrice: parseFloat(noPrice.toFixed(2)),
     imageUrl: `https://placehold.co/600x400.png`,
-    aiHint: category.toLowerCase(),
+    aiHint: metaData.category?.toLowerCase() || 'general',
   };
 }
 
+
 /**
  * Fetches a paginated list of live markets by reading all data directly from Redis
- * using a pipeline for maximum efficiency, as specified in the definitive example.
+ * using a pipeline for maximum efficiency.
  */
 export async function getLiveMarkets({ limit = 3, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
   const redis = getRedisClient();
@@ -81,10 +78,9 @@ export async function getLiveMarkets({ limit = 3, offset = 0 }: GetLiveMarketsPa
       const oddsDataString = results[i * 2] as string | null;
       const metaData = results[i * 2 + 1] as RedisMetadata | null;
 
-      let parsedOddsData: RedisOddsData | null = null;
+      let parsedOddsData: any | null = null;
       if (oddsDataString) {
         try {
-          // This is the critical change: parsing the JSON string from Redis.
           parsedOddsData = JSON.parse(oddsDataString);
         } catch (e) {
           console.error(`[MarketService] Could not parse odds JSON for market ${marketId}. Invalid data: ${oddsDataString}`, e);
@@ -117,7 +113,7 @@ export async function getMarketDetails(marketId: string): Promise<LiveMarket | n
         pipeline.hgetall(`meta:market:${marketId}`);
         const [oddsDataString, metaData] = await pipeline.exec() as [string | null, RedisMetadata | null];
         
-        let parsedOddsData: RedisOddsData | null = null;
+        let parsedOddsData: any | null = null;
         if (oddsDataString) {
             try {
               parsedOddsData = JSON.parse(oddsDataString);

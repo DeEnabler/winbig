@@ -166,13 +166,7 @@ export interface LiveMarket {
   noPrice: number;  // 1 - yesPrice
   category: string;
   imageUrl: string;
-  // These fields are no longer guaranteed to be available from the primary Redis source.
-  // They are now optional and the UI must handle their absence.
-  endsAt?: Date;
   aiHint?: string;
-  payoutTeaser?: string;
-  streakCount?: number;
-  facePileCount?: number;
 }
 
 

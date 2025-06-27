@@ -1,3 +1,4 @@
+
 // src/components/homepage/MarketFeedCard.tsx
 'use client';
 
@@ -14,18 +15,10 @@ interface MarketFeedCardProps {
 }
 
 export default function MarketFeedCard({ market }: MarketFeedCardProps) {
-  if (!market || !market.id) {
-    return (
-      <div className="p-4 border border-destructive bg-destructive/10 text-destructive rounded-lg my-2">
-        <h3 className="font-bold text-sm">Error: Invalid Market Data</h3>
-        <p className="text-xs">Market data is missing required fields.</p>
-      </div>
-    );
-  }
-
-  // Display the question if available, otherwise show the placeholder from the service.
-  const displayTitle = market.question.length > 50 
-    ? market.question.substring(0, 70) + (market.question.length > 70 ? '...' : '')
+  // Since the parent component (MarketFeedSection) now filters out invalid markets,
+  // we can be more confident that `market` and `market.id` exist.
+  const displayTitle = market.question.length > 70
+    ? market.question.substring(0, 70) + '...'
     : market.question;
 
   const yesPercent = (market.yesPrice * 100).toFixed(0);
