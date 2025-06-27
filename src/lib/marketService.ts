@@ -1,5 +1,4 @@
 
-// src/lib/marketService.ts
 import 'server-only';
 import getRedisClient from '@/lib/redis';
 import type { LiveMarket } from '@/types';
@@ -14,60 +13,72 @@ interface LiveMarketsResponse {
   total: number;
 }
 
+interface MarketMetadata {
+    question: string;
+    category: string;
+    slug: string;
+}
+
 /**
  * Fetches a paginated list of live markets by reading all data directly from Redis.
- * This aligns with the definitive data fetching strategy.
+ * This function now assumes a two-part data structure in Redis:
+ * 1. A single key ('market_metadata_map') holding a JSON string of all market metadata.
+ * 2. Individual 'market:{id}' keys for live odds.
  */
 export async function getLiveMarkets({ limit = 3, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
     const redis = getRedisClient();
     
     try {
+        console.log("[MarketService] Initiating fetch...");
+
+        // Step 1: Fetch the single key containing all market metadata.
+        const metadataMapString = await redis.get<string>('market_metadata_map');
+        if (!metadataMapString) {
+            console.error("[MarketService] CRITICAL: 'market_metadata_map' key not found in Redis. Cannot proceed.");
+            return { markets: [], total: 0 };
+        }
+        const metadataMap: Record<string, MarketMetadata> = JSON.parse(metadataMapString);
+
+        // Step 2: Fetch active market IDs.
         const activeMarketIds = await redis.smembers('active_market_ids');
         const totalMarkets = activeMarketIds.length;
-
         if (totalMarkets === 0) {
-            console.warn("[MarketService] No market IDs found in 'active_market_ids'. The data producer may not be running.");
+            console.warn("[MarketService] No active market IDs found. Producer may be offline.");
             return { markets: [], total: 0 };
         }
 
+        // Step 3: Paginate IDs and fetch corresponding odds.
         const paginatedMarketIds = activeMarketIds.slice(offset, offset + limit);
-
         if (paginatedMarketIds.length === 0) {
             return { markets: [], total: totalMarkets };
         }
 
-        const pipeline = redis.pipeline();
-        paginatedMarketIds.forEach(id => {
-            pipeline.get(`market:${id}`);      // Fetch odds (JSON string)
-            pipeline.hgetall(`meta:market:${id}`); // Fetch metadata (Hash)
-        });
+        const oddsKeys = paginatedMarketIds.map(id => `market:${id}`);
+        const oddsDataArray = await redis.mget<({ yes_price: number, no_price: number, ts: number } | null)[]>(...oddsKeys);
 
-        const results = await pipeline.exec();
-
+        // Step 4: Combine metadata and odds.
         const markets: LiveMarket[] = [];
-        for (let i = 0; i < paginatedMarketIds.length; i++) {
-            const marketId = paginatedMarketIds[i];
-            const oddsData = results[i * 2] as { yes_price: number, no_price: number, ts: number } | null;
-            const metaData = results[i * 2 + 1] as { question: string, category: string, slug: string } | null;
+        paginatedMarketIds.forEach((marketId, i) => {
+            const meta = metadataMap[marketId];
+            const odds = oddsDataArray[i];
 
-            if (!metaData || !metaData.question) {
-                console.warn(`[MarketService] Missing essential metadata in Redis for market ${marketId}. Skipping.`);
-                continue;
+            if (!meta || !meta.question) {
+                console.warn(`[MarketService] Metadata for active market ${marketId} not found in metadata map. Skipping.`);
+                return;
             }
 
             markets.push({
                 id: marketId,
-                question: metaData.question,
-                category: metaData.category || 'General',
-                // Default to 0.50/0.50 if odds are missing (e.g., race condition on first write)
-                yesPrice: oddsData ? parseFloat(oddsData.yes_price.toFixed(2)) : 0.50,
-                noPrice: oddsData ? parseFloat(oddsData.no_price.toFixed(2)) : 0.50,
-                imageUrl: `https://placehold.co/600x400.png`, // Use a reliable placeholder
-                aiHint: metaData.category?.toLowerCase() || 'event'
+                question: meta.question,
+                category: meta.category || 'General',
+                yesPrice: odds ? parseFloat(odds.yes_price.toFixed(2)) : 0.50, // Gracefully handle null odds
+                noPrice: odds ? parseFloat(odds.no_price.toFixed(2)) : 0.50,
+                imageUrl: `https://placehold.co/600x400.png`,
+                aiHint: meta.category?.toLowerCase() || 'event'
             });
-        }
+        });
         
-        console.log(`[MarketService] Successfully constructed ${markets.length} of ${paginatedMarketIds.length} requested markets from Redis.`);
+        console.log(`[MarketService] Successfully constructed ${markets.length} of ${paginatedMarketIds.length} requested markets.`);
         return { markets, total: totalMarkets };
 
     } catch (error) {
@@ -78,33 +89,36 @@ export async function getLiveMarkets({ limit = 3, offset = 0 }: GetLiveMarketsPa
 
 
 /**
- * Fetches the COMPLETE details for a single market by its ID from Redis.
+ * Fetches the COMPLETE details for a single market.
+ * It first checks the central metadata map, then fetches live odds.
  */
 export async function getMarketDetails(marketId: string): Promise<LiveMarket | null> {
     const redis = getRedisClient();
     
     try {
-        const pipeline = redis.pipeline();
-        pipeline.get(`market:${marketId}`);
-        pipeline.hgetall(`meta:market:${marketId}`);
-        const [oddsData, metaData] = await pipeline.exec() as [
-            { yes_price: number, no_price: number, ts: number } | null,
-            { question: string, category: string, slug: string } | null
-        ];
-
-        if (!metaData || !metaData.question) {
-            console.warn(`[MarketService] No metadata found in Redis for market detail view ${marketId}.`);
+        const metadataMapString = await redis.get<string>('market_metadata_map');
+        if (!metadataMapString) {
+            console.error(`[MarketService] CRITICAL: 'market_metadata_map' key not found for getMarketDetails.`);
+            return null;
+        }
+        const metadataMap: Record<string, MarketMetadata> = JSON.parse(metadataMapString);
+        
+        const meta = metadataMap[marketId];
+        if (!meta || !meta.question) {
+            console.warn(`[MarketService] No metadata found in map for market detail view ${marketId}.`);
             return null;
         }
 
+        const odds = await redis.get<{ yes_price: number, no_price: number, ts: number }>(`market:${marketId}`);
+
         return {
             id: marketId,
-            question: metaData.question,
-            category: metaData.category || 'General',
-            yesPrice: oddsData ? parseFloat(oddsData.yes_price.toFixed(2)) : 0.50,
-            noPrice: oddsData ? parseFloat(oddsData.no_price.toFixed(2)) : 0.50,
+            question: meta.question,
+            category: meta.category || 'General',
+            yesPrice: odds ? parseFloat(odds.yes_price.toFixed(2)) : 0.50,
+            noPrice: odds ? parseFloat(odds.no_price.toFixed(2)) : 0.50,
             imageUrl: `https://placehold.co/600x400.png`,
-            aiHint: metaData.category?.toLowerCase() || 'event'
+            aiHint: meta.category?.toLowerCase() || 'event'
         };
     } catch (error) {
         console.error(`[MarketService] A critical error occurred in getMarketDetails for ID ${marketId}:`, error);
