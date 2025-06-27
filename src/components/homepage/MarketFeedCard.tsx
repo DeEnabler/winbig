@@ -1,4 +1,3 @@
-
 // src/components/homepage/MarketFeedCard.tsx
 'use client';
 
@@ -15,8 +14,6 @@ interface MarketFeedCardProps {
 }
 
 export default function MarketFeedCard({ market }: MarketFeedCardProps) {
-  // Since the parent component (MarketFeedSection) now filters out invalid markets,
-  // we can be more confident that `market` and `market.id` exist.
   const displayTitle = market.question.length > 70
     ? market.question.substring(0, 70) + '...'
     : market.question;
@@ -24,7 +21,10 @@ export default function MarketFeedCard({ market }: MarketFeedCardProps) {
   const yesPercent = (market.yesPrice * 100).toFixed(0);
   const noPercent = (market.noPrice * 100).toFixed(0);
 
-  // Link to the match page to view details, passing the market ID as both matchId and predictionId
+  // --- START: ADDED UI DIAGNOSTIC ---
+  console.log(`[MarketFeedCard UI] ID: ${market.id}, received yesPrice: ${market.yesPrice}, calculated yesPercent: ${yesPercent}`);
+  // --- END: ADDED UI DIAGNOSTIC ---
+
   const detailUrl = `/match/${market.id}?predictionId=${market.id}`;
 
   return (

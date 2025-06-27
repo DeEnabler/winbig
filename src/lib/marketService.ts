@@ -1,12 +1,6 @@
 import 'server-only';
 import getRedisClient from '@/lib/redis';
-import type { LiveMarket } from '@/types';
-
-interface RedisMetadata {
-  question: string;
-  category: string;
-  slug: string;
-}
+import type { LiveMarket, RedisMetadata } from '@/types';
 
 interface GetLiveMarketsParams {
   limit?: number;
@@ -31,19 +25,24 @@ function constructMarket(marketId: string, oddsData: any | null, metaData: Redis
     return null;
   }
 
-  // --- THIS IS THE CORRECTED BLOCK ---
   // We now have four distinct price points. For this UI, we will display
   // the price to BUY Yes and the price to BUY No.
   const yesBuyPrice = oddsData ? oddsData.yes_buy_price : 0.50;
   const noBuyPrice = oddsData ? oddsData.no_buy_price : 0.50;
 
+  // --- START: ADDED DIAGNOSTIC BLOCK ---
+  console.log(`[DIAGNOSTIC] Market ID: ${marketId}`);
+  console.log(`[DIAGNOSTIC] Raw 'yes_buy_price':`, yesBuyPrice, `(Type: ${typeof yesBuyPrice})`);
+  console.log(`[DIAGNOSTIC] Raw 'no_buy_price':`, noBuyPrice, `(Type: ${typeof noBuyPrice})`);
+  // --- END: ADDED DIAGNOSTIC BLOCK ---
+
   return {
     id: marketId,
     question: metaData.question,
     category: metaData.category || 'General',
-    // Map the correct properties from the new schema
-    yesPrice: parseFloat(Number(yesBuyPrice).toFixed(2)),
-    noPrice: parseFloat(Number(noBuyPrice).toFixed(2)),
+    // SIMPLIFIED: Directly convert to number, avoiding complex string conversion.
+    yesPrice: Number(yesBuyPrice),
+    noPrice: Number(noBuyPrice),
     imageUrl: `https://placehold.co/600x400.png`,
     aiHint: metaData.category?.toLowerCase() || 'general',
   };
@@ -78,11 +77,12 @@ export async function getLiveMarkets({ limit = 3, offset = 0 }: GetLiveMarketsPa
     for (let i = 0; i < paginatedMarketIds.length; i++) {
       const marketId = paginatedMarketIds[i];
       const oddsDataString = results[i * 2] as string | null;
-      const metaData = results[i * 2 + 1] as RedisMetadata | null;
+      const metaData = results[i * 2 + 1] as RedisMetadata | null; // This should be the metadata object
 
       let parsedOddsData: any | null = null;
       if (oddsDataString) {
         try {
+          // The producer now stores odds as a JSON string, so we must parse it.
           parsedOddsData = JSON.parse(oddsDataString);
         } catch (e) {
           console.error(`[MarketService] Could not parse odds JSON for market ${marketId}. Invalid data: ${oddsDataString}`, e);
