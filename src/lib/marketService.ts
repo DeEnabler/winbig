@@ -1,3 +1,4 @@
+
 import 'server-only';
 import getRedisClient from '@/lib/redis';
 import type { LiveMarket, RedisMetadata } from '@/types';
@@ -77,7 +78,7 @@ export async function getLiveMarkets({ limit = 3, offset = 0 }: GetLiveMarketsPa
     for (let i = 0; i < paginatedMarketIds.length; i++) {
       const marketId = paginatedMarketIds[i];
       const oddsDataString = results[i * 2] as string | null;
-      const metaData = results[i * 2 + 1] as RedisMetadata | null; // This should be the metadata object
+      const metaData = results[i * 2 + 1] as RedisMetadata | null;
 
       let parsedOddsData: any | null = null;
       if (oddsDataString) {
@@ -95,7 +96,8 @@ export async function getLiveMarkets({ limit = 3, offset = 0 }: GetLiveMarketsPa
       }
     }
 
-    console.log(`[MarketService] Successfully constructed ${markets.length} of ${paginatedMarketIds.length} requested markets from Redis.`);
+    console.log(`[MarketService] Successfully constructed ${markets.length} of ${paginatedMarketIds.length} requested markets.`);
+    console.log("[MarketService] Data fetch complete. Source: 100% Redis. No fallback is active.");
     return { markets, total: totalMarkets };
 
   } catch (error) {
