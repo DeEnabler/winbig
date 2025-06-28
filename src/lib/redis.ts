@@ -1,45 +1,40 @@
 
 import { Redis } from '@upstash/redis';
 
-let redis: Redis | null = null;
+// By attaching the client to the `global` object, we can ensure that it is
+// not re-initialized on every hot-reload in development, which can lead to
+// errors like "Connection closed" by exhausting connection pools.
+// This is a standard Next.js best practice.
+declare global {
+  // We must use `var` here, not `let` or `const`.
+  // eslint-disable-next-line no-var
+  var redis: Redis | undefined;
+}
 
-/**
- * Returns a singleton instance of the Upstash Redis client.
- * This client is configured using environment variables.
- */
+let redisClient: Redis;
+
+const url = process.env.UPSTASH_REDIS_REST_URL;
+const token = process.env.REDIS_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || process.env.UPSTASH_REDIS_REST_READ_ONLY_TOKEN;
+
+if (!url || !token) {
+  throw new Error('CRITICAL: Redis credentials are not set in environment variables (UPSTASH_REDIS_REST_URL and a TOKEN are required).');
+}
+
+if (process.env.NODE_ENV === 'production') {
+  // In production, the module is loaded once, so we can just instantiate the client.
+  redisClient = new Redis({ url, token });
+} else {
+  // In development, we check if the client is already cached on the global object.
+  if (!global.redis) {
+    console.log('[Redis Client] Initializing new development client and caching globally.');
+    global.redis = new Redis({ url, token });
+  }
+  redisClient = global.redis;
+}
+
+// The function to get the client is now just an accessor to the cached instance.
 function getRedisClient(): Redis {
-  if (redis) {
-    return redis;
-  }
-
-  // --- [DIAGNOSTIC] High-visibility logging for environment variables ---
-  console.log("--- [DIAGNOSTIC] REDIS CLIENT INITIALIZATION ---");
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  // Use the token from the definitive script first, then fall back to others.
-  const token = process.env.REDIS_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || process.env.UPSTASH_REDIS_REST_READ_ONLY_TOKEN;
-  
-  console.log(`[DIAGNOSTIC] Runtime value for UPSTASH_REDIS_REST_URL: "${url}"`);
-  console.log(`[DIAGNOSTIC] Runtime value for Redis Token is: ${token ? '****** (set)' : '!!!!!!!!!! (NOT SET)'}`);
-  console.log("-------------------------------------------------");
-  // --- End of Diagnostic Logging ---
-
-
-  if (!url || !token) {
-    const errorMessage = 'CRITICAL: Upstash Redis credentials are not set in environment variables (UPSTASH_REDIS_REST_URL and a TOKEN are required).';
-    console.error(`[Redis Client] ${errorMessage}`);
-    throw new Error(errorMessage);
-  }
-  
-  // This log is useful for confirming the correct configuration is loaded.
-  console.log(`[Redis Client] Initializing new @upstash/redis client for URL: ${url.substring(0,25)}...`);
-  
-  const newRedisInstance = new Redis({
-    url: url,
-    token: token,
-  });
-
-  redis = newRedisInstance;
-  return redis;
+  return redisClient;
 }
 
 export default getRedisClient;
@@ -52,9 +47,9 @@ export function getRedisStatus() {
   const isConfigured = !!(process.env.UPSTASH_REDIS_REST_URL && (process.env.REDIS_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || process.env.UPSTASH_REDIS_REST_READ_ONLY_TOKEN));
   return {
     // "connected" means it's configured and ready to send requests.
-    connected: isConfigured, 
+    connected: isConfigured,
     status: isConfigured ? 'configured (http/rest)' : 'not configured',
     // Error handling is per-request, so there's no persistent connection error state.
-    lastError: null, 
+    lastError: null,
   };
 }

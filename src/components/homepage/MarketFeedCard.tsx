@@ -18,8 +18,8 @@ export default function MarketFeedCard({ market }: MarketFeedCardProps) {
     ? market.question.substring(0, 70) + '...'
     : market.question;
 
-  const yesPercent = (market.yesPrice * 100).toFixed(0);
-  const noPercent = (market.noPrice * 100).toFixed(0);
+  const yesPercent = Math.floor(market.yesPrice * 100);
+  const noPercent = Math.floor(market.noPrice * 100);
 
   // --- START: ADDED UI DIAGNOSTIC ---
   console.log(`[MarketFeedCard UI] ID: ${market.id}, received yesPrice: ${market.yesPrice}, calculated yesPercent: ${yesPercent}`);

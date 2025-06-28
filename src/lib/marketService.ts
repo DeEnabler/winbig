@@ -22,7 +22,8 @@ interface LiveMarketsResponse {
  */
 function constructMarket(marketId: string, oddsData: any | null, metaData: RedisMetadata): LiveMarket | null {
   if (!metaData || !metaData.question) {
-    console.warn(`[MarketService] Missing essential metadata in Redis for market ${marketId}. Skipping.`);
+    // This is an expected condition if metadata hasn't been written yet, so a simple log is sufficient.
+    console.log(`[MarketService] Skipping market ${marketId}: Metadata not yet available.`);
     return null;
   }
 
@@ -30,12 +31,6 @@ function constructMarket(marketId: string, oddsData: any | null, metaData: Redis
   // the price to BUY Yes and the price to BUY No.
   const yesBuyPrice = oddsData ? oddsData.yes_buy_price : 0.50;
   const noBuyPrice = oddsData ? oddsData.no_buy_price : 0.50;
-
-  // --- START: ADDED DIAGNOSTIC BLOCK ---
-  console.log(`[DIAGNOSTIC] Market ID: ${marketId}`);
-  console.log(`[DIAGNOSTIC] Raw 'yes_buy_price':`, yesBuyPrice, `(Type: ${typeof yesBuyPrice})`);
-  console.log(`[DIAGNOSTIC] Raw 'no_buy_price':`, noBuyPrice, `(Type: ${typeof noBuyPrice})`);
-  // --- END: ADDED DIAGNOSTIC BLOCK ---
 
   return {
     id: marketId,
@@ -49,17 +44,22 @@ function constructMarket(marketId: string, oddsData: any | null, metaData: Redis
   };
 }
 
-
 /**
  * Fetches a paginated list of live markets by reading all data directly from Redis
- * using a pipeline for maximum efficiency.
+ * using a pipeline for maximum efficiency. This is the only safe and correct way
+ * for the client to fetch market data.
  */
-export async function getLiveMarkets({ limit = 3, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
+export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
   const redis = getRedisClient();
 
   try {
     const activeMarketIds = await redis.smembers('active_market_ids');
     const totalMarkets = activeMarketIds.length;
+
+    if (totalMarkets === 0) {
+      console.log("[MarketService] No active markets found in 'active_market_ids' set.");
+      return { markets: [], total: 0 };
+    }
 
     const paginatedMarketIds = activeMarketIds.slice(offset, offset + limit);
     if (paginatedMarketIds.length === 0) {
@@ -73,35 +73,34 @@ export async function getLiveMarkets({ limit = 3, offset = 0 }: GetLiveMarketsPa
     });
 
     const results = await pipeline.exec();
-
+    
     const markets: LiveMarket[] = [];
     for (let i = 0; i < paginatedMarketIds.length; i++) {
       const marketId = paginatedMarketIds[i];
       const oddsDataString = results[i * 2] as string | null;
       const metaData = results[i * 2 + 1] as RedisMetadata | null;
 
-      let parsedOddsData: any | null = null;
+      let parsedOddsData: any = null;
       if (oddsDataString) {
         try {
-          // The producer now stores odds as a JSON string, so we must parse it.
           parsedOddsData = JSON.parse(oddsDataString);
         } catch (e) {
-          console.error(`[MarketService] Could not parse odds JSON for market ${marketId}. Invalid data: ${oddsDataString}`, e);
+          console.error(`[MarketService] Could not parse odds JSON for market ${marketId}. Data: "${oddsDataString}"`, e);
         }
       }
-
+      
       const market = constructMarket(marketId, parsedOddsData, metaData);
       if (market) {
         markets.push(market);
       }
     }
 
-    console.log(`[MarketService] Successfully constructed ${markets.length} of ${paginatedMarketIds.length} requested markets.`);
-    console.log("[MarketService] Data fetch complete. Source: 100% Redis. No fallback is active.");
+    console.log(`[MarketService] Successfully constructed ${markets.length} of ${paginatedMarketIds.length} requested markets. Source: 100% Redis. No fallback is active.`);
     return { markets, total: totalMarkets };
 
   } catch (error) {
     console.error('[MarketService] A critical error occurred in getLiveMarkets:', error);
+    // In case of a critical error (e.g., Redis connection fails), return an empty set.
     return { markets: [], total: 0 };
   }
 }
@@ -118,7 +117,7 @@ export async function getMarketDetails(marketId: string): Promise<LiveMarket | n
         const [oddsDataString, metaData] = await pipeline.exec() as [string | null, RedisMetadata | null];
         
         let parsedOddsData: any | null = null;
-        if (oddsDataString) {
+        if (typeof oddsDataString === 'string') {
             try {
               parsedOddsData = JSON.parse(oddsDataString);
             } catch (e) {
@@ -127,6 +126,7 @@ export async function getMarketDetails(marketId: string): Promise<LiveMarket | n
         }
 
         if (!metaData) {
+            console.warn(`[MarketService] No metadata found for single market fetch: ${marketId}`);
             return null;
         }
 
