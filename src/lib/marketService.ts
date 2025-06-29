@@ -1,7 +1,7 @@
 
 import 'server-only';
 import getRedisClient from '@/lib/redis';
-import type { LiveMarket } from '@/types';
+import type { LiveMarket, RedisMetadata } from '@/types';
 
 interface GetLiveMarketsParams {
   limit?: number;
@@ -13,15 +13,6 @@ interface LiveMarketsResponse {
   total: number;
 }
 
-/**
- * Constructs a LiveMarket object from the new optimized Redis structure.
- * @param marketId The condition ID of the market.
- * @param oddsData The hash from `market_odds:{id}`.
- * @param metaData The hash from `market_meta:{id}`.
- * @param yesTokenData The hash from `token_price:{id}:Yes`.
- * @param noTokenData The hash from `token_price:{id}:No`.
- * @returns A LiveMarket object or null if essential metadata is missing.
- */
 function constructMarket(
   marketId: string,
   oddsData: any,
@@ -71,31 +62,33 @@ function constructMarket(
   };
 }
 
+
 /**
  * Fetches a paginated list of live markets from the optimized Redis structure.
+ * This version uses the `active_market_ids` set for discovery, which is more
+ * performant and reliable than a `KEYS` scan.
  */
 export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
   const redis = getRedisClient();
 
   try {
-    // 1. Discover active markets from market_odds keys
-    const marketOddsKeys = await redis.keys('market_odds:*');
-    const totalMarkets = marketOddsKeys.length;
+    // 1. Discover active markets from the dedicated `active_market_ids` set.
+    const activeMarketIds = await redis.smembers('active_market_ids');
+    const totalMarkets = activeMarketIds.length;
 
     if (totalMarkets === 0) {
-      console.log("[MarketService] No 'market_odds:*' keys found in Redis.");
+      console.log("[MarketService] No market IDs found in 'active_market_ids' set in Redis.");
       return { markets: [], total: 0 };
     }
 
-    // Extract market IDs and paginate
-    const marketIds = marketOddsKeys.map(key => key.replace('market_odds:', ''));
-    const paginatedMarketIds = marketIds.slice(offset, offset + limit);
+    // Paginate
+    const paginatedMarketIds = activeMarketIds.slice(offset, offset + limit);
 
     if (paginatedMarketIds.length === 0) {
       return { markets: [], total: totalMarkets };
     }
 
-    // 2. Build pipeline to fetch all required data
+    // 2. Build pipeline to fetch all required data for the paginated IDs.
     const pipeline = redis.pipeline();
     paginatedMarketIds.forEach(id => {
       pipeline.hgetall(`market_odds:${id}`);
@@ -122,11 +115,12 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
       }
     }
 
-    console.log(`[MarketService] Successfully constructed ${markets.length} of ${paginatedMarketIds.length} requested markets. Source: 100% Redis (Optimized).`);
+    console.log(`[MarketService] Successfully constructed ${markets.length} of ${paginatedMarketIds.length} requested markets. Source: 100% Redis (Set-based discovery).`);
     return { markets, total: totalMarkets };
 
   } catch (error) {
     console.error('[MarketService] A critical error occurred in getLiveMarkets:', error);
+    // In case of error (e.g., Redis connection), return empty.
     return { markets: [], total: 0 };
   }
 }
