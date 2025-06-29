@@ -1,4 +1,5 @@
 
+
 export interface Prediction {
   id: string;
   text: string; // Corresponds to `question` in PredictionCardProps
@@ -158,15 +159,31 @@ export interface OpenPosition {
   bonusApplied?: boolean; // Was a bonus applied to this bet?
 }
 
-// This is the definitive structure for the LiveMarket object, sourced from Redis
+// This is the definitive structure for the LiveMarket object, sourced from the new optimized Redis structure.
 export interface LiveMarket {
-  id: string; // conditionId from Polymarket
+  id: string;
   question: string;
-  yesPrice: number; // Probability from 0.00 to 1.00
-  noPrice: number;  // 1 - yesPrice
   category: string;
   imageUrl: string;
   aiHint?: string;
+  
+  // For simple UI display - can be derived from richer data below
+  yesPrice: number;
+  noPrice: number;
+
+  // Real-time pricing data
+  pricing: {
+    yes: { buy: number; sell: number; lastUpdated?: string };
+    no: { buy: number; sell: number; lastUpdated?: string };
+  };
+
+  // Market-level calculations from Lua scripts
+  odds: {
+    yesImpliedProbability: number;
+    noImpliedProbability: number;
+    midpointPrice: number;
+    lastUpdated?: string;
+  };
 }
 
 
