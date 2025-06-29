@@ -1,7 +1,14 @@
-
 import 'server-only';
 import getRedisClient from '@/lib/redis';
 import type { LiveMarket, RedisMetadata } from '@/types';
+
+// The architect has confirmed that market discovery via `KEYS` is not permitted.
+// The client should fetch data for known, tracked markets.
+// For now, we will use a single, hardcoded market ID as the "featured market".
+const TRACKED_MARKET_IDS = [
+  '0x6d00ab09f247ede23241d2abe257b4345dbb82b5e4eeae4eb2ba0980013a658c'
+];
+
 
 interface GetLiveMarketsParams {
   limit?: number;
@@ -20,27 +27,26 @@ function constructMarket(
   yesTokenData: any,
   noTokenData: any
 ): LiveMarket | null {
-  if (!metaData || !metaData.question) {
-    console.warn(`[MarketService] Skipping market ${marketId}: Metadata not yet available.`);
+  // Essential data check: We need metadata and odds to display a market.
+  if (!metaData?.question || !oddsData) {
+    console.warn(`[MarketService] Skipping market ${marketId}: Missing essential metadata or odds data in Redis.`);
     return null;
   }
   
+  // For the simple UI card, we still provide a top-level `yesPrice` and `noPrice`.
+  // We'll use the implied probability for this, which is more representative than a single buy/sell price.
   const yesImpliedProbability = parseFloat(oddsData?.market_yes_price || 0);
-
-  // For the simplified UI, we still provide a top-level `yesPrice` and `noPrice`.
-  // We'll use the implied probability for this.
-  const yesPrice = yesImpliedProbability;
-  const noPrice = 1 - yesPrice;
 
   return {
     id: marketId,
     question: metaData.question,
     category: metaData.category || 'General',
-    yesPrice: parseFloat(yesPrice.toFixed(2)),
-    noPrice: parseFloat(noPrice.toFixed(2)),
+    // These simple prices can be used for basic UI cards
+    yesPrice: parseFloat(yesImpliedProbability.toFixed(2)),
+    noPrice: parseFloat((1 - yesImpliedProbability).toFixed(2)),
     imageUrl: `https://placehold.co/600x400.png`,
-    aiHint: metaData.category?.toLowerCase() || 'general',
-    // New rich data structure
+    aiHint: metaData.category?.toLowerCase() || metaData.question.split(' ').slice(0,2).join(' ') || 'general',
+    // New rich data structure for detailed views
     pricing: {
       yes: {
         buy: parseFloat(yesTokenData?.buy_price || 0),
@@ -64,31 +70,20 @@ function constructMarket(
 
 
 /**
- * Fetches a paginated list of live markets from the optimized Redis structure.
- * This version uses the `active_market_ids` set for discovery, which is more
- * performant and reliable than a `KEYS` scan.
+ * Fetches data for known, tracked markets directly from Redis without discovery.
+ * This is the production-safe method that avoids using the `KEYS` command.
  */
 export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
   const redis = getRedisClient();
+  // Paginate the hardcoded list of IDs
+  const paginatedMarketIds = TRACKED_MARKET_IDS.slice(offset, offset + limit);
+
+  if (paginatedMarketIds.length === 0) {
+      console.log("[MarketService] No more tracked market IDs to fetch for the given offset.");
+      return { markets: [], total: TRACKED_MARKET_IDS.length };
+  }
 
   try {
-    // 1. Discover active markets from the dedicated `active_market_ids` set.
-    const activeMarketIds = await redis.smembers('active_market_ids');
-    const totalMarkets = activeMarketIds.length;
-
-    if (totalMarkets === 0) {
-      console.log("[MarketService] No market IDs found in 'active_market_ids' set in Redis.");
-      return { markets: [], total: 0 };
-    }
-
-    // Paginate
-    const paginatedMarketIds = activeMarketIds.slice(offset, offset + limit);
-
-    if (paginatedMarketIds.length === 0) {
-      return { markets: [], total: totalMarkets };
-    }
-
-    // 2. Build pipeline to fetch all required data for the paginated IDs.
     const pipeline = redis.pipeline();
     paginatedMarketIds.forEach(id => {
       pipeline.hgetall(`market_odds:${id}`);
@@ -97,10 +92,8 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
       pipeline.hgetall(`token_price:${id}:No`);
     });
 
-    // 3. Execute pipeline
     const results = await pipeline.exec();
 
-    // 4. Process results
     const markets: LiveMarket[] = [];
     for (let i = 0; i < paginatedMarketIds.length; i++) {
       const marketId = paginatedMarketIds[i];
@@ -115,12 +108,11 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
       }
     }
 
-    console.log(`[MarketService] Successfully constructed ${markets.length} of ${paginatedMarketIds.length} requested markets. Source: 100% Redis (Set-based discovery).`);
-    return { markets, total: totalMarkets };
+    console.log(`[MarketService] Successfully constructed ${markets.length} of ${paginatedMarketIds.length} requested markets. Source: Redis (Direct Fetch).`);
+    return { markets, total: TRACKED_MARKET_IDS.length };
 
   } catch (error) {
     console.error('[MarketService] A critical error occurred in getLiveMarkets:', error);
-    // In case of error (e.g., Redis connection), return empty.
     return { markets: [], total: 0 };
   }
 }
