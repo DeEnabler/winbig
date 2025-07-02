@@ -72,6 +72,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   
   const [executionPreview, setExecutionPreview] = useState<ExecutionPreview | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [usingFallbackPrice, setUsingFallbackPrice] = useState(false);
 
   const debouncedBetAmount = useDebounce(betAmountState, 300);
 
@@ -85,18 +86,28 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     if (!assetId) return;
 
     setIsLoadingPreview(true);
+    setUsingFallbackPrice(false);
+
     fetch(`/api/execution-analysis?asset_id=${assetId}&amount=${debouncedBetAmount}&side=BUY`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) {
+          // This happens on 404 (order book not found) or 500 errors
+          return res.json().then(errData => Promise.reject(errData));
+        }
+        return res.json();
+      })
       .then((data: ExecutionPreview) => {
         if (data.success) {
           setExecutionPreview(data);
         } else {
-          setExecutionPreview({ success: false, error: data.error || "Could not fetch preview." });
+           // This case is for success:false but 200 OK, less likely but safe to handle
+          throw new Error(data.error || "Could not fetch preview.");
         }
       })
       .catch(err => {
-        console.error("Execution preview fetch error:", err);
-        setExecutionPreview({ success: false, error: "Network error fetching preview." });
+        console.warn("Execution preview fetch failed, using fallback pricing. Reason:", err.error || err);
+        setExecutionPreview(null); // Clear any stale preview data
+        setUsingFallbackPrice(true); // Set flag to use fallback price
       })
       .finally(() => {
         setIsLoadingPreview(false);
@@ -106,15 +117,31 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
 
 
   const potentialPayout = useMemo(() => {
-    if (!selectedChoice || !executionPreview?.vwap) return '0.00';
-    
-    let payout = betAmountState / executionPreview.vwap;
+    if (!selectedChoice) return '0.00';
 
-    if (match.bonusApplied) {
-        payout *= 1.20;
+    // Primary: Use VWAP from successful execution preview
+    if (executionPreview?.success && executionPreview.vwap && executionPreview.vwap > 0) {
+      let payout = betAmountState / executionPreview.vwap;
+      if (match.bonusApplied) {
+          payout *= 1.20;
+      }
+      return payout.toFixed(2);
     }
-    return payout.toFixed(2);
-  }, [betAmountState, selectedChoice, match.bonusApplied, executionPreview]);
+
+    // Fallback: Use the simple 'buy' price from the market data
+    if (match.liveMarketData) {
+      const priceData = selectedChoice === 'YES' ? match.liveMarketData.pricing.yes : match.liveMarketData.pricing.no;
+      if (priceData && priceData.buy > 0) {
+        let payout = betAmountState / priceData.buy;
+        if (match.bonusApplied) {
+            payout *= 1.20;
+        }
+        return payout.toFixed(2);
+      }
+    }
+
+    return '0.00';
+  }, [betAmountState, selectedChoice, match.bonusApplied, executionPreview, match.liveMarketData, usingFallbackPrice]);
 
 
   const [isClient, setIsClient] = useState(false);
@@ -363,7 +390,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                   <Slider
                     id="betAmountSlider"
                     min={1}
-                    max={Math.max(100, betAmountState)} 
+                    max={Math.max(100, betAmountState)}
                     step={1}
                     value={[betAmountState]}
                     onValueChange={(value) => setBetAmountState(value[0])}
@@ -378,8 +405,8 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                           <div className="text-xs text-muted-foreground">{executionPreview.summary}</div>
                         </>
                       )}
-                      {!isLoadingPreview && executionPreview && !executionPreview.success && (
-                         <div className="text-destructive text-xs flex items-center justify-center gap-1.5"><Info className="w-3.5 h-3.5" />{executionPreview.error}</div>
+                      {usingFallbackPrice && (
+                         <div className="text-muted-foreground text-xs flex items-center justify-center gap-1.5"><Info className="w-3.5 h-3.5" /> Using best available price. Deep analysis unavailable.</div>
                       )}
 
                       <div className="text-lg font-bold">
