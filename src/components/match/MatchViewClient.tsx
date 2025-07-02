@@ -305,12 +305,11 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                         onChange={(e) => {
                           const value = e.target.value === '' ? 1 : parseInt(e.target.value, 10);
                           if (!isNaN(value)) {
-                            const clampedValue = Math.max(1, Math.min(100, value));
-                            setBetAmountState(clampedValue);
+                            const newAmount = Math.max(1, value); // Keep above 1, but no upper limit
+                            setBetAmountState(newAmount);
                           }
                         }}
                         min={1}
-                        max={100}
                         className="w-full h-10 text-xl font-bold text-right bg-transparent border-0 shadow-none focus-visible:ring-0 p-0"
                         disabled={isBetting}
                       />
@@ -320,7 +319,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                   <Slider
                     id="betAmountSlider"
                     min={1}
-                    max={100}
+                    max={Math.max(100, betAmountState)} // Dynamically adjust slider max
                     step={1}
                     value={[betAmountState]}
                     onValueChange={(value) => setBetAmountState(value[0])}
