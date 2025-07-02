@@ -2,15 +2,15 @@
 // src/components/match/MatchViewClient.tsx
 'use client';
 
-import type { MatchViewProps, ShareMessageDetails } from '@/types';
+import type { MatchViewProps, ShareMessageDetails, ExecutionPreview } from '@/types';
 import { mockCurrentUser, mockOpponentUser } from '@/lib/mockData';
 import NextImage from 'next/image';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Share2, ArrowLeft, TrendingUp, ExternalLink, CheckCircle, Sparkles } from 'lucide-react';
+import { Share2, ArrowLeft, TrendingUp, CheckCircle, Sparkles, Loader2, Info } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { generateXShareMessage } from '@/ai/flows/generate-x-share-message';
 import Link from 'next/link';
@@ -21,6 +21,7 @@ import { useRouter } from 'next/navigation';
 import { useEntryContext } from '@/contexts/EntryContext';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 
 function formatTimeLeft(endDate: number) {
   const totalSeconds = Math.max(0, Math.floor((endDate - Date.now()) / 1000));
@@ -34,6 +35,20 @@ function formatTimeLeft(endDate: number) {
   if (minutes > 0) return `${minutes}m ${seconds}s left`;
   if (seconds > 0) return `${seconds}s left`;
   return "Match Ended";
+}
+
+// Debounce hook
+function useDebounce(value: any, delay: number) {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedValue(value);
+        }, delay);
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [value, delay]);
+    return debouncedValue;
 }
 
 export default function MatchViewClient({ match: initialMatch }: MatchViewProps) {
@@ -54,23 +69,52 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   
   const [selectedChoice, setSelectedChoice] = useState<'YES' | 'NO' | null>(match.userChoice || null);
   const [betPlaced, setBetPlaced] = useState(!!match.userBet);
+  
+  const [executionPreview, setExecutionPreview] = useState<ExecutionPreview | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+
+  const debouncedBetAmount = useDebounce(betAmountState, 300);
+
+  useEffect(() => {
+    if (!selectedChoice || debouncedBetAmount <= 0) {
+      setExecutionPreview(null);
+      return;
+    }
+
+    const assetId = selectedChoice === 'YES' ? match.yesAssetId : match.noAssetId;
+    if (!assetId) return;
+
+    setIsLoadingPreview(true);
+    fetch(`/api/execution-analysis?asset_id=${assetId}&amount=${debouncedBetAmount}&side=BUY`)
+      .then(res => res.json())
+      .then((data: ExecutionPreview) => {
+        if (data.success) {
+          setExecutionPreview(data);
+        } else {
+          setExecutionPreview({ success: false, error: data.error || "Could not fetch preview." });
+        }
+      })
+      .catch(err => {
+        console.error("Execution preview fetch error:", err);
+        setExecutionPreview({ success: false, error: "Network error fetching preview." });
+      })
+      .finally(() => {
+        setIsLoadingPreview(false);
+      });
+
+  }, [debouncedBetAmount, selectedChoice, match.yesAssetId, match.noAssetId]);
+
 
   const potentialPayout = useMemo(() => {
-    if (!selectedChoice || !match.liveMarketData) return '0.00';
+    if (!selectedChoice || !executionPreview?.vwap) return '0.00';
     
-    const price = selectedChoice === 'YES' 
-      ? match.liveMarketData.pricing.yes.buy 
-      : match.liveMarketData.pricing.no.buy;
-
-    if (price === 0) return 'inf';
-    
-    let payout = betAmountState / price;
+    let payout = betAmountState / executionPreview.vwap;
 
     if (match.bonusApplied) {
         payout *= 1.20;
     }
     return payout.toFixed(2);
-  }, [betAmountState, selectedChoice, match.bonusApplied, match.liveMarketData]);
+  }, [betAmountState, selectedChoice, match.bonusApplied, executionPreview]);
 
 
   const [isClient, setIsClient] = useState(false);
@@ -305,7 +349,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                         onChange={(e) => {
                           const value = e.target.value === '' ? 1 : parseInt(e.target.value, 10);
                           if (!isNaN(value)) {
-                            const newAmount = Math.max(1, value); // Keep above 1, but no upper limit
+                            const newAmount = Math.max(1, value);
                             setBetAmountState(newAmount);
                           }
                         }}
@@ -319,19 +363,33 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                   <Slider
                     id="betAmountSlider"
                     min={1}
-                    max={Math.max(100, betAmountState)} // Dynamically adjust slider max
+                    max={Math.max(100, betAmountState)} 
                     step={1}
                     value={[betAmountState]}
                     onValueChange={(value) => setBetAmountState(value[0])}
                     disabled={isBetting}
                   />
-                  <div className="text-center text-lg">
-                    Potential Payout: <span className="font-bold text-green-600 dark:text-green-400">${potentialPayout}</span>
-                    {match.bonusApplied && (
-                       <Badge variant="default" className="ml-2 bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90 text-xs">
-                         <Sparkles className="w-3 h-3 mr-1" /> +20% Bonus
-                       </Badge>
-                    )}
+
+                  <div className="text-center p-3 bg-muted/50 rounded-lg space-y-1.5 text-sm">
+                      {isLoadingPreview && <Skeleton className="h-5 w-3/4 mx-auto" />}
+                      {!isLoadingPreview && executionPreview?.success && (
+                        <>
+                          <div className="font-semibold">Avg. Execution Price: <span className="text-primary">${executionPreview.vwap}</span></div>
+                          <div className="text-xs text-muted-foreground">{executionPreview.summary}</div>
+                        </>
+                      )}
+                      {!isLoadingPreview && executionPreview && !executionPreview.success && (
+                         <div className="text-destructive text-xs flex items-center justify-center gap-1.5"><Info className="w-3.5 h-3.5" />{executionPreview.error}</div>
+                      )}
+
+                      <div className="text-lg font-bold">
+                        Potential Payout: <span className="text-green-600 dark:text-green-400">${potentialPayout}</span>
+                        {match.bonusApplied && (
+                          <Badge variant="default" className="ml-2 bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90 text-xs">
+                            <Sparkles className="w-3 h-3 mr-1" /> +20% Bonus
+                          </Badge>
+                        )}
+                      </div>
                   </div>
                 </div>
               </>
@@ -368,8 +426,8 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                 <Share2 className="w-5 h-5 mr-2" /> Share Your Bet
              </Button>
            ) : (
-             <Button onClick={handlePlaceBet} disabled={isBetting || !selectedChoice} size="lg" className="w-full bg-green-600 hover:bg-green-700 text-white animate-pulse-glow">
-                {isBetting ? "Placing Bet..." : "Place Bet"}
+             <Button onClick={handlePlaceBet} disabled={isBetting || !selectedChoice || isLoadingPreview} size="lg" className="w-full bg-green-600 hover:bg-green-700 text-white animate-pulse-glow">
+                {isBetting ? "Placing Bet..." : (isLoadingPreview ? <Loader2 className="w-5 h-5 animate-spin" /> : "Place Bet")}
              </Button>
            )}
            <Button size="lg" variant="outline" className="w-full" asChild={isClient}>

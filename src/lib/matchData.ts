@@ -97,6 +97,9 @@ export async function getMatchDisplayData(
 
     // Pass through live pricing and odds data to the client
     liveMarketData: market,
+    // Pass asset IDs to client for execution analysis
+    yesAssetId: market.pricing.yes.assetId,
+    noAssetId: market.pricing.no.assetId,
   };
 
   return match;

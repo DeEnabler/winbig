@@ -69,6 +69,10 @@ export interface Match {
   
   // Pass the full live market data to the client component
   liveMarketData?: LiveMarket;
+  
+  // Asset IDs for YES and NO tokens
+  yesAssetId?: string;
+  noAssetId?: string;
 }
 
 // Props for PredictionCard
@@ -178,8 +182,8 @@ export interface LiveMarket {
 
   // Real-time pricing data
   pricing: {
-    yes: { buy: number; sell: number; lastUpdated?: string };
-    no: { buy: number; sell: number; lastUpdated?: string };
+    yes: { buy: number; sell: number; lastUpdated?: string, assetId?: string };
+    no: { buy: number; sell: number; lastUpdated?: string, assetId?: string };
   };
 
   // Market-level calculations from Lua scripts
@@ -194,11 +198,41 @@ export interface LiveMarket {
 
 export interface ShareMessageDetails {
   predictionText: string;
-  outcomeDescription: string;
+  outcomeDescription?: string;
   betAmount?: number;
   finalAmount?: number;
   potentialWinnings?: number;
   currency?: string;
   opponentUsername?: string;
   callToAction?: string;
+}
+
+
+// New types for Order Book and Execution Preview
+export interface OrderLevel {
+  price: string;
+  size: string;
+}
+
+export interface OrderBook {
+  condition_id: string;
+  outcome: 'Yes' | 'No';
+  asset_id: string;
+  bids: OrderLevel[];
+  asks: OrderLevel[];
+  fair_price: string;
+  timestamp: string;
+  depth_levels: string;
+}
+
+export interface ExecutionPreview {
+  success: boolean;
+  steps?: string[];
+  summary?: string;
+  vwap?: number;
+  fill_ratio?: number;
+  quality_score?: number;
+  price_impact_pct?: number;
+  timestamp?: string;
+  error?: string;
 }
