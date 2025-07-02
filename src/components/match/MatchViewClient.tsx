@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
 import { useEntryContext } from '@/contexts/EntryContext';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 
 function formatTimeLeft(endDate: number) {
   const totalSeconds = Math.max(0, Math.floor((endDate - Date.now()) / 1000));
@@ -57,19 +58,15 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   const potentialPayout = useMemo(() => {
     if (!selectedChoice || !match.liveMarketData) return '0.00';
     
-    // Use the price of the token you are buying
     const price = selectedChoice === 'YES' 
       ? match.liveMarketData.pricing.yes.buy 
       : match.liveMarketData.pricing.no.buy;
 
-    // Payout is inversely proportional to price. A price of $0.25 means you get 1 / 0.25 = 4 units.
-    // Each unit is worth $1 at settlement. So payout is amount / price.
-    if (price === 0) return 'inf'; // Avoid division by zero
+    if (price === 0) return 'inf';
     
     let payout = betAmountState / price;
 
     if (match.bonusApplied) {
-        // A 20% bonus means you get 20% more units for the same price.
         payout *= 1.20;
     }
     return payout.toFixed(2);
@@ -294,18 +291,38 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
 
                 <div className="space-y-3 pt-2">
                   <p className="text-center text-sm font-medium text-muted-foreground">2. Set your amount</p>
-                  <div className="flex justify-between items-center">
-                    <label htmlFor="betAmountSlider" className="text-sm font-medium">
-                      Bet Amount: <span className="text-primary font-bold">${betAmountState}</span>
+                  
+                  <div className="flex justify-between items-center gap-4">
+                    <label htmlFor="betAmountInput" className="text-base font-semibold text-foreground shrink-0">
+                      Your Bet
                     </label>
-                    <span className="text-xs text-muted-foreground">Min $1, Max $100</span>
+                    <div className="flex items-center gap-1 border rounded-lg px-3 py-1 focus-within:ring-2 focus-within:ring-ring w-full max-w-[150px] ml-auto">
+                      <span className="text-lg font-bold text-muted-foreground">$</span>
+                      <Input
+                        id="betAmountInput"
+                        type="number"
+                        value={betAmountState}
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? 1 : parseInt(e.target.value, 10);
+                          if (!isNaN(value)) {
+                            const clampedValue = Math.max(1, Math.min(100, value));
+                            setBetAmountState(clampedValue);
+                          }
+                        }}
+                        min={1}
+                        max={100}
+                        className="w-full h-10 text-xl font-bold text-right bg-transparent border-0 shadow-none focus-visible:ring-0 p-0"
+                        disabled={isBetting}
+                      />
+                    </div>
                   </div>
+
                   <Slider
                     id="betAmountSlider"
                     min={1}
                     max={100}
                     step={1}
-                    defaultValue={[betAmountState]}
+                    value={[betAmountState]}
                     onValueChange={(value) => setBetAmountState(value[0])}
                     disabled={isBetting}
                   />
