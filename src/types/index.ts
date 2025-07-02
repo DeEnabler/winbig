@@ -37,7 +37,9 @@ export interface BetPlacement {
 export interface Match {
   id: string; // This is the original challengeMatchId or a generated matchId
   predictionText: string;
-  predictionId: string; // Made mandatory
+  predictionId: string;
+  imageUrl?: string; // Added
+  aiHint?: string; // Added
   user1Username: string;
   user1AvatarUrl?: string;
   user2Username: string; // Could be 'System Pool'
@@ -64,6 +66,9 @@ export interface Match {
   // Flags for challenge confirmation flow
   isConfirmingChallenge?: boolean;
   originalReferrer?: string; // To pass along who initiated the challenge
+  
+  // Pass the full live market data to the client component
+  liveMarketData?: LiveMarket;
 }
 
 // Props for PredictionCard

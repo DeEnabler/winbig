@@ -2,28 +2,24 @@
 // src/components/match/MatchViewClient.tsx
 'use client';
 
-import type { MatchViewProps, ShareMessageDetails, Match } from '@/types';
-import { mockCurrentUser, mockOpponentUser, mockPredictions } from '@/lib/mockData';
+import type { MatchViewProps, ShareMessageDetails } from '@/types';
+import { mockCurrentUser, mockOpponentUser } from '@/lib/mockData';
 import NextImage from 'next/image';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Share2, ArrowLeft, TrendingUp, Crown, ExternalLink, CheckCircle, Sparkles, Check } from 'lucide-react';
+import { Share2, ArrowLeft, TrendingUp, ExternalLink, CheckCircle, Sparkles } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useEffect, useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { generateXShareMessage } from '@/ai/flows/generate-x-share-message';
 import Link from 'next/link';
-import { Skeleton } from '@/components/ui/skeleton';
 import ShareDialog from '@/components/sharing/ShareDialog';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
 import { useEntryContext } from '@/contexts/EntryContext';
 import { cn } from '@/lib/utils';
-
-const STANDARD_PAYOUT_MULTIPLIER = 1.9;
-const BONUS_PAYOUT_INCREASE_FACTOR = 1.2; // 20% bonus
 
 function formatTimeLeft(endDate: number) {
   const totalSeconds = Math.max(0, Math.floor((endDate - Date.now()) / 1000));
@@ -44,7 +40,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   const { appendEntryParams } = useEntryContext();
   const { toast } = useToast();
 
-  const [match, setMatch] = useState<Match>(initialMatch);
+  const [match, setMatch] = useState(initialMatch);
   const [timeLeft, setTimeLeft] = useState(formatTimeLeft(match.countdownEnds));
   const [countdownProgress, setCountdownProgress] = useState(100);
 
@@ -55,18 +51,30 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   const [betAmountState, setBetAmountState] = useState(match.betAmount || 10);
   const [isBetting, setIsBetting] = useState(false);
   
-  // New state for direct betting
   const [selectedChoice, setSelectedChoice] = useState<'YES' | 'NO' | null>(match.userChoice || null);
   const [betPlaced, setBetPlaced] = useState(!!match.userBet);
 
-
   const potentialPayout = useMemo(() => {
-    let payout = betAmountState * STANDARD_PAYOUT_MULTIPLIER;
+    if (!selectedChoice || !match.liveMarketData) return '0.00';
+    
+    // Use the price of the token you are buying
+    const price = selectedChoice === 'YES' 
+      ? match.liveMarketData.pricing.yes.buy 
+      : match.liveMarketData.pricing.no.buy;
+
+    // Payout is inversely proportional to price. A price of $0.25 means you get 1 / 0.25 = 4 units.
+    // Each unit is worth $1 at settlement. So payout is amount / price.
+    if (price === 0) return 'inf'; // Avoid division by zero
+    
+    let payout = betAmountState / price;
+
     if (match.bonusApplied) {
-      payout *= BONUS_PAYOUT_INCREASE_FACTOR;
+        // A 20% bonus means you get 20% more units for the same price.
+        payout *= 1.20;
     }
     return payout.toFixed(2);
-  }, [betAmountState, match.bonusApplied]);
+  }, [betAmountState, selectedChoice, match.bonusApplied, match.liveMarketData]);
+
 
   const [isClient, setIsClient] = useState(false);
   useEffect(() => setIsClient(true), []);
@@ -79,7 +87,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     const url = new URL(`${appUrl}/api/og`);
     url.searchParams.set('v', Date.now().toString());
     url.searchParams.set('predictionText', match.predictionText);
-    url.searchParams.set('userChoice', selectedChoice || 'YES');
+    if(selectedChoice) url.searchParams.set('userChoice', selectedChoice);
     url.searchParams.set('userAvatar', match.user1AvatarUrl || mockCurrentUser.avatarUrl || 'https://placehold.co/128x128.png?text=WB');
     url.searchParams.set('username', match.user1Username === 'You' ? 'I' : match.user1Username);
     url.searchParams.set('outcome', betPlaced ? 'PENDING' : 'CHALLENGE');
@@ -127,15 +135,10 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     setIsLoadingShareMessage(true);
     try {
       const baseBetAmount = match.userBet?.amount || betAmountState;
-      let effectivePotentialWinnings = baseBetAmount * STANDARD_PAYOUT_MULTIPLIER;
-      if (match.bonusApplied || match.userBet?.bonusApplied) {
-        effectivePotentialWinnings *= BONUS_PAYOUT_INCREASE_FACTOR;
-      }
-
       const details: ShareMessageDetails = {
         predictionText: match.predictionText,
         betAmount: baseBetAmount,
-        potentialWinnings: parseFloat(effectivePotentialWinnings.toFixed(2)),
+        potentialWinnings: parseFloat(potentialPayout),
         opponentUsername: typeof match.opponent === 'string' ? match.opponent : match.opponent?.username || 'a Rival',
       };
       const result = await generateXShareMessage(details);
@@ -146,7 +149,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       setShareMessage(finalMessage);
     } catch (error) {
       console.error("Failed to generate share message:", error);
-      let defaultMsg = `I just bet ${match.betSize || (match.userBet?.amount || betAmountState)} SOL that "${match.predictionText}" against @${typeof match.opponent === 'string' ? match.opponent : match.opponent?.username || 'a_Rival'}! Potential winnings: ${potentialPayout} SOL! #WinBig`;
+      let defaultMsg = `I just bet $${match.userBet?.amount || betAmountState} that "${match.predictionText}"! Potential winnings: $${potentialPayout}! #WinBig`;
       if (match.bonusApplied || match.userBet?.bonusApplied) {
         defaultMsg += " (includes +20% Bonus!)";
       }
@@ -240,31 +243,30 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
         <CardContent className="p-4 md:p-6 space-y-4">
           <div className="relative w-full h-40 md:h-48 rounded-md overflow-hidden mb-4 shadow-md">
               <NextImage
-                src={predictionImage}
+                src={match.imageUrl || 'https://placehold.co/600x400.png'}
                 alt={match.predictionText}
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 style={{ objectFit: 'cover' }}
-                data-ai-hint={predictionAiHint}
+                data-ai-hint={match.aiHint || 'prediction'}
               />
           </div>
 
           <div className="flex justify-around items-center text-center">
             <div className="flex flex-col items-center space-y-1">
               <Avatar className="w-16 h-16 border-2 border-primary">
-                <AvatarImage src={user1.avatarUrl} alt={user1.username} data-ai-hint="person portrait" />
-                <AvatarFallback>{user1.username.substring(0, 2).toUpperCase()}</AvatarFallback>
+                <AvatarImage src={match.user1AvatarUrl} alt={match.user1Username} data-ai-hint="person portrait" />
+                <AvatarFallback>{match.user1Username.substring(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
-              <span className="font-semibold">{user1.username}</span>
+              <span className="font-semibold">{match.user1Username}</span>
             </div>
             <span className="text-3xl font-bold text-muted-foreground px-2">VS</span>
             <div className="flex flex-col items-center space-y-1">
               <Avatar className="w-16 h-16 border-2 border-secondary">
-                <AvatarImage src={user2.avatarUrl} alt={user2.username} data-ai-hint="person portrait" />
-                <AvatarFallback>{user2.username.substring(0, 2).toUpperCase()}</AvatarFallback>
+                <AvatarImage src={match.user2AvatarUrl} alt={match.user2Username} data-ai-hint="person portrait" />
+                <AvatarFallback>{match.user2Username.substring(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
-              <span className="font-semibold">{user2.username}</span>
-              {user2.winRate && <span className="text-xs text-muted-foreground">{user2.winRate}% Win Rate</span>}
+              <span className="font-semibold">{match.user2Username}</span>
             </div>
           </div>
           
@@ -276,14 +278,14 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                     <Button 
                         onClick={() => setSelectedChoice('YES')} 
                         variant={selectedChoice === 'YES' ? 'default' : 'outline'}
-                        className={cn("h-14 text-xl font-bold border-2", selectedChoice === 'YES' && "border-primary")}
+                        className={cn("h-14 text-xl font-bold border-2", selectedChoice === 'YES' && "border-primary bg-green-500/10 text-green-700 dark:text-green-300")}
                     >
                       YES
                     </Button>
                     <Button 
                         onClick={() => setSelectedChoice('NO')} 
                         variant={selectedChoice === 'NO' ? 'destructive' : 'outline'}
-                        className="h-14 text-xl font-bold border-2"
+                        className={cn("h-14 text-xl font-bold border-2", selectedChoice === 'NO' && "border-destructive bg-red-500/10 text-red-700 dark:text-red-400")}
                     >
                       NO
                     </Button>
@@ -310,7 +312,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                   <div className="text-center text-lg">
                     Potential Payout: <span className="font-bold text-green-600 dark:text-green-400">${potentialPayout}</span>
                     {match.bonusApplied && (
-                       <Badge variant="default" className="ml-2 bg-yellow-500 text-yellow-900 hover:bg-yellow-500/90 text-xs">
+                       <Badge variant="default" className="ml-2 bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90 text-xs">
                          <Sparkles className="w-3 h-3 mr-1" /> +20% Bonus
                        </Badge>
                     )}
@@ -327,7 +329,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                   <p>
                     Potential Payout: <span className="font-bold text-green-600 dark:text-green-400">${potentialPayout}</span>
                     {match.bonusApplied && (
-                      <Badge variant="default" className="ml-2 bg-yellow-500 text-yellow-900 hover:bg-yellow-500/90 text-xs">
+                      <Badge variant="default" className="ml-2 bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90 text-xs">
                         <Sparkles className="w-3 h-3 mr-1" /> +20% Bonus
                       </Badge>
                     )}
@@ -340,7 +342,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
               <span>Time Remaining</span>
               <span>{timeLeft}</span>
             </div>
-            <Progress value={countdownProgress} className="w-full h-2 bg-primary/30" />
+            <Progress value={countdownProgress} className="w-full h-2 bg-primary/30 [&>span]:bg-primary" />
           </div>
         </CardContent>
 
@@ -358,12 +360,12 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
               {isClient ? (
                 <Link href={appendEntryParams("/")}>
                   <span className="inline-flex items-center justify-center gap-2">
-                    <ExternalLink className="w-5 h-5" /> Find More Bets
+                    <TrendingUp className="w-5 h-5" /> Find More Bets
                   </span>
                 </Link>
               ) : (
                 <span className="inline-flex items-center justify-center gap-2">
-                  <ExternalLink className="w-5 h-5" /> Find More Bets
+                  <TrendingUp className="w-5 h-5" /> Find More Bets
                 </span>
               )}
            </Button>
@@ -373,14 +375,12 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       <ShareDialog
         isOpen={isShareDialogOpen}
         onOpenChange={setIsShareDialogOpen}
-        matchId={match.id}
         ogImageUrl={ogImageUrl}
         currentShareMessage={isLoadingShareMessage ? "Generating share message..." : shareMessage}
         onShareMessageChange={setShareMessage}
         shareUrl={match.shareUrl || `${appUrl}/match/${match.id}?predictionId=${match.predictionId}${match.bonusApplied ? '&bonusApplied=true' : ''}`}
+        entityContext="match_challenge"
       />
     </>
   );
 }
-
-    
