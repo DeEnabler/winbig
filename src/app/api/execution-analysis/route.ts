@@ -1,3 +1,4 @@
+
 // src/app/api/execution-analysis/route.ts
 import { type NextRequest, NextResponse } from 'next/server';
 import getRedisClient from '@/lib/redis';
@@ -50,10 +51,17 @@ export async function GET(req: NextRequest) {
 
     try {
         const redis = getRedisClient();
+        // IMPORTANT: The key is `orderbook:{assetId}`
         const orderbookData = await redis.hgetall(`orderbook:${assetId}`) as any as OrderBook | null;
 
-        if (!orderbookData?.bids || !orderbookData?.asks) {
-            return NextResponse.json({ success: false, error: `Order book not found for asset_id: ${assetId}` }, { status: 404 });
+        if (!orderbookData || !orderbookData.bids || !orderbookData.asks) {
+            // GRACEFUL HANDLING: Instead of 404, return a structured "not available" response.
+            // This indicates the data isn't ready, rather than a broken API.
+            console.warn(`[API /execution-analysis] Order book data not found or incomplete for asset_id: ${assetId}.`);
+            return NextResponse.json({ 
+                success: false, 
+                error: `Deep liquidity analysis is currently unavailable for this market.` 
+            }, { status: 200 });
         }
 
         const bids: OrderLevel[] = JSON.parse(orderbookData.bids as any);
@@ -62,7 +70,10 @@ export async function GET(req: NextRequest) {
         const bookToUse = side.toUpperCase() === 'BUY' ? asks : bids;
         
         if (bookToUse.length === 0) {
-            return NextResponse.json({ success: false, error: `No liquidity available on the ${side} side.` }, { status: 404 });
+            return NextResponse.json({ 
+                success: false, 
+                error: `No liquidity available on the ${side.toLowerCase()} side.` 
+            }, { status: 200 });
         }
 
         const { vwap, summary, steps, fillRatio } = calculateVwap(amount, bookToUse);
