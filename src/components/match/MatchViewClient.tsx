@@ -1,4 +1,3 @@
-
 // src/components/match/MatchViewClient.tsx
 'use client';
 
@@ -88,32 +87,31 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     setIsLoadingPreview(true);
     setUsingFallbackPrice(false);
 
-    fetch(`/api/execution-analysis?asset_id=${assetId}&amount=${debouncedBetAmount}&side=BUY`)
-      .then(res => {
-        if (!res.ok) {
-          // This happens on 404 (order book not found) or 500 errors
-          return res.json().then(errData => Promise.reject(errData));
-        }
-        return res.json();
-      })
+    // Pass all necessary IDs to the API
+    const apiUrl = `/api/execution-analysis?asset_id=${assetId}&condition_id=${match.predictionId}&outcome=${selectedChoice}&amount=${debouncedBetAmount}&side=BUY`;
+
+    fetch(apiUrl)
+      .then(res => res.json())
       .then((data: ExecutionPreview) => {
         if (data.success) {
           setExecutionPreview(data);
         } else {
-           // This case is for success:false but 200 OK, less likely but safe to handle
-          throw new Error(data.error || "Could not fetch preview.");
+          // This case is for success:false but 200 OK (graceful fallback)
+          console.warn("Execution preview fetch failed, using fallback pricing. Reason:", data.error);
+          setExecutionPreview(null);
+          setUsingFallbackPrice(true);
         }
       })
       .catch(err => {
-        console.warn("Execution preview fetch failed, using fallback pricing. Reason:", err.error || err);
-        setExecutionPreview(null); // Clear any stale preview data
-        setUsingFallbackPrice(true); // Set flag to use fallback price
+        console.error("Critical execution preview fetch error:", err);
+        setExecutionPreview(null);
+        setUsingFallbackPrice(true);
       })
       .finally(() => {
         setIsLoadingPreview(false);
       });
 
-  }, [debouncedBetAmount, selectedChoice, match.yesAssetId, match.noAssetId]);
+  }, [debouncedBetAmount, selectedChoice, match.yesAssetId, match.noAssetId, match.predictionId]);
 
 
   const potentialPayout = useMemo(() => {

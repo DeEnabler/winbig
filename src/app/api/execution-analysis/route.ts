@@ -1,4 +1,3 @@
-
 // src/app/api/execution-analysis/route.ts
 import { type NextRequest, NextResponse } from 'next/server';
 import getRedisClient from '@/lib/redis';
@@ -37,11 +36,13 @@ function calculateVwap(amount: number, book: OrderLevel[]): { vwap: number, summ
 export async function GET(req: NextRequest) {
     const { searchParams } = req.nextUrl;
     const assetId = searchParams.get('asset_id');
+    const conditionId = searchParams.get('condition_id');
+    const outcome = searchParams.get('outcome'); // 'YES' or 'NO'
     const amountStr = searchParams.get('amount');
     const side = searchParams.get('side'); // 'BUY' or 'SELL'
 
-    if (!assetId || !amountStr || !side) {
-        return NextResponse.json({ success: false, error: 'Missing required parameters: asset_id, amount, side' }, { status: 400 });
+    if (!assetId || !conditionId || !outcome || !amountStr || !side) {
+        return NextResponse.json({ success: false, error: 'Missing required parameters: asset_id, condition_id, outcome, amount, side' }, { status: 400 });
     }
 
     const amount = parseFloat(amountStr);
@@ -51,13 +52,26 @@ export async function GET(req: NextRequest) {
 
     try {
         const redis = getRedisClient();
-        // IMPORTANT: The key is `orderbook:{assetId}`
-        const orderbookData = await redis.hgetall(`orderbook:${assetId}`) as any as OrderBook | null;
+        
+        const capitalizedOutcome = outcome === 'YES' ? 'Yes' : 'No';
+        const possibleKeys = [
+          `orderbook:${assetId}`,
+          `orderbook:token:${assetId}`,
+          `orderbook:${conditionId}:${capitalizedOutcome}`
+        ];
+
+        let orderbookData: OrderBook | null = null;
+        for (const key of possibleKeys) {
+          const data = await redis.hgetall(key) as any as OrderBook | null;
+          if (data && data.bids && data.asks) {
+            orderbookData = data;
+            console.log(`[API /execution-analysis] Found order book at key: ${key}`);
+            break;
+          }
+        }
 
         if (!orderbookData || !orderbookData.bids || !orderbookData.asks) {
-            // GRACEFUL HANDLING: Instead of 404, return a structured "not available" response.
-            // This indicates the data isn't ready, rather than a broken API.
-            console.warn(`[API /execution-analysis] Order book data not found or incomplete for asset_id: ${assetId}.`);
+            console.warn(`[API /execution-analysis] Order book data not found for any possible keys based on assetId: ${assetId} and conditionId: ${conditionId}.`);
             return NextResponse.json({ 
                 success: false, 
                 error: `Deep liquidity analysis is currently unavailable for this market.` 
