@@ -4,6 +4,7 @@
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import HeroBetDisplay from './HeroBetDisplay'; // Re-using the component for the featured market
+import { Suspense } from 'react';
 
 export default function HeroNewSection() {
   return (
@@ -17,7 +18,9 @@ export default function HeroNewSection() {
       
       {/* Featured Market Display - Reusing HeroBetDisplay */}
       <div className="my-6 md:my-8 max-w-2xl mx-auto">
-        <HeroBetDisplay />
+        <Suspense fallback={<div className="min-h-[300px] flex items-center justify-center"><p>Loading featured market...</p></div>}>
+          <HeroBetDisplay />
+        </Suspense>
       </div>
 
       <div className="flex justify-center">
