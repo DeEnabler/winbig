@@ -1,3 +1,4 @@
+
 import 'server-only';
 import redis from '@/lib/redis';
 import type { LiveMarket } from '@/types';
@@ -71,11 +72,22 @@ function constructMarket(
 
 export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
   try {
-    // 1. Discover active markets from Redis keys
-    const marketOddsKeys = await redis.keys('market_odds:*');
+    // 1. Discover active markets from Redis keys using SCAN instead of KEYS
+    const marketOddsKeys: string[] = [];
+    let cursor = 0;
+
+    do {
+      const [nextCursor, keys] = await redis.scan(cursor, { 
+        match: 'market_odds:*', 
+        count: 100 
+      });
+      marketOddsKeys.push(...keys);
+      cursor = Number(nextCursor);
+    } while (cursor !== 0);
+
 
     if (!marketOddsKeys || marketOddsKeys.length === 0) {
-      console.log("[MarketService] No market_odds keys found in Redis. No markets to display.");
+      console.log("[MarketService] No market_odds keys found in Redis using SCAN. No markets to display.");
       return { markets: [], total: 0 };
     }
     
