@@ -1,7 +1,7 @@
 
 import 'server-only';
 import redis from '@/lib/redis';
-import type { LiveMarket } from '@/types';
+import type { LiveMarket, OrderBook } from '@/types';
 
 interface GetLiveMarketsParams {
   limit?: number;
@@ -13,64 +13,54 @@ interface LiveMarketsResponse {
   total: number;
 }
 
-const LIVE_MARKETS_CACHE_KEY = 'cache:live_markets_data';
+const LIVE_MARKETS_CACHE_KEY = 'cache:live_markets_data_v2'; // New cache key for new structure
 const LIVE_MARKETS_CACHE_TTL_SECONDS = 15; // Cache results for 15 seconds
 
-function constructMarket(
-  marketId: string,
-  oddsData: any,
-  metaData: any,
-  yesTokenData: any,
-  noTokenData: any
-): LiveMarket | null {
-  // Essential data check
-  if (!metaData?.question) {
-    console.warn(`[MarketService] Skipping market ${marketId}: Missing essential 'question' in metaData.`);
+/**
+ * Parses the raw data from a "market:..." Redis hash into a structured LiveMarket object.
+ * @param rawData - The raw hash data from redis.hgetall.
+ * @returns A structured LiveMarket object or null if data is invalid.
+ */
+function parseMarketData(rawData: Record<string, any>): LiveMarket | null {
+  const conditionId = rawData.condition_id;
+  if (!conditionId || !rawData.question) {
+    console.warn('[MarketService] Skipping market build: Missing essential condition_id or question.', rawData);
     return null;
   }
-  if (!oddsData) {
-     console.warn(`[MarketService] Skipping market ${marketId}: Missing essential oddsData.`);
-    return null;
-  }
-   if (!yesTokenData || !noTokenData) {
-     console.warn(`[MarketService] Skipping market ${marketId}: Missing token pricing data.`);
-    return null;
-  }
-  
-  const yesImpliedProbability = parseFloat(oddsData?.market_yes_price || 0);
 
-  return {
-    id: marketId,
-    question: metaData.question,
-    category: metaData.category || 'General',
-    // Simple prices for fallback display
-    yesPrice: parseFloat(yesTokenData?.buy_price || yesImpliedProbability.toFixed(2)),
-    noPrice: parseFloat(noTokenData?.buy_price || (1 - yesImpliedProbability).toFixed(2)),
-    imageUrl: `https://placehold.co/600x400.png`,
-    aiHint: metaData.category?.toLowerCase() || metaData.question.split(' ').slice(0,2).join(' ') || 'general',
-    // Rich pricing data
-    pricing: {
-      yes: {
-        buy: parseFloat(yesTokenData.buy_price || 0),
-        sell: parseFloat(yesTokenData.sell_price || 0),
-        lastUpdated: yesTokenData.timestamp,
-        assetId: yesTokenData.asset_id,
-      },
-      no: {
-        buy: parseFloat(noTokenData.buy_price || 0),
-        sell: parseFloat(noTokenData.sell_price || 0),
-        lastUpdated: noTokenData.timestamp,
-        assetId: noTokenData.asset_id,
-      },
-    },
-    // Market odds data
-    odds: {
-      yesImpliedProbability: yesImpliedProbability,
-      noImpliedProbability: 1 - yesImpliedProbability, // Simplified calculation
-      midpointPrice: parseFloat(oddsData.midpoint_price || 0),
-      lastUpdated: oddsData.last_updated_timestamp,
-    },
-  };
+  try {
+    const orderbookYes: OrderBook | null = rawData.orderbook_yes ? JSON.parse(rawData.orderbook_yes) : null;
+    const orderbookNo: OrderBook | null = rawData.orderbook_no ? JSON.parse(rawData.orderbook_no) : null;
+
+    return {
+      id: conditionId,
+      question: rawData.question,
+      category: rawData.category || 'General',
+      endsAt: rawData.end_date ? new Date(rawData.end_date) : undefined,
+      imageUrl: `https://placehold.co/600x400.png`,
+      aiHint: rawData.category?.toLowerCase() || rawData.question.split(' ').slice(0, 2).join(' ') || 'general',
+      
+      // Pricing
+      yesBuyPrice: parseFloat(rawData.yes_buy_price || '0'),
+      yesSellPrice: parseFloat(rawData.yes_sell_price || '0'),
+      noBuyPrice: parseFloat(rawData.no_buy_price || '0'),
+      noSellPrice: parseFloat(rawData.no_sell_price || '0'),
+
+      // Odds
+      yesImpliedProbability: parseFloat(rawData.market_odds_yes || '0.5'),
+      noImpliedProbability: parseFloat(rawData.market_odds_no || '0.5'),
+
+      // Full order book data (optional)
+      orderbook: (orderbookYes || orderbookNo) ? {
+        yes: orderbookYes || { bids: [], asks: [] },
+        no: orderbookNo || { bids: [], asks: [] },
+        timestamp: parseInt(rawData.orderbook_timestamp || '0')
+      } : undefined,
+    };
+  } catch (e) {
+    console.error(`[MarketService] Failed to parse market data for ${conditionId}:`, e);
+    return null;
+  }
 }
 
 export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
@@ -78,71 +68,48 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
   try {
     const cachedData = await redis.get(LIVE_MARKETS_CACHE_KEY);
     if (cachedData) {
-      console.log(`[MarketService] CACHE HIT for live markets.`);
+      console.log(`[MarketService] CACHE HIT for live markets (v2).`);
       const allMarkets: LiveMarket[] = JSON.parse(cachedData as string);
       const paginatedMarkets = allMarkets.slice(offset, offset + limit);
       return { markets: paginatedMarkets, total: allMarkets.length };
     }
   } catch (e) {
-      console.error('[MarketService] Failed to read from cache, fetching from source.', e);
+    console.error('[MarketService] Failed to read from cache (v2), fetching from source.', e);
   }
 
-  console.log(`[MarketService] CACHE MISS. Fetching live markets from Redis source.`);
+  console.log(`[MarketService] CACHE MISS (v2). Fetching live markets from Redis source.`);
   try {
-    // 2. Discover active markets from Redis keys using SCAN instead of KEYS
-    const marketOddsKeys: string[] = [];
+    // 2. Discover active markets from Redis keys using SCAN
+    const marketKeys: string[] = [];
     let cursor = 0;
-
     do {
-      const [nextCursor, keys] = await redis.scan(cursor, { 
-        match: 'market_odds:*', 
-        count: 100 
-      });
-      marketOddsKeys.push(...keys);
+      const [nextCursor, keys] = await redis.scan(cursor, { match: 'market:*', count: 100 });
+      marketKeys.push(...keys);
       cursor = Number(nextCursor);
     } while (cursor !== 0);
 
-
-    if (!marketOddsKeys || marketOddsKeys.length === 0) {
-      console.log("[MarketService] No market_odds keys found in Redis using SCAN. No markets to display.");
+    if (marketKeys.length === 0) {
+      console.log("[MarketService] No 'market:*' keys found in Redis using SCAN. No markets to display.");
       return { markets: [], total: 0 };
     }
     
-    // Extract market IDs
-    const allMarketIds = marketOddsKeys.map(key => key.replace('market_odds:', ''));
-    
-    // We fetch all markets to build the cache, then paginate.
+    // 3. We fetch all markets to build the cache, then paginate.
     const pipeline = redis.pipeline();
-    allMarketIds.forEach(marketId => {
-      pipeline.hgetall(`market_odds:${marketId}`);
-      pipeline.hgetall(`market_meta:${marketId}`);
-      pipeline.hgetall(`token_price:${marketId}:Yes`);
-      pipeline.hgetall(`token_price:${marketId}:No`);
-    });
-
-    const results = await pipeline.exec();
+    marketKeys.forEach(key => pipeline.hgetall(key));
+    const results = await pipeline.exec<Record<string, any>[]>();
     
-    const allMarkets: LiveMarket[] = [];
-    for (let i = 0; i < allMarketIds.length; i++) {
-      const marketId = allMarketIds[i];
-      const oddsData = results[i * 4];
-      const metaData = results[i * 4 + 1];
-      const yesTokenData = results[i * 4 + 2];
-      const noTokenData = results[i * 4 + 3];
-
-      const market = constructMarket(marketId, oddsData, metaData, yesTokenData, noTokenData);
-      if (market) {
-        allMarkets.push(market);
-      }
-    }
+    // 4. Parse all results
+    const allMarkets: LiveMarket[] = results
+      .map(data => parseMarketData(data))
+      .filter((market): market is LiveMarket => market !== null);
     
     // 5. Cache the full, unpaginated result
     if (allMarkets.length > 0) {
       try {
         await redis.set(LIVE_MARKETS_CACHE_KEY, JSON.stringify(allMarkets), { ex: LIVE_MARKETS_CACHE_TTL_SECONDS });
-        console.log(`[MarketService] Successfully cached ${allMarkets.length} markets for ${LIVE_MARKETS_CACHE_TTL_SECONDS} seconds.`);
+        console.log(`[MarketService] Successfully cached ${allMarkets.length} markets (v2) for ${LIVE_MARKETS_CACHE_TTL_SECONDS}s.`);
       } catch (e) {
-        console.error('[MarketService] Failed to write to cache.', e);
+        console.error('[MarketService] Failed to write to cache (v2).', e);
       }
     }
 
@@ -151,29 +118,19 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
     return { markets: paginatedMarkets, total: allMarkets.length };
 
   } catch (error) {
-    console.error('[MarketService] A critical error occurred in getLiveMarkets:', error);
-    // In case of error (e.g. Redis unavailable), return empty
+    console.error('[MarketService] A critical error occurred in getLiveMarkets (v2):', error);
     return { markets: [], total: 0 };
   }
 }
 
 export async function getMarketDetails(marketId: string): Promise<LiveMarket | null> {
     try {
-        const pipeline = redis.pipeline();
-        pipeline.hgetall(`market_odds:${marketId}`);
-        pipeline.hgetall(`market_meta:${marketId}`);
-        pipeline.hgetall(`token_price:${marketId}:Yes`);
-        pipeline.hgetall(`token_price:${marketId}:No`);
-
-        const [oddsData, metaData, yesTokenData, noTokenData] = await pipeline.exec();
-
-        if (!metaData) {
-            console.warn(`[MarketService] No metadata found for single market fetch: ${marketId}`);
+        const rawData = await redis.hgetall(`market:${marketId}`);
+        if (!rawData) {
+            console.warn(`[MarketService] No data found for single market fetch: market:${marketId}`);
             return null;
         }
-
-        return constructMarket(marketId, oddsData, metaData, yesTokenData, noTokenData);
-
+        return parseMarketData(rawData);
     } catch (error) {
         console.error(`[MarketService] A critical error occurred in getMarketDetails for ID ${marketId}:`, error);
         return null;

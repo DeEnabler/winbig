@@ -19,11 +19,9 @@ export default function MarketFeedCard({ market }: MarketFeedCardProps) {
     ? market.question.substring(0, 70) + '...'
     : market.question;
 
-  // Use the new, more accurate implied probability for the main display
-  const yesPercent = Math.floor(market.odds.yesImpliedProbability * 100);
+  // Use the new flattened probability properties
+  const yesPercent = Math.floor(market.yesImpliedProbability * 100);
   const noPercent = 100 - yesPercent;
-
-  console.log(`[MarketFeedCard UI] ID: ${market.id}, received yesImpliedProbability: ${market.odds.yesImpliedProbability}, calculated yesPercent: ${yesPercent}`);
 
   const detailUrl = `/match/${market.id}?predictionId=${market.id}`;
 
@@ -53,7 +51,7 @@ export default function MarketFeedCard({ market }: MarketFeedCardProps) {
           ></div>
         </div>
         <div className="text-center text-xs text-muted-foreground pt-1">
-            Buy YES for ${market.pricing.yes.buy.toFixed(2)}
+            Buy YES for ${market.yesBuyPrice.toFixed(2)}
         </div>
       </CardContent>
       <CardFooter className="pt-2 pb-3 px-4">

@@ -1,5 +1,32 @@
 
 
+// This is the new, flattened structure for a live market, derived from the single Redis hash.
+export interface LiveMarket {
+  id: string; // The condition_id
+  question: string;
+  category: string;
+  imageUrl: string;
+  aiHint?: string;
+  endsAt?: Date;
+
+  // Pricing
+  yesBuyPrice: number;
+  yesSellPrice: number;
+  noBuyPrice: number;
+  noSellPrice: number;
+  
+  // Odds
+  yesImpliedProbability: number;
+  noImpliedProbability: number;
+
+  // Full orderbook data (as parsed objects)
+  orderbook?: {
+    yes: { bids: OrderLevel[], asks: OrderLevel[] };
+    no: { bids: OrderLevel[], asks: OrderLevel[] };
+    timestamp?: number;
+  }
+}
+
 export interface Prediction {
   id: string;
   text: string; // Corresponds to `question` in PredictionCardProps
@@ -38,8 +65,8 @@ export interface Match {
   id: string; // This is the original challengeMatchId or a generated matchId
   predictionText: string;
   predictionId: string;
-  imageUrl?: string; // Added
-  aiHint?: string; // Added
+  imageUrl?: string; 
+  aiHint?: string; 
   user1Username: string;
   user1AvatarUrl?: string;
   user2Username: string; // Could be 'System Pool'
@@ -48,6 +75,13 @@ export interface Match {
   potentialWinnings: number;
   countdownEnds: number; // Timestamp for when countdown ends
   shareUrl?: string; // URL to share this match
+  
+  // Simplified pricing/odds data passed to the client
+  yesPrice: number;
+  noPrice: number;
+  yesImpliedProbability: number;
+  noImpliedProbability: number;
+
 
   // Fields for OG image and client display, often derived from searchParams or user context
   userChoice?: 'YES' | 'NO'; // User 1's choice OR the choice made when accepting a challenge pre-confirmation
@@ -61,18 +95,10 @@ export interface Match {
   // For MatchViewClient specific props
   userBet?: { side: 'YES'|'NO'; amount: number; status: 'PENDING'|'WON'|'LOST'; bonusApplied?: boolean };
   opponent?: { username: string; winRate?: number, avatarUrl?: string } | 'system';
-  confidence?: { yesPercentage: number };
 
   // Flags for challenge confirmation flow
   isConfirmingChallenge?: boolean;
   originalReferrer?: string; // To pass along who initiated the challenge
-  
-  // Pass the full live market data to the client component
-  liveMarketData?: LiveMarket;
-  
-  // Asset IDs for YES and NO tokens
-  yesAssetId?: string;
-  noAssetId?: string;
 }
 
 // Props for PredictionCard
@@ -168,34 +194,6 @@ export interface OpenPosition {
   bonusApplied?: boolean; // Was a bonus applied to this bet?
 }
 
-// This is the definitive structure for the LiveMarket object, sourced from the new optimized Redis structure.
-export interface LiveMarket {
-  id: string;
-  question: string;
-  category: string;
-  imageUrl: string;
-  aiHint?: string;
-  
-  // For simple UI display - can be derived from richer data below
-  yesPrice: number;
-  noPrice: number;
-
-  // Real-time pricing data
-  pricing: {
-    yes: { buy: number; sell: number; lastUpdated?: string, assetId?: string };
-    no: { buy: number; sell: number; lastUpdated?: string, assetId?: string };
-  };
-
-  // Market-level calculations from Lua scripts
-  odds: {
-    yesImpliedProbability: number;
-    noImpliedProbability: number;
-    midpointPrice: number;
-    lastUpdated?: string;
-  };
-}
-
-
 export interface ShareMessageDetails {
   predictionText: string;
   outcomeDescription?: string;
@@ -215,14 +213,8 @@ export interface OrderLevel {
 }
 
 export interface OrderBook {
-  condition_id: string;
-  outcome: 'Yes' | 'No';
-  asset_id: string;
   bids: OrderLevel[];
   asks: OrderLevel[];
-  fair_price: string;
-  timestamp: string;
-  depth_levels: string;
 }
 
 export interface ExecutionPreview {
@@ -230,7 +222,7 @@ export interface ExecutionPreview {
   steps?: string[];
   summary?: string;
   vwap?: number;
-  fill_ratio?: number;
+  fillRatio?: number;
   quality_score?: number;
   price_impact_pct?: number;
   timestamp?: string;

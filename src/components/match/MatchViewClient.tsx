@@ -1,3 +1,4 @@
+
 // src/components/match/MatchViewClient.tsx
 'use client';
 
@@ -9,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Share2, ArrowLeft, TrendingUp, CheckCircle, Sparkles, Loader2, Info } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { generateXShareMessage } from '@/ai/flows/generate-x-share-message';
 import Link from 'next/link';
@@ -81,14 +82,11 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       return;
     }
 
-    const assetId = selectedChoice === 'YES' ? match.yesAssetId : match.noAssetId;
-    if (!assetId) return;
-
     setIsLoadingPreview(true);
     setUsingFallbackPrice(false);
 
-    // Pass all necessary IDs to the API
-    const apiUrl = `/api/execution-analysis?asset_id=${assetId}&condition_id=${match.predictionId}&outcome=${selectedChoice}&amount=${debouncedBetAmount}&side=BUY`;
+    // This API now only needs condition_id and outcome.
+    const apiUrl = `/api/execution-analysis?condition_id=${match.predictionId}&outcome=${selectedChoice}&amount=${debouncedBetAmount}&side=BUY`;
 
     fetch(apiUrl)
       .then(res => res.json())
@@ -96,7 +94,6 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
         if (data.success) {
           setExecutionPreview(data);
         } else {
-          // This case is for success:false but 200 OK (graceful fallback)
           console.warn("Execution preview fetch failed, using fallback pricing. Reason:", data.error);
           setExecutionPreview(null);
           setUsingFallbackPrice(true);
@@ -111,13 +108,12 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
         setIsLoadingPreview(false);
       });
 
-  }, [debouncedBetAmount, selectedChoice, match.yesAssetId, match.noAssetId, match.predictionId]);
+  }, [debouncedBetAmount, selectedChoice, match.predictionId]);
 
 
   const potentialPayout = useMemo(() => {
     if (!selectedChoice) return '0.00';
 
-    // Primary: Use VWAP from successful execution preview
     if (executionPreview?.success && executionPreview.vwap && executionPreview.vwap > 0) {
       let payout = betAmountState / executionPreview.vwap;
       if (match.bonusApplied) {
@@ -126,20 +122,18 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       return payout.toFixed(2);
     }
 
-    // Fallback: Use the simple 'buy' price from the market data
-    if (match.liveMarketData) {
-      const priceData = selectedChoice === 'YES' ? match.liveMarketData.pricing.yes : match.liveMarketData.pricing.no;
-      if (priceData && priceData.buy > 0) {
-        let payout = betAmountState / priceData.buy;
-        if (match.bonusApplied) {
-            payout *= 1.20;
-        }
-        return payout.toFixed(2);
+    // Fallback using the simple price from the match data.
+    const price = selectedChoice === 'YES' ? match.yesPrice : match.noPrice;
+    if (price > 0) {
+      let payout = betAmountState / price;
+      if (match.bonusApplied) {
+          payout *= 1.20;
       }
+      return payout.toFixed(2);
     }
 
     return '0.00';
-  }, [betAmountState, selectedChoice, match.bonusApplied, executionPreview, match.liveMarketData, usingFallbackPrice]);
+  }, [betAmountState, selectedChoice, match.bonusApplied, executionPreview, match.yesPrice, match.noPrice, usingFallbackPrice]);
 
 
   const [isClient, setIsClient] = useState(false);

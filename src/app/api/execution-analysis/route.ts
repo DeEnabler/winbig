@@ -1,3 +1,4 @@
+
 // src/app/api/execution-analysis/route.ts
 import { type NextRequest, NextResponse } from 'next/server';
 import redis from '@/lib/redis';
@@ -19,7 +20,7 @@ function calculateVwap(amount: number, book: OrderLevel[]): { vwap: number, summ
         
         cost += sharesToTake * price;
         sharesFilled += sharesToTake;
-        steps.push(`Filled ${sharesToTake.toFixed(2)} shares @ $${price.toFixed(4)} = $${(sharesToTake * price).toFixed(2)}`);
+        steps.push(`Filled ${sharesToTake.toFixed(2)} shares @ $${price.toFixed(4)} = ${(sharesToTake * price).toFixed(2)}`);
         
         if (sharesFilled >= amount) {
             break;
@@ -35,14 +36,13 @@ function calculateVwap(amount: number, book: OrderLevel[]): { vwap: number, summ
 
 export async function GET(req: NextRequest) {
     const { searchParams } = req.nextUrl;
-    const assetId = searchParams.get('asset_id');
     const conditionId = searchParams.get('condition_id');
     const outcome = searchParams.get('outcome'); // 'YES' or 'NO'
     const amountStr = searchParams.get('amount');
     const side = searchParams.get('side'); // 'BUY' or 'SELL'
 
-    if (!assetId || !conditionId || !outcome || !amountStr || !side) {
-        return NextResponse.json({ success: false, error: 'Missing required parameters: asset_id, condition_id, outcome, amount, side' }, { status: 400 });
+    if (!conditionId || !outcome || !amountStr || !side) {
+        return NextResponse.json({ success: false, error: 'Missing required parameters: condition_id, outcome, amount, side' }, { status: 400 });
     }
 
     const amount = parseFloat(amountStr);
@@ -51,49 +51,29 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-        const capitalizedOutcome = outcome === 'YES' ? 'Yes' : 'No';
-        const possibleKeys = [
-          `orderbook:${assetId}`,
-          `orderbook:token:${assetId}`,
-          `orderbook:${conditionId}:${capitalizedOutcome}`
-        ];
-
-        let orderbookData: OrderBook | null = null;
+        const marketKey = `market:${conditionId}`;
+        const outcomeKey = outcome.toLowerCase() === 'yes' ? 'orderbook_yes' : 'orderbook_no';
         
-        // OPTIMIZED: Use a pipeline to fetch all potential keys in one request
-        const pipeline = redis.pipeline();
-        possibleKeys.forEach(key => pipeline.hgetall(key));
-        const results = await pipeline.exec();
+        // Fetch only the specific orderbook string from the hash
+        const orderbookString = await redis.hget(marketKey, outcomeKey) as string | null;
 
-        // Find the first valid orderbook from the pipeline results
-        for (let i = 0; i < results.length; i++) {
-          const data = results[i] as any as OrderBook | null;
-          if (data && data.bids && data.asks) {
-            orderbookData = data;
-            console.log(`[API /execution-analysis] Found order book at key: ${possibleKeys[i]}`);
-            break;
-          }
-        }
-
-
-        if (!orderbookData || !orderbookData.bids || !orderbookData.asks) {
-            console.warn(`[API /execution-analysis] Order book data not found for any possible keys based on assetId: ${assetId} and conditionId: ${conditionId}.`);
+        if (!orderbookString) {
+            console.warn(`[API /execution-analysis] Order book data not found in HASH '${marketKey}' with field '${outcomeKey}'.`);
             return NextResponse.json({ 
                 success: false, 
                 error: `Deep liquidity analysis is currently unavailable for this market.` 
-            }, { status: 200 });
+            }, { status: 200 }); // Graceful fallback
         }
 
-        const bids: OrderLevel[] = JSON.parse(orderbookData.bids as any);
-        const asks: OrderLevel[] = JSON.parse(orderbookData.asks as any);
+        const orderbookData: OrderBook = JSON.parse(orderbookString);
         
-        const bookToUse = side.toUpperCase() === 'BUY' ? asks : bids;
+        const bookToUse = side.toUpperCase() === 'BUY' ? orderbookData.asks : orderbookData.bids;
         
         if (bookToUse.length === 0) {
             return NextResponse.json({ 
                 success: false, 
                 error: `No liquidity available on the ${side.toLowerCase()} side.` 
-            }, { status: 200 });
+            }, { status: 200 }); // Graceful fallback
         }
 
         const { vwap, summary, steps, fillRatio } = calculateVwap(amount, bookToUse);
