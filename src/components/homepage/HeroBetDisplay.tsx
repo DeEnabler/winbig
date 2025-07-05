@@ -1,3 +1,4 @@
+
 // src/components/homepage/HeroBetDisplay.tsx
 'use client';
 
@@ -37,8 +38,12 @@ export default function HeroBetDisplay() {
           id: 'fallback_hero_1',
           question: 'Will AI write a #1 hit song this year?',
           category: 'Technology',
-          yesPrice: 0.35,
-          noPrice: 0.65,
+          yesBuyPrice: 0.35,
+          yesSellPrice: 0.33,
+          noBuyPrice: 0.65,
+          noSellPrice: 0.63,
+          yesImpliedProbability: 0.35,
+          noImpliedProbability: 0.65,
           endsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           imageUrl: 'https://placehold.co/600x400.png',
           aiHint: 'technology music'
@@ -51,8 +56,12 @@ export default function HeroBetDisplay() {
           id: mockPredictions[0].id, 
           question: mockPredictions[0].text,
           category: mockPredictions[0].category,
-          yesPrice: 0.5,
-          noPrice: 0.5,
+          yesBuyPrice: 0.5,
+          yesSellPrice: 0.5,
+          noBuyPrice: 0.5,
+          noSellPrice: 0.5,
+          yesImpliedProbability: 0.5,
+          noImpliedProbability: 0.5,
           endsAt: mockPredictions[0].endsAt,
           imageUrl: mockPredictions[0].imageUrl,
           aiHint: mockPredictions[0].aiHint
@@ -66,8 +75,12 @@ export default function HeroBetDisplay() {
         id: mockPredictions[1].id, 
         question: mockPredictions[1].text,
         category: mockPredictions[1].category,
-        yesPrice: 0.60,
-        noPrice: 0.40,
+        yesBuyPrice: 0.60,
+        yesSellPrice: 0.58,
+        noBuyPrice: 0.40,
+        noSellPrice: 0.38,
+        yesImpliedProbability: 0.60,
+        noImpliedProbability: 0.40,
         endsAt: mockPredictions[1].endsAt,
         imageUrl: mockPredictions[1].imageUrl,
         aiHint: mockPredictions[1].aiHint
@@ -87,7 +100,7 @@ export default function HeroBetDisplay() {
     setRetryCount(prev => prev + 1);
   };
 
-  const payoutTeaser = market?.yesPrice ? `Bet YES to win ${(1 / market.yesPrice).toFixed(1)}x` : 'High Stakes, High Rewards!';
+  const payoutTeaser = market?.yesBuyPrice ? `Bet YES to win ${(1 / market.yesBuyPrice).toFixed(1)}x` : 'High Stakes, High Rewards!';
   const activeBettorsCount = market ? (Math.floor(Math.random() * 5000) + 1000) : 4129; 
 
   return (
@@ -118,7 +131,7 @@ export default function HeroBetDisplay() {
               predictionQuestion={market.question}
               predictionId={market.id}
               referrerOriginalChoice='YES' 
-              initialYesPrice={market.yesPrice}
+              initialYesPrice={market.yesImpliedProbability}
             />
             <div className="text-center mt-2 text-sm text-muted-foreground">
                 <p>🔥 {activeBettorsCount.toLocaleString()} already bet! {payoutTeaser}</p>
