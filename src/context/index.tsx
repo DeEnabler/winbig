@@ -36,17 +36,13 @@ console.log("[Reown Context] AppKit Metadata:", metadata);
 
 export let appKitModal: AppKitModal;
 
-if (!projectId || projectId === 'undefined' || projectId === PLACEHOLDER_PROJECT_ID) {
-  const warningMessage = `[Reown Context] WARNING: NEXT_PUBLIC_REOWN_PROJECT_ID is not configured. Reown AppKit is not initialized. Wallet functionality will be disabled. Current value: "${projectId}"`;
-  console.warn(warningMessage);
-  // Create a mock modal that provides feedback in the console instead of a disruptive alert.
-  appKitModal = {
-    open: () => {
-      console.warn("[Reown Context] Wallet connection attempted, but AppKit is not initialized due to missing Project ID.");
-    },
-  } as unknown as AppKitModal;
-} else {
-  console.log("[Reown Context] Initializing Reown AppKit with Project ID:", projectId);
+// Determine if we should fully initialize or mock the AppKit
+const isProduction = process.env.NODE_ENV === 'production';
+const isProjectIdValid = projectId && projectId !== 'undefined' && projectId !== PLACEHOLDER_PROJECT_ID;
+
+// Only initialize fully in a production environment WITH a valid project ID
+if (isProduction && isProjectIdValid) {
+  console.log("[Reown Context] Initializing Reown AppKit for PRODUCTION with Project ID:", projectId);
   try {
     appKitModal = createAppKit({
       adapters: [wagmiAdapter],
@@ -55,23 +51,38 @@ if (!projectId || projectId === 'undefined' || projectId === PLACEHOLDER_PROJECT
       defaultNetwork: configNetworks[0] || undefined,
       metadata,
       auth: {
-        email: true, // Retain email login (can be set to false if not desired)
-        socials: ["google"], // Limit social logins to Google only
-        showWallets: true, // Ensure wallet logins are available
+        email: true,
+        socials: ["google"],
+        showWallets: true,
       },
       features: {
         analytics: false,
       },
     });
-    console.log("[Reown Context] Reown AppKit initialized successfully with custom auth options.");
+    console.log("[Reown Context] Reown AppKit initialized successfully for PRODUCTION.");
   } catch (error) {
-    console.error("[Reown Context] Error initializing Reown AppKit:", error);
+    console.error("[Reown Context] Error initializing Reown AppKit for PRODUCTION:", error);
     appKitModal = {
       open: () => {
         console.error("[Reown Context] appKitModal.open() called but AppKit failed to initialize.", error);
       },
     } as unknown as AppKitModal;
   }
+} else {
+  // For local development OR if project ID is missing, use a mock.
+  if (!isProduction) {
+    console.warn('[Reown Context] In development mode. Reown AppKit is mocked to avoid domain verification issues. Wallet functionality will be fully enabled in production.');
+  } else if (!isProjectIdValid) {
+    console.warn(`[Reown Context] WARNING: NEXT_PUBLIC_REOWN_PROJECT_ID is not configured. Reown AppKit is mocked. Current value: "${projectId}"`);
+  }
+
+  // Create a mock modal that provides feedback in the console instead of making network calls.
+  appKitModal = {
+    open: () => {
+      console.warn("[Reown Context (Dev Mode)] Wallet connection attempted. This would open the real wallet modal in production.");
+      alert("Wallet connection is disabled in the development environment to prevent domain errors. It will be active in production.");
+    },
+  } as unknown as AppKitModal;
 }
 
 
