@@ -1,18 +1,6 @@
 
 import { Redis } from '@upstash/redis';
 
-// This is a standard Next.js pattern to prevent re-initializing the Redis client
-// on every hot-reload in development, which can exhaust connection pools and
-// cause a "Connection closed" error.
-
-declare global {
-  // We must use `var` here, not `let` or `const`, to declare a global variable.
-  // eslint-disable-next-line no-var
-  var redis: Redis | undefined;
-}
-
-let redisClient: Redis;
-
 const url = process.env.UPSTASH_REDIS_REST_URL;
 const token = process.env.REDIS_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || process.env.UPSTASH_REDIS_REST_READ_ONLY_TOKEN;
 
@@ -20,24 +8,11 @@ if (!url || !token) {
   throw new Error('CRITICAL: Redis credentials are not set in environment variables (UPSTASH_REDIS_REST_URL and a TOKEN are required).');
 }
 
-if (process.env.NODE_ENV === 'production') {
-  // In production, always create a new client.
-  redisClient = new Redis({ url, token });
-} else {
-  // In development, use a global variable so that the value
-  // is preserved across module reloads caused by HMR (Hot Module Replacement).
-  if (!global.redis) {
-    console.log('[Redis Client] Initializing new development client and caching globally.');
-    global.redis = new Redis({ url, token });
-  }
-  redisClient = global.redis;
-}
+// This creates a single, cached instance of the Redis client that is shared across the entire application.
+// The Node.js module cache handles the singleton pattern automatically, which is more robust than using a global variable.
+const redis = new Redis({ url, token });
 
-function getRedisClient(): Redis {
-  return redisClient;
-}
-
-export default getRedisClient;
+export default redis;
 
 /**
  * Checks the configuration status of the Redis client.

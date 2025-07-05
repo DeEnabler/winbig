@@ -1,6 +1,6 @@
 // src/app/api/execution-analysis/route.ts
 import { type NextRequest, NextResponse } from 'next/server';
-import getRedisClient from '@/lib/redis';
+import redis from '@/lib/redis'; // Simplified import
 import type { OrderBook, OrderLevel, ExecutionPreview } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -51,8 +51,6 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-        const redis = getRedisClient();
-        
         const capitalizedOutcome = outcome === 'YES' ? 'Yes' : 'No';
         const possibleKeys = [
           `orderbook:${assetId}`,
