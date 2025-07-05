@@ -13,6 +13,9 @@ interface LiveMarketsResponse {
   total: number;
 }
 
+const LIVE_MARKETS_CACHE_KEY = 'cache:live_markets_data';
+const LIVE_MARKETS_CACHE_TTL_SECONDS = 15; // Cache results for 15 seconds
+
 function constructMarket(
   marketId: string,
   oddsData: any,
@@ -71,8 +74,22 @@ function constructMarket(
 }
 
 export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
+  // 1. Try to get the full list of markets from cache first
   try {
-    // 1. Discover active markets from Redis keys using SCAN instead of KEYS
+    const cachedData = await redis.get(LIVE_MARKETS_CACHE_KEY);
+    if (cachedData) {
+      console.log(`[MarketService] CACHE HIT for live markets.`);
+      const allMarkets: LiveMarket[] = JSON.parse(cachedData as string);
+      const paginatedMarkets = allMarkets.slice(offset, offset + limit);
+      return { markets: paginatedMarkets, total: allMarkets.length };
+    }
+  } catch (e) {
+      console.error('[MarketService] Failed to read from cache, fetching from source.', e);
+  }
+
+  console.log(`[MarketService] CACHE MISS. Fetching live markets from Redis source.`);
+  try {
+    // 2. Discover active markets from Redis keys using SCAN instead of KEYS
     const marketOddsKeys: string[] = [];
     let cursor = 0;
 
@@ -93,31 +110,21 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
     
     // Extract market IDs
     const allMarketIds = marketOddsKeys.map(key => key.replace('market_odds:', ''));
-    const total = allMarketIds.length;
-
-    const paginatedMarketIds = allMarketIds.slice(offset, offset + limit);
-
-    if (paginatedMarketIds.length === 0) {
-      console.log("[MarketService] No more market IDs to fetch for the given offset.");
-      return { markets: [], total };
-    }
-
-    // 2. Build efficient pipeline to fetch all data
+    
+    // We fetch all markets to build the cache, then paginate.
     const pipeline = redis.pipeline();
-    paginatedMarketIds.forEach(marketId => {
+    allMarketIds.forEach(marketId => {
       pipeline.hgetall(`market_odds:${marketId}`);
       pipeline.hgetall(`market_meta:${marketId}`);
       pipeline.hgetall(`token_price:${marketId}:Yes`);
       pipeline.hgetall(`token_price:${marketId}:No`);
     });
 
-    // 3. Execute pipeline and process results
     const results = await pipeline.exec();
     
-    // 4. Build market objects
-    const markets: LiveMarket[] = [];
-    for (let i = 0; i < paginatedMarketIds.length; i++) {
-      const marketId = paginatedMarketIds[i];
+    const allMarkets: LiveMarket[] = [];
+    for (let i = 0; i < allMarketIds.length; i++) {
+      const marketId = allMarketIds[i];
       const oddsData = results[i * 4];
       const metaData = results[i * 4 + 1];
       const yesTokenData = results[i * 4 + 2];
@@ -125,12 +132,23 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
 
       const market = constructMarket(marketId, oddsData, metaData, yesTokenData, noTokenData);
       if (market) {
-        markets.push(market);
+        allMarkets.push(market);
       }
     }
     
-    console.log(`[MarketService] Successfully constructed ${markets.length} of ${paginatedMarketIds.length} requested markets.`);
-    return { markets, total };
+    // 5. Cache the full, unpaginated result
+    if (allMarkets.length > 0) {
+      try {
+        await redis.set(LIVE_MARKETS_CACHE_KEY, JSON.stringify(allMarkets), { ex: LIVE_MARKETS_CACHE_TTL_SECONDS });
+        console.log(`[MarketService] Successfully cached ${allMarkets.length} markets for ${LIVE_MARKETS_CACHE_TTL_SECONDS} seconds.`);
+      } catch (e) {
+        console.error('[MarketService] Failed to write to cache.', e);
+      }
+    }
+
+    // 6. Paginate the newly fetched data for the current request
+    const paginatedMarkets = allMarkets.slice(offset, offset + limit);
+    return { markets: paginatedMarkets, total: allMarkets.length };
 
   } catch (error) {
     console.error('[MarketService] A critical error occurred in getLiveMarkets:', error);

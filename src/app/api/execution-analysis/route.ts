@@ -1,6 +1,6 @@
 // src/app/api/execution-analysis/route.ts
 import { type NextRequest, NextResponse } from 'next/server';
-import redis from '@/lib/redis'; // Simplified import
+import redis from '@/lib/redis';
 import type { OrderBook, OrderLevel, ExecutionPreview } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -59,14 +59,22 @@ export async function GET(req: NextRequest) {
         ];
 
         let orderbookData: OrderBook | null = null;
-        for (const key of possibleKeys) {
-          const data = await redis.hgetall(key) as any as OrderBook | null;
+        
+        // OPTIMIZED: Use a pipeline to fetch all potential keys in one request
+        const pipeline = redis.pipeline();
+        possibleKeys.forEach(key => pipeline.hgetall(key));
+        const results = await pipeline.exec();
+
+        // Find the first valid orderbook from the pipeline results
+        for (let i = 0; i < results.length; i++) {
+          const data = results[i] as any as OrderBook | null;
           if (data && data.bids && data.asks) {
             orderbookData = data;
-            console.log(`[API /execution-analysis] Found order book at key: ${key}`);
+            console.log(`[API /execution-analysis] Found order book at key: ${possibleKeys[i]}`);
             break;
           }
         }
+
 
         if (!orderbookData || !orderbookData.bids || !orderbookData.asks) {
             console.warn(`[API /execution-analysis] Order book data not found for any possible keys based on assetId: ${assetId} and conditionId: ${conditionId}.`);
