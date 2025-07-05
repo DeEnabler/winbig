@@ -85,7 +85,6 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     setIsLoadingPreview(true);
     setUsingFallbackPrice(false);
 
-    // This API now only needs condition_id and outcome.
     const apiUrl = `/api/execution-analysis?condition_id=${match.predictionId}&outcome=${selectedChoice}&amount=${debouncedBetAmount}&side=BUY`;
 
     fetch(apiUrl)
@@ -390,15 +389,21 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                   />
 
                   <div className="text-center p-3 bg-muted/50 rounded-lg space-y-1.5 text-sm">
-                      {isLoadingPreview && <Skeleton className="h-5 w-3/4 mx-auto" />}
+                      {isLoadingPreview && (
+                        <div className="space-y-2">
+                          <Skeleton className="h-5 w-3/4 mx-auto" />
+                          <Skeleton className="h-4 w-1/2 mx-auto" />
+                          <Skeleton className="h-6 w-2/3 mx-auto" />
+                        </div>
+                      )}
                       {!isLoadingPreview && executionPreview?.success && (
                         <>
-                          <div className="font-semibold">Avg. Execution Price: <span className="text-primary">${executionPreview.vwap}</span></div>
+                          <div className="font-semibold">Avg. Price: <span className="text-primary">${executionPreview.vwap?.toFixed(4)}</span></div>
                           <div className="text-xs text-muted-foreground">{executionPreview.summary}</div>
                         </>
                       )}
-                      {usingFallbackPrice && (
-                         <div className="text-muted-foreground text-xs flex items-center justify-center gap-1.5"><Info className="w-3.5 h-3.5" /> Using best available price. Deep analysis unavailable.</div>
+                      {(usingFallbackPrice || (executionPreview && !executionPreview.success)) && (
+                         <div className="text-muted-foreground text-xs flex items-center justify-center gap-1.5"><Info className="w-3.5 h-3.5" /> {executionPreview?.error || "Using best available price."}</div>
                       )}
 
                       <div className="text-lg font-bold">

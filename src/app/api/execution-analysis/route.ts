@@ -1,4 +1,3 @@
-
 // src/app/api/execution-analysis/route.ts
 import { type NextRequest, NextResponse } from 'next/server';
 import redis from '@/lib/redis';
@@ -6,40 +5,75 @@ import type { OrderBook, OrderLevel, ExecutionPreview } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
-function calculateVwap(amount: number, book: OrderLevel[]): { vwap: number, summary: string, steps: string[], fillRatio: number } {
-    let cost = 0;
-    let sharesFilled = 0;
-    const steps: string[] = [];
-    
-    for (const level of book) {
-        const price = parseFloat(level.price);
-        const size = parseFloat(level.size);
-        
-        const remainingToFill = amount - sharesFilled;
-        const sharesToTake = Math.min(remainingToFill, size);
-        
-        cost += sharesToTake * price;
-        sharesFilled += sharesToTake;
-        steps.push(`Filled ${sharesToTake.toFixed(2)} shares @ $${price.toFixed(4)} = ${(sharesToTake * price).toFixed(2)}`);
-        
-        if (sharesFilled >= amount) {
-            break;
+function calculateExecutionPrice(orderbook: OrderBook, targetAmount: number, side: 'BUY' | 'SELL'): Omit<ExecutionPreview, 'timestamp'> {
+    try {
+        const orders = side === 'BUY' ? orderbook.asks : orderbook.bids;
+        if (!orders || orders.length === 0) {
+            return { success: false, error: 'No orders available on the selected side.' };
         }
-    }
-    
-    const vwap = sharesFilled > 0 ? cost / sharesFilled : 0;
-    const fillRatio = amount > 0 ? sharesFilled / amount : 0;
-    const summary = `Total: ${sharesFilled.toFixed(2)} shares for $${cost.toFixed(2)} (VWAP: $${vwap.toFixed(4)})`;
 
-    return { vwap, summary, steps, fillRatio };
+        const bestBid = parseFloat(orderbook.bids[0]?.price || '0');
+        const bestAsk = parseFloat(orderbook.asks[0]?.price || '0');
+        const fairPrice = bestAsk > 0 && bestBid > 0 ? (bestBid + bestAsk) / 2 : (bestAsk || bestBid);
+
+        if (fairPrice === 0) {
+            return { success: false, error: 'Could not determine a fair price for impact calculation.' };
+        }
+
+        orders.sort((a, b) => {
+            const priceA = parseFloat(a.price);
+            const priceB = parseFloat(b.price);
+            return side === 'BUY' ? priceA - priceB : priceB - priceA;
+        });
+
+        let remainingAmount = targetAmount;
+        let totalCost = 0;
+        let totalExecuted = 0;
+        const executionSteps: string[] = [];
+
+        for (const order of orders) {
+            if (remainingAmount <= 0) break;
+
+            const price = parseFloat(order.price);
+            const availableSize = parseFloat(order.size);
+            const executeSize = Math.min(remainingAmount, availableSize);
+            const levelCost = executeSize * price;
+
+            executionSteps.push(`Filled ${executeSize.toFixed(2)} shares @ $${price.toFixed(4)}`);
+            
+            totalExecuted += executeSize;
+            totalCost += levelCost;
+            remainingAmount -= executeSize;
+        }
+
+        const vwap = totalExecuted > 0 ? totalCost / totalExecuted : 0;
+        const fillRatio = targetAmount > 0 ? totalExecuted / targetAmount : 0;
+        const priceImpactPct = ((vwap - fairPrice) / fairPrice) * 100;
+        
+        return {
+            success: true,
+            vwap,
+            fillRatio,
+            price_impact_pct: priceImpactPct,
+            summary: `Filled ${totalExecuted.toFixed(2)} of ${targetAmount} shares. Avg Price: $${vwap.toFixed(4)}`,
+            steps: executionSteps,
+        };
+
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown calculation error',
+        };
+    }
 }
+
 
 export async function GET(req: NextRequest) {
     const { searchParams } = req.nextUrl;
     const conditionId = searchParams.get('condition_id');
     const outcome = searchParams.get('outcome'); // 'YES' or 'NO'
     const amountStr = searchParams.get('amount');
-    const side = searchParams.get('side'); // 'BUY' or 'SELL'
+    const side = searchParams.get('side')?.toUpperCase() as 'BUY' | 'SELL' | undefined;
 
     if (!conditionId || !outcome || !amountStr || !side) {
         return NextResponse.json({ success: false, error: 'Missing required parameters: condition_id, outcome, amount, side' }, { status: 400 });
@@ -52,44 +86,27 @@ export async function GET(req: NextRequest) {
 
     try {
         const marketKey = `market:${conditionId}`;
-        const outcomeKey = outcome.toLowerCase() === 'yes' ? 'orderbook_yes' : 'orderbook_no';
+        const orderbookField = outcome.toLowerCase() === 'yes' ? 'orderbook_yes' : 'orderbook_no';
         
-        // Fetch only the specific orderbook string from the hash
-        const orderbookString = await redis.hget(marketKey, outcomeKey) as string | null;
+        const orderbookString = await redis.hget(marketKey, orderbookField) as string | null;
 
         if (!orderbookString) {
-            console.warn(`[API /execution-analysis] Order book data not found in HASH '${marketKey}' with field '${outcomeKey}'.`);
             return NextResponse.json({ 
                 success: false, 
-                error: `Deep liquidity analysis is currently unavailable for this market.` 
-            }, { status: 200 }); // Graceful fallback
+                error: `Order book data for outcome '${outcome}' not found for this market.` 
+            }, { status: 404 });
         }
 
         const orderbookData: OrderBook = JSON.parse(orderbookString);
         
-        const bookToUse = side.toUpperCase() === 'BUY' ? orderbookData.asks : orderbookData.bids;
-        
-        if (bookToUse.length === 0) {
-            return NextResponse.json({ 
-                success: false, 
-                error: `No liquidity available on the ${side.toLowerCase()} side.` 
-            }, { status: 200 }); // Graceful fallback
-        }
+        const result = calculateExecutionPrice(orderbookData, amount, side);
 
-        const { vwap, summary, steps, fillRatio } = calculateVwap(amount, bookToUse);
-
-        const result: ExecutionPreview = {
-            success: true,
-            vwap: parseFloat(vwap.toFixed(4)),
-            summary,
-            steps,
-            fillRatio,
-            quality_score: fillRatio, // Simplified quality score
-            price_impact_pct: 0, // Placeholder
+        const response: ExecutionPreview = {
+            ...result,
             timestamp: new Date().toISOString()
         };
 
-        return NextResponse.json(result, { status: 200 });
+        return NextResponse.json(response, { status: 200 });
 
     } catch (error) {
         console.error('[API /execution-analysis] Error:', error);

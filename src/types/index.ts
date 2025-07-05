@@ -219,12 +219,11 @@ export interface OrderBook {
 
 export interface ExecutionPreview {
   success: boolean;
-  steps?: string[];
-  summary?: string;
   vwap?: number;
   fillRatio?: number;
-  quality_score?: number;
   price_impact_pct?: number;
+  summary?: string;
+  steps?: string[];
   timestamp?: string;
   error?: string;
 }
