@@ -13,52 +13,72 @@ interface LiveMarketsResponse {
   total: number;
 }
 
-// Using a new cache key to ensure the old, incomplete data is not served.
-const LIVE_MARKETS_CACHE_KEY = 'cache:live_markets_data_v3';
-const LIVE_MARKETS_CACHE_TTL_SECONDS = 15; // Cache results for 15 seconds
+const LIVE_MARKETS_CACHE_KEY = 'cache:live_markets_data_v2';
+const LIVE_MARKETS_CACHE_TTL_SECONDS = 15; 
+
+/**
+ * Safely parses orderbook data that might be a JSON string or a pre-parsed object.
+ * @param data The raw orderbook data from Redis.
+ * @returns A structured OrderBook object or null if parsing fails.
+ */
+function parseOrderbook(data: any): OrderBook | null {
+  if (!data) return null;
+  
+  // If it's already an object with the expected structure, return it directly.
+  if (typeof data === 'object' && data.bids && data.asks) {
+    return data as OrderBook;
+  }
+  
+  // If it's a string, try to parse it.
+  if (typeof data === 'string') {
+    try {
+      return JSON.parse(data) as OrderBook;
+    } catch (error) {
+      console.error('Failed to parse orderbook JSON string:', error);
+      return null;
+    }
+  }
+  
+  // If it's neither a valid object nor a string, return null.
+  console.warn('Received orderbook data in an unexpected format:', typeof data);
+  return null;
+}
+
 
 /**
  * Parses and merges raw data from Redis hashes (`market:*` and `market_meta:*`)
- * into a structured LiveMarket object. This function is resilient to the backend
- * having metadata in a separate key.
+ * into a structured LiveMarket object.
  * @param marketData - The raw hash data from `market:{id}`.
  * @param metaData - The raw hash data from `market_meta:{id}`.
  * @returns A structured LiveMarket object or null if data is invalid.
  */
 function parseAndMergeMarketData(marketData: Record<string, any>, metaData: Record<string, any>): LiveMarket | null {
-  // The 'question' from metaData is now the essential field.
   const question = metaData?.question;
-  // condition_id is also essential and can exist in either key.
-  const conditionId = marketData?.condition_id || metaData?.condition_id;
+  const conditionId = marketData?.condition_id;
 
   if (!question || !conditionId) {
-    console.warn('[MarketService] Skipping market build: Missing essential question from metaData or condition_id.', { conditionId, hasQuestion: !!question });
+    console.error('[MarketService] Skipping market build: Missing essential question from metaData or condition_id.', { conditionId, hasQuestion: !!question });
     return null;
   }
 
   try {
-    const orderbookYes: OrderBook | null = marketData.orderbook_yes ? JSON.parse(marketData.orderbook_yes) : null;
-    const orderbookNo: OrderBook | null = marketData.orderbook_no ? JSON.parse(marketData.orderbook_no) : null;
+    // Use the new safe parsing function
+    const orderbookYes: OrderBook | null = parseOrderbook(marketData.orderbook_yes);
+    const orderbookNo: OrderBook | null = parseOrderbook(marketData.orderbook_no);
 
     return {
       id: conditionId,
       question: question,
       category: metaData.category || 'General',
       endsAt: metaData.end_date ? new Date(metaData.end_date) : undefined,
-      imageUrl: `https://placehold.co/600x400.png`, // Placeholder as URL is not in metadata
+      imageUrl: `https://placehold.co/600x400.png`,
       aiHint: metaData.category?.toLowerCase() || question.split(' ').slice(0, 2).join(' ') || 'general',
-
-      // Pricing from marketData
       yesBuyPrice: parseFloat(marketData.yes_buy_price || '0'),
       yesSellPrice: parseFloat(marketData.yes_sell_price || '0'),
       noBuyPrice: parseFloat(marketData.no_buy_price || '0'),
       noSellPrice: parseFloat(marketData.no_sell_price || '0'),
-
-      // Odds from marketData
       yesImpliedProbability: parseFloat(marketData.market_odds_yes || '0.5'),
       noImpliedProbability: parseFloat(marketData.market_odds_no || '0.5'),
-
-      // Full order book data from marketData
       orderbook: (orderbookYes || orderbookNo) ? {
         yes: orderbookYes || { bids: [], asks: [] },
         no: orderbookNo || { bids: [], asks: [] },
@@ -72,21 +92,17 @@ function parseAndMergeMarketData(marketData: Record<string, any>, metaData: Reco
 }
 
 export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
-  // 1. Try cache
   try {
     const cachedData = await redis.get(LIVE_MARKETS_CACHE_KEY);
     if (cachedData) {
-      console.log(`[MarketService] CACHE HIT for live markets (v3).`);
       const allMarkets: LiveMarket[] = JSON.parse(cachedData as string);
       return { markets: allMarkets.slice(offset, offset + limit), total: allMarkets.length };
     }
   } catch (e) {
-    console.error('[MarketService] Failed to read from cache (v3), fetching from source.', e);
+    console.error('[MarketService] Failed to read from cache (v2), fetching from source.', e);
   }
 
-  console.log(`[MarketService] CACHE MISS (v3). Fetching live markets from Redis source.`);
   try {
-    // 2. Discover markets with SCAN on the `market:*` keys
     const marketKeys: string[] = [];
     let cursor = 0;
     do {
@@ -96,66 +112,51 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
     } while (cursor !== 0);
 
     if (marketKeys.length === 0) {
-      console.log("[MarketService] No 'market:*' keys found in Redis using SCAN. No markets to display.");
       return { markets: [], total: 0 };
     }
 
     const marketIds = marketKeys.map(key => key.replace('market:', ''));
-
-    // 3. Pipeline fetches from BOTH `market:*` and `market_meta:*` for each ID
     const pipeline = redis.pipeline();
     marketIds.forEach(id => {
       pipeline.hgetall(`market:${id}`);
-      pipeline.hgetall(`market_meta:${id}`); // Fetch legacy metadata
+      pipeline.hgetall(`market_meta:${id}`);
     });
     const results = await pipeline.exec<Record<string, any>[]>();
-
-    // 4. Parse and merge results
     const allMarkets: LiveMarket[] = [];
+
     for (let i = 0; i < marketIds.length; i++) {
       const marketData = results[i * 2];
       const metaData = results[i * 2 + 1];
-      
       if (marketData && metaData) {
         const market = parseAndMergeMarketData(marketData, metaData);
-        if (market) {
-          allMarkets.push(market);
-        }
-      } else {
-        // This log helps debug if one of the keys is missing for an ID
-        console.warn(`[MarketService] Incomplete data for market ID ${marketIds[i]}. Skipping.`, { hasMarketData: !!marketData, hasMetaData: !!metaData });
+        if (market) allMarkets.push(market);
       }
     }
 
-    // 5. Cache the full result if any markets were successfully parsed
     if (allMarkets.length > 0) {
       await redis.set(LIVE_MARKETS_CACHE_KEY, JSON.stringify(allMarkets), { ex: LIVE_MARKETS_CACHE_TTL_SECONDS });
-      console.log(`[MarketService] Successfully cached ${allMarkets.length} markets (v3) for ${LIVE_MARKETS_CACHE_TTL_SECONDS}s.`);
     }
 
     return { markets: allMarkets.slice(offset, offset + limit), total: allMarkets.length };
-
   } catch (error) {
-    console.error('[MarketService] A critical error occurred in getLiveMarkets (v3):', error);
+    console.error('[MarketService] A critical error occurred in getLiveMarkets (v2):', error);
     return { markets: [], total: 0 };
   }
 }
 
 export async function getMarketDetails(marketId: string): Promise<LiveMarket | null> {
-    try {
-        const pipeline = redis.pipeline();
-        pipeline.hgetall(`market:${marketId}`);
-        pipeline.hgetall(`market_meta:${marketId}`);
-        const [marketData, metaData] = await pipeline.exec<Record<string, any>[]>();
+  try {
+    const pipeline = redis.pipeline();
+    pipeline.hgetall(`market:${marketId}`);
+    pipeline.hgetall(`market_meta:${marketId}`);
+    const [marketData, metaData] = await pipeline.exec<Record<string, any>[]>();
 
-        if (!marketData || !metaData) {
-            console.warn(`[MarketService] No data found for single market fetch for ID: ${marketId}.`);
-            return null;
-        }
-        // Use the same resilient parsing function
-        return parseAndMergeMarketData(marketData, metaData);
-    } catch (error) {
-        console.error(`[MarketService] A critical error occurred in getMarketDetails for ID ${marketId}:`, error);
-        return null;
+    if (!marketData || !metaData) {
+      return null;
     }
+    return parseAndMergeMarketData(marketData, metaData);
+  } catch (error) {
+    console.error(`[MarketService] A critical error occurred in getMarketDetails for ID ${marketId}:`, error);
+    return null;
+  }
 }
