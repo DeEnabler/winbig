@@ -2,19 +2,6 @@ import 'server-only';
 import getRedisClient from '@/lib/redis';
 import type { LiveMarket } from '@/types';
 
-// The architect has confirmed that market discovery via `KEYS` is not permitted in prod.
-// Instead, we fetch data for a known, tracked list of markets.
-// This is now managed via an environment variable for security and flexibility.
-const getTrackedMarketIds = (): string[] => {
-  const idsFromEnv = process.env.TRACKED_MARKET_IDS;
-  if (!idsFromEnv) {
-    console.warn("[MarketService] WARNING: TRACKED_MARKET_IDS env var is not set. No markets will be fetched.");
-    return [];
-  }
-  return idsFromEnv.split(',').map(id => id.trim()).filter(id => id);
-};
-
-
 interface GetLiveMarketsParams {
   limit?: number;
   offset?: number;
@@ -71,34 +58,48 @@ function constructMarket(
   };
 }
 
-
 /**
- * Fetches data for known, tracked markets directly from Redis without discovery.
- * This is the production-safe method that avoids using the `KEYS` command.
+ * Fetches data for markets by discovering them from Redis using the SCAN command.
+ * This is the recommended method that avoids using the KEYS command.
  */
 export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
   const redis = getRedisClient();
-  const allTrackedIds = getTrackedMarketIds();
-
-  // Paginate the hardcoded list of IDs
-  const paginatedMarketIds = allTrackedIds.slice(offset, offset + limit);
-
-  if (paginatedMarketIds.length === 0) {
-      console.log("[MarketService] No more tracked market IDs to fetch for the given offset.");
-      return { markets: [], total: allTrackedIds.length };
-  }
-
+  
   try {
+    // 1. Discover active markets from Redis keys using SCAN
+    const marketOddsKeys = [];
+    let cursor = 0;
+    do {
+      const [nextCursor, keys] = await redis.scan(cursor, { match: 'market_odds:*', count: 100 });
+      cursor = nextCursor;
+      marketOddsKeys.push(...keys);
+    } while (cursor !== 0);
+    
+    if (marketOddsKeys.length === 0) {
+      console.log("[MarketService] No markets found in Redis.");
+      return { markets: [], total: 0 };
+    }
+    
+    // Extract market IDs
+    const marketIds = marketOddsKeys.map(key => key.replace('market_odds:', ''));
+    
+    // Paginate the discovered IDs
+    const paginatedMarketIds = marketIds.slice(offset, offset + limit);
+
+    // 2. Build efficient pipeline to fetch all data
     const pipeline = redis.pipeline();
-    paginatedMarketIds.forEach(id => {
-      pipeline.hgetall(`market_odds:${id}`);
-      pipeline.hgetall(`market_meta:${id}`);
-      pipeline.hgetall(`token_price:${id}:Yes`);
-      pipeline.hgetall(`token_price:${id}:No`);
+    
+    paginatedMarketIds.forEach(marketId => {
+      pipeline.hgetall(`market_odds:${marketId}`);
+      pipeline.hgetall(`market_meta:${marketId}`);
+      pipeline.hgetall(`token_price:${marketId}:Yes`);
+      pipeline.hgetall(`token_price:${marketId}:No`);
     });
-
+    
+    // 3. Execute pipeline and process results
     const results = await pipeline.exec();
-
+    
+    // 4. Build market objects
     const markets: LiveMarket[] = [];
     for (let i = 0; i < paginatedMarketIds.length; i++) {
       const marketId = paginatedMarketIds[i];
@@ -112,9 +113,9 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
         markets.push(market);
       }
     }
-
-    console.log(`[MarketService] Successfully constructed ${markets.length} of ${paginatedMarketIds.length} requested markets. Source: Redis (Direct Fetch).`);
-    return { markets, total: allTrackedIds.length };
+    
+    console.log(`[MarketService] Successfully constructed ${markets.length} of ${paginatedMarketIds.length} requested markets. Source: Redis (Dynamic Discovery).`);
+    return { markets, total: marketIds.length };
 
   } catch (error) {
     console.error('[MarketService] A critical error occurred in getLiveMarkets:', error);
