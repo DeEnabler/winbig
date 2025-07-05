@@ -14,9 +14,6 @@ interface LiveMarketsResponse {
   total: number;
 }
 
-const LIVE_MARKETS_CACHE_KEY = 'cache:live_markets_data_v2';
-const LIVE_MARKETS_CACHE_TTL_SECONDS = 15; 
-
 /**
  * Safely parses orderbook data that might be a JSON string or a pre-parsed object.
  * @param data The raw orderbook data from Redis.
@@ -93,16 +90,8 @@ function parseAndMergeMarketData(marketData: Record<string, any>, metaData: Reco
 }
 
 export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
-  try {
-    const cachedData = await redis.get(LIVE_MARKETS_CACHE_KEY);
-    if (cachedData) {
-      const allMarkets: LiveMarket[] = JSON.parse(cachedData as string);
-      return { markets: allMarkets.slice(offset, offset + limit), total: allMarkets.length };
-    }
-  } catch (e) {
-    console.error('[MarketService] Failed to read from cache (v2), fetching from source.', e);
-  }
-
+  // Caching logic removed to comply with read-only token permissions.
+  // This function will now fetch directly from Redis on every call.
   try {
     const marketKeys: string[] = [];
     let cursor = 0;
@@ -132,10 +121,6 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
         const market = parseAndMergeMarketData(marketData, metaData);
         if (market) allMarkets.push(market);
       }
-    }
-
-    if (allMarkets.length > 0) {
-      await redis.set(LIVE_MARKETS_CACHE_KEY, JSON.stringify(allMarkets), { ex: LIVE_MARKETS_CACHE_TTL_SECONDS });
     }
 
     return { markets: allMarkets.slice(offset, offset + limit), total: allMarkets.length };
