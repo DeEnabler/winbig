@@ -1,5 +1,5 @@
 import 'server-only';
-import redis from '@/lib/redis'; // Simplified import
+import redis from '@/lib/redis';
 import type { LiveMarket } from '@/types';
 
 interface GetLiveMarketsParams {
@@ -11,16 +11,6 @@ interface LiveMarketsResponse {
   markets: LiveMarket[];
   total: number;
 }
-
-// Helper to get hardcoded market IDs (the correct way for this project)
-const getTrackedMarketIds = (): string[] => {
-  const idsFromEnv = process.env.TRACKED_MARKET_IDS;
-  if (!idsFromEnv) {
-    console.error("[MarketService] WARNING: TRACKED_MARKET_IDS env var is not set. No markets will be fetched.");
-    return [];
-  }
-  return idsFromEnv.split(',').map(id => id.trim()).filter(id => id);
-};
 
 function constructMarket(
   marketId: string,
@@ -80,21 +70,27 @@ function constructMarket(
 }
 
 export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
-  const allTrackedIds = getTrackedMarketIds();
-  const total = allTrackedIds.length;
-
-  if (total === 0) {
-    return { markets: [], total: 0 };
-  }
-
-  const paginatedMarketIds = allTrackedIds.slice(offset, offset + limit);
-
-  if (paginatedMarketIds.length === 0) {
-    console.log("[MarketService] No more tracked market IDs to fetch for the given offset or no IDs were configured.");
-    return { markets: [], total };
-  }
-  
   try {
+    // 1. Discover active markets from Redis keys
+    const marketOddsKeys = await redis.keys('market_odds:*');
+
+    if (!marketOddsKeys || marketOddsKeys.length === 0) {
+      console.log("[MarketService] No market_odds keys found in Redis. No markets to display.");
+      return { markets: [], total: 0 };
+    }
+    
+    // Extract market IDs
+    const allMarketIds = marketOddsKeys.map(key => key.replace('market_odds:', ''));
+    const total = allMarketIds.length;
+
+    const paginatedMarketIds = allMarketIds.slice(offset, offset + limit);
+
+    if (paginatedMarketIds.length === 0) {
+      console.log("[MarketService] No more market IDs to fetch for the given offset.");
+      return { markets: [], total };
+    }
+
+    // 2. Build efficient pipeline to fetch all data
     const pipeline = redis.pipeline();
     paginatedMarketIds.forEach(marketId => {
       pipeline.hgetall(`market_odds:${marketId}`);
@@ -103,8 +99,10 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
       pipeline.hgetall(`token_price:${marketId}:No`);
     });
 
+    // 3. Execute pipeline and process results
     const results = await pipeline.exec();
     
+    // 4. Build market objects
     const markets: LiveMarket[] = [];
     for (let i = 0; i < paginatedMarketIds.length; i++) {
       const marketId = paginatedMarketIds[i];
@@ -124,6 +122,7 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
 
   } catch (error) {
     console.error('[MarketService] A critical error occurred in getLiveMarkets:', error);
+    // In case of error (e.g. Redis unavailable), return empty
     return { markets: [], total: 0 };
   }
 }
