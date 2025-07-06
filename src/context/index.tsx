@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createAppKit, type AppKitModal } from '@reown/appkit/react';
 import type { ReactNode } from 'react';
 import { cookieToInitialState, WagmiProvider, type Config } from 'wagmi';
+import { EntryContextProvider } from '@/contexts/EntryContext';
 
 const queryClient = new QueryClient();
 
@@ -94,7 +95,7 @@ export default function ContextProvider({ children, cookies }: { children: React
   return (
     <WagmiProvider config={wagmiAdapter.wagmiConfig as Config} initialState={initialState}>
       <QueryClientProvider client={queryClient}>
-        {children}
+        <EntryContextProvider>{children}</EntryContextProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );

@@ -4,7 +4,6 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import AppLayout from '@/components/layout/AppLayout';
-import { EntryContextProvider } from '@/contexts/EntryContext';
 import { Suspense } from 'react';
 import ContextProvider from '@/context/index';
 import { cookies } from 'next/headers'; // Import cookies
@@ -45,11 +44,9 @@ export default async function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}>
         <ContextProvider cookies={rawCookieHeader}>
           <Suspense fallback={<div>Loading context...</div>}>
-            <EntryContextProvider>
-                <AppLayout>
-                  {children}
-                </AppLayout>
-            </EntryContextProvider>
+            <AppLayout>
+              {children}
+            </AppLayout>
           </Suspense>
         </ContextProvider>
         <Toaster />
