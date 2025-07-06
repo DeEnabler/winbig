@@ -1,3 +1,4 @@
+
 // src/app/api/execution-analysis/route.ts
 import { type NextRequest, NextResponse } from 'next/server';
 import redis from '@/lib/redis';
@@ -88,9 +89,12 @@ export async function GET(req: NextRequest) {
         const marketKey = `market:${conditionId}`;
         const orderbookField = outcome.toLowerCase() === 'yes' ? 'orderbook_yes' : 'orderbook_no';
         
+        console.log(`Fetching data for market: ${marketKey}, field: ${orderbookField}`);
         const orderbookString = await redis.hget(marketKey, orderbookField) as string | null;
+        console.log('Fetched orderbook string:', orderbookString);
 
         if (!orderbookString) {
+            console.log('Orderbook data not found in Redis.');
             return NextResponse.json({ 
                 success: false, 
                 error: `Order book data for outcome '${outcome}' not found for this market.` 
@@ -98,8 +102,10 @@ export async function GET(req: NextRequest) {
         }
 
         const orderbookData: OrderBook = JSON.parse(orderbookString);
+        console.log('Parsed orderbook data:', orderbookData);
         
         const result = calculateExecutionPrice(orderbookData, amount, side);
+        console.log('Calculation result:', result);
 
         const response: ExecutionPreview = {
             ...result,
