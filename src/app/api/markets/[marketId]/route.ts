@@ -7,9 +7,9 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   req: NextRequest,
-  context: { params: { marketId: string } }
+  { params }: { params: { marketId: string } }
 ) {
-  const { marketId } = context.params;
+  const { marketId } = params;
   console.log(`[API /markets/${marketId}] Request received`);
 
   if (!marketId) {
