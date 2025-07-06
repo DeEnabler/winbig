@@ -1,0 +1,25 @@
+This project is a full-stack web application built with Next.js for the frontend and Firebase Functions for the backend. It integrates with Web3 technologies for wallet connections and likely for interacting with a decentralized prediction market, suggested by the 'polymarket-sdk'.
+
+**Main Components:**
+
+*   **Frontend (Next.js):** Located in the `src/` directory, the frontend is built with React and TypeScript.
+    *   `src/app/`: Contains the main pages of the application, including a home page, challenge pages, a leaderboard, and a detailed view for "matches" or markets.
+    *   `src/components/`: A collection of reusable React components, organized by feature (e.g., `wallet`, `homepage`, `match`). It uses a UI library (`@radix-ui`) for common elements.
+    *   `src/lib/polymarket-sdk/`: This is a crucial and complex module responsible for all interactions with the Polymarket platform. It handles authentication, data fetching, and likely trade execution.
+    *   `src/ai/`: This directory contains AI-powered features using Google's Genkit framework. It includes "flows" for generating predictions and social media messages.
+
+*   **Backend (Firebase/Next.js API):**
+    *   `firebase/functions/`: A dedicated backend service running on Firebase Cloud Functions. It appears to be a standard Node.js/Express application.
+    *   `src/app/api/`: The Next.js backend, which provides API endpoints for fetching market data, live odds, and handling user bets.
+
+*   **Web3 Integration:** The application uses `wagmi` and `viem` to connect to users' crypto wallets, which is a standard and critical part of the user experience.
+
+**Overly Complex Area:**
+
+*   The `src/lib/polymarket-sdk/` directory appears to be the most complex part of the codebase. It contains specialized logic for interacting with an external service, including credential management and a live market service. The complexity is necessary given its function, but it requires careful handling.
+
+**Potential Risks:**
+
+*   **`src/lib/polymarket-sdk/`:** This is a high-risk area. Any bugs in this module could lead to incorrect data display, failed transactions, or financial loss for users. The authentication logic (`polymarket-auth.ts`) is particularly sensitive and should not be modified without a deep understanding of the system.
+*   **Wallet-Related Components (`src/components/wallet/`, `src/config/walletConfig.ts`):** Any code that interacts with user wallets is extremely sensitive. A vulnerability here could lead to the compromise of user funds. Changes should be heavily scrutinized and tested.
+*   **API Routes (`src/app/api/` and `firebase/functions/`):** The backend endpoints, especially those handling bets (`/api/bets/route.ts`), are critical. They must have robust validation and error handling to prevent abuse or data corruption.

@@ -8,23 +8,21 @@ if (!url || !token) {
   throw new Error('CRITICAL: Redis credentials are not set in environment variables (UPSTASH_REDIS_REST_URL and a TOKEN are required).');
 }
 
-// This creates a single, cached instance of the Redis client that is shared across the entire application.
-// The Node.js module cache handles the singleton pattern automatically, which is more robust than using a global variable.
-const redis = new Redis({ url, token });
+// Declare a uniquely named global variable to hold the Redis instance.
+declare global {
+  // eslint-disable-next-line no-var
+  var __redisClient: Redis | undefined;
+}
+
+// Initialize the client only if it doesn't already exist on the global object.
+// This pattern prevents re-initialization during Next.js hot-reloading in development.
+if (!globalThis.__redisClient) {
+  globalThis.__redisClient = new Redis({
+    url: url,
+    token: token,
+  });
+}
+
+const redis = globalThis.__redisClient;
 
 export default redis;
-
-/**
- * Checks the configuration status of the Redis client.
- * Since @upstash/redis is connectionless (HTTP-based), this primarily checks if credentials are provided.
- */
-export function getRedisStatus() {
-  const isConfigured = !!(url && token);
-  return {
-    // "connected" means it's configured and ready to send requests.
-    connected: isConfigured,
-    status: isConfigured ? 'configured (http/rest)' : 'not configured',
-    // Error handling is per-request, so there's no persistent connection error state.
-    lastError: null,
-  };
-}
