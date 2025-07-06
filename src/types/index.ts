@@ -1,3 +1,4 @@
+// src/types/index.ts
 
 
 // This is the new, flattened structure for a live market, derived from the single Redis hash.
@@ -219,11 +220,14 @@ export interface OrderBook {
 
 export interface ExecutionPreview {
   success: boolean;
+  timestamp?: string;
+  error?: string;
+  // Successful execution fields
   vwap?: number;
-  fillRatio?: number;
+  totalCost?: number;
+  executedShares?: number;
+  potentialPayout?: number;
   price_impact_pct?: number;
   summary?: string;
   steps?: string[];
-  timestamp?: string;
-  error?: string;
 }

@@ -1,4 +1,3 @@
-
 // src/components/match/MatchViewClient.tsx
 'use client';
 
@@ -8,7 +7,7 @@ import NextImage from 'next/image';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Share2, ArrowLeft, TrendingUp, CheckCircle, Sparkles, Loader2, Info } from 'lucide-react';
+import { Share2, ArrowLeft, TrendingUp, CheckCircle, Sparkles, Loader2, Info, ShoppingCart } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useEffect, useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -72,8 +71,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   
   const [executionPreview, setExecutionPreview] = useState<ExecutionPreview | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
-  const [usingFallbackPrice, setUsingFallbackPrice] = useState(false);
-
+  
   const debouncedBetAmount = useDebounce(betAmountState, 300);
 
   useEffect(() => {
@@ -83,56 +81,29 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     }
 
     setIsLoadingPreview(true);
-    setUsingFallbackPrice(false);
-
+    
+    // The 'amount' param is now treated as dollars by the backend
     const apiUrl = `/api/execution-analysis?condition_id=${match.predictionId}&outcome=${selectedChoice}&amount=${debouncedBetAmount}&side=BUY`;
 
     fetch(apiUrl)
-      .then(res => res.json())
-      .then((data: ExecutionPreview) => {
-        if (data.success) {
-          setExecutionPreview(data);
-        } else {
-          console.warn("Execution preview fetch failed, using fallback pricing. Reason:", data.error);
-          setExecutionPreview(null);
-          setUsingFallbackPrice(true);
+      .then(res => {
+        if (!res.ok) {
+          return res.json().then(err => { throw new Error(err.error || 'API Error') });
         }
+        return res.json();
+      })
+      .then((data: ExecutionPreview) => {
+        setExecutionPreview(data); // data can be {success: false, error: "..."}
       })
       .catch(err => {
         console.error("Critical execution preview fetch error:", err);
-        setExecutionPreview(null);
-        setUsingFallbackPrice(true);
+        setExecutionPreview({ success: false, error: err.message || 'Could not fetch preview.' });
       })
       .finally(() => {
         setIsLoadingPreview(false);
       });
 
   }, [debouncedBetAmount, selectedChoice, match.predictionId]);
-
-
-  const potentialPayout = useMemo(() => {
-    if (!selectedChoice) return '0.00';
-
-    if (executionPreview?.success && executionPreview.vwap && executionPreview.vwap > 0) {
-      let payout = betAmountState / executionPreview.vwap;
-      if (match.bonusApplied) {
-          payout *= 1.20;
-      }
-      return payout.toFixed(2);
-    }
-
-    // Fallback using the simple price from the match data.
-    const price = selectedChoice === 'YES' ? match.yesPrice : match.noPrice;
-    if (price > 0) {
-      let payout = betAmountState / price;
-      if (match.bonusApplied) {
-          payout *= 1.20;
-      }
-      return payout.toFixed(2);
-    }
-
-    return '0.00';
-  }, [betAmountState, selectedChoice, match.bonusApplied, executionPreview, match.yesPrice, match.noPrice, usingFallbackPrice]);
 
 
   const [isClient, setIsClient] = useState(false);
@@ -197,7 +168,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       const details: ShareMessageDetails = {
         predictionText: match.predictionText,
         betAmount: baseBetAmount,
-        potentialWinnings: parseFloat(potentialPayout),
+        potentialWinnings: executionPreview?.potentialPayout,
         opponentUsername: typeof match.opponent === 'string' ? match.opponent : match.opponent?.username || 'a Rival',
       };
       const result = await generateXShareMessage(details);
@@ -208,7 +179,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       setShareMessage(finalMessage);
     } catch (error) {
       console.error("Failed to generate share message:", error);
-      let defaultMsg = `I just bet $${match.userBet?.amount || betAmountState} that "${match.predictionText}"! Potential winnings: $${potentialPayout}! #WinBig`;
+      let defaultMsg = `I just bet $${match.userBet?.amount || betAmountState} that "${match.predictionText}"! Potential winnings: $${executionPreview?.potentialPayout?.toFixed(2)}! #WinBig`;
       if (match.bonusApplied || match.userBet?.bonusApplied) {
         defaultMsg += " (includes +20% Bonus!)";
       }
@@ -229,7 +200,10 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   };
   
   const handlePlaceBet = async () => {
-    if (!selectedChoice || !match.predictionId) return;
+    if (!selectedChoice || !match.predictionId || !executionPreview?.success) {
+      toast({ variant: "destructive", title: "Cannot Place Bet", description: "Please ensure your bet details are correct and the market is available." });
+      return;
+    }
     setIsBetting(true);
     toast({
         title: "Placing your bet...",
@@ -245,7 +219,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                 challengeMatchId: match.id,
                 predictionId: match.predictionId,
                 choice: selectedChoice,
-                amount: betAmountState,
+                amount: betAmountState, // Send the user's intended dollar amount
                 referrerName: match.originalReferrer,
                 bonusApplied: match.bonusApplied ?? false,
             }),
@@ -257,7 +231,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
 
         toast({
             title: "Bet Confirmed & Placed!",
-            description: `Your ${selectedChoice} bet for $${betAmountState} is in! Good luck!${result.data?.bonusApplied ? " Bonus applied!" : ""}`,
+            description: `Your ${selectedChoice} bet is in! Good luck!${result.data?.bonusApplied ? " Bonus applied!" : ""}`,
         });
 
         setMatch(prevMatch => ({
@@ -337,14 +311,14 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                     <Button 
                         onClick={() => setSelectedChoice('YES')} 
                         variant={selectedChoice === 'YES' ? 'default' : 'outline'}
-                        className={cn("h-14 text-xl font-bold border-2", selectedChoice === 'YES' && "border-primary bg-green-500/10 text-green-700 dark:text-green-300")}
+                        className={cn("h-14 text-xl font-bold border-2", selectedChoice === 'YES' && "border-green-500 bg-green-500/10 text-green-700 dark:text-green-300")}
                     >
                       YES
                     </Button>
                     <Button 
                         onClick={() => setSelectedChoice('NO')} 
-                        variant={selectedChoice === 'NO' ? 'destructive' : 'outline'}
-                        className={cn("h-14 text-xl font-bold border-2", selectedChoice === 'NO' && "border-destructive bg-red-500/10 text-red-700 dark:text-red-400")}
+                        variant={selectedChoice === 'NO' ? 'default' : 'outline'}
+                        className={cn("h-14 text-xl font-bold border-2", selectedChoice === 'NO' && "border-red-500 bg-red-500/10 text-red-700 dark:text-red-400")}
                     >
                       NO
                     </Button>
@@ -385,35 +359,43 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                     step={1}
                     value={[betAmountState]}
                     onValueChange={(value) => setBetAmountState(value[0])}
-                    disabled={isBetting}
+                    disabled={isBetting || !selectedChoice}
                   />
 
-                  <div className="text-center p-3 bg-muted/50 rounded-lg space-y-1.5 text-sm">
+                  <div className="text-center p-3 bg-muted/50 rounded-lg space-y-1.5 text-sm min-h-[100px] flex flex-col justify-center">
                       {isLoadingPreview && (
                         <div className="space-y-2">
-                          <Skeleton className="h-5 w-3/4 mx-auto" />
-                          <Skeleton className="h-4 w-1/2 mx-auto" />
+                          <Skeleton className="h-4 w-3/4 mx-auto" />
                           <Skeleton className="h-6 w-2/3 mx-auto" />
+                          <Skeleton className="h-4 w-1/2 mx-auto" />
                         </div>
                       )}
-                      {!isLoadingPreview && executionPreview?.success && (
-                        <>
-                          <div className="font-semibold">Avg. Price: <span className="text-primary">${executionPreview.vwap?.toFixed(4)}</span></div>
-                          <div className="text-xs text-muted-foreground">{executionPreview.summary}</div>
-                        </>
+                      {!isLoadingPreview && executionPreview && (
+                        executionPreview.success ? (
+                          <>
+                            <div className="text-xs text-muted-foreground">{executionPreview.summary}</div>
+                            <div className="text-lg font-bold">
+                              Potential Payout: <span className="text-green-600 dark:text-green-400">${executionPreview.potentialPayout?.toFixed(2)}</span>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              (Avg Price: ${executionPreview.vwap?.toFixed(4)}, Impact: {executionPreview.price_impact_pct?.toFixed(2)}%)
+                            </div>
+                            {match.bonusApplied && (
+                              <Badge variant="default" className="ml-2 bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90 text-xs">
+                                <Sparkles className="w-3 h-3 mr-1" /> +20% Bonus
+                              </Badge>
+                            )}
+                          </>
+                        ) : (
+                          <div className="text-destructive text-xs flex items-center justify-center gap-1.5"><Info className="w-3.5 h-3.5" /> {executionPreview.error}</div>
+                        )
                       )}
-                      {(usingFallbackPrice || (executionPreview && !executionPreview.success)) && (
-                         <div className="text-muted-foreground text-xs flex items-center justify-center gap-1.5"><Info className="w-3.5 h-3.5" /> {executionPreview?.error || "Using best available price."}</div>
+                      {!isLoadingPreview && !executionPreview && selectedChoice && (
+                        <div className="text-muted-foreground text-xs">Enter an amount to see payout.</div>
                       )}
-
-                      <div className="text-lg font-bold">
-                        Potential Payout: <span className="text-green-600 dark:text-green-400">${potentialPayout}</span>
-                        {match.bonusApplied && (
-                          <Badge variant="default" className="ml-2 bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90 text-xs">
-                            <Sparkles className="w-3 h-3 mr-1" /> +20% Bonus
-                          </Badge>
-                        )}
-                      </div>
+                      {!selectedChoice && (
+                         <div className="text-muted-foreground text-xs flex items-center justify-center gap-1.5"><ShoppingCart className="w-3.5 h-3.5" /> Please select YES or NO first.</div>
+                      )}
                   </div>
                 </div>
               </>
@@ -424,14 +406,16 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                     Bet Placed!
                   </p>
                   <p className="mt-2">You bet <span className="font-bold text-primary">${betAmountState} on {selectedChoice}</span>.</p>
-                  <p>
-                    Potential Payout: <span className="font-bold text-green-600 dark:text-green-400">${potentialPayout}</span>
-                    {match.bonusApplied && (
-                      <Badge variant="default" className="ml-2 bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90 text-xs">
-                        <Sparkles className="w-3 h-3 mr-1" /> +20% Bonus
-                      </Badge>
-                    )}
-                  </p>
+                  {executionPreview?.success && (
+                    <p>
+                      Potential Payout: <span className="font-bold text-green-600 dark:text-green-400">${executionPreview.potentialPayout?.toFixed(2)}</span>
+                      {match.bonusApplied && (
+                        <Badge variant="default" className="ml-2 bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90 text-xs">
+                          <Sparkles className="w-3 h-3 mr-1" /> +20% Bonus
+                        </Badge>
+                      )}
+                    </p>
+                  )}
                 </div>
             )}
 
@@ -450,8 +434,8 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                 <Share2 className="w-5 h-5 mr-2" /> Share Your Bet
              </Button>
            ) : (
-             <Button onClick={handlePlaceBet} disabled={isBetting || !selectedChoice || isLoadingPreview} size="lg" className="w-full bg-green-600 hover:bg-green-700 text-white animate-pulse-glow">
-                {isBetting ? "Placing Bet..." : (isLoadingPreview ? <Loader2 className="w-5 h-5 animate-spin" /> : "Place Bet")}
+             <Button onClick={handlePlaceBet} disabled={isBetting || !selectedChoice || isLoadingPreview || !executionPreview?.success} size="lg" className="w-full bg-green-600 hover:bg-green-700 text-white animate-pulse-glow">
+                {isBetting ? <><Loader2 className="w-5 h-5 animate-spin mr-2" />Placing Bet...</> : (isLoadingPreview ? <><Loader2 className="w-5 h-5 animate-spin mr-2" />Calculating...</> : "Place Bet")}
              </Button>
            )}
            <Button size="lg" variant="outline" className="w-full" asChild={isClient}>
