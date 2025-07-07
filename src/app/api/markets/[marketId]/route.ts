@@ -6,9 +6,9 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { marketId: string } }
+  { params }: { params: Promise<{ marketId: string }> }
 ) {
-  const { marketId } = params;
+  const { marketId } = await params;
   console.log(`[API /markets/${marketId}] Request received`);
 
   if (!marketId) {
