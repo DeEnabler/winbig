@@ -4,15 +4,9 @@ import { getMarketDetails } from '@/lib/marketService';
 
 export const dynamic = 'force-dynamic';
 
-type RouteContext = {
-  params: {
-    marketId: string;
-  };
-};
-
 export async function GET(
   req: NextRequest,
-  { params }: RouteContext
+  { params }: { params: { marketId: string } }
 ) {
   const { marketId } = params;
   console.log(`[API /markets/${marketId}] Request received`);
