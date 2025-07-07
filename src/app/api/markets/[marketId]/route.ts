@@ -1,13 +1,18 @@
-
 // src/app/api/markets/[marketId]/route.ts
 import { type NextRequest, NextResponse } from 'next/server';
 import { getMarketDetails } from '@/lib/marketService';
 
 export const dynamic = 'force-dynamic';
 
+type RouteContext = {
+  params: {
+    marketId: string;
+  };
+};
+
 export async function GET(
   req: NextRequest,
-  { params }: { params: { marketId: string } }
+  { params }: RouteContext
 ) {
   const { marketId } = params;
   console.log(`[API /markets/${marketId}] Request received`);
