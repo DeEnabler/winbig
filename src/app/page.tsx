@@ -10,17 +10,20 @@ export const dynamic = 'force-dynamic'; // Ensure the page is dynamically render
 
 // This is now an async Server Component
 export default async function HomePage() {
-  console.log("--- [Homepage] Server Component rendering ---");
+  console.log("--- VERCEL LOG: HomePage component rendering ---");
   let markets: LiveMarket[] = [];
   let error: string | null = null;
 
   try {
+    console.log("--- VERCEL LOG: HomePage attempting to fetch markets... ---");
     // Fetch data directly on the server
     const marketData = await getLiveMarkets({ limit: 3, offset: 0 });
     markets = marketData.markets;
+    console.log(`--- VERCEL LOG: HomePage successfully fetched ${markets.length} markets. ---`);
   } catch (e) {
     console.error("[HomePage] Failed to fetch markets on server:", e);
     error = e instanceof Error ? e.message : "An unknown error occurred.";
+    console.log(`--- VERCEL LOG: HomePage caught an error during fetch: ${error} ---`);
   }
 
   return (

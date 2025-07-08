@@ -19,7 +19,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  console.log("--- [Layout] RootLayout rendering on server ---");
+  console.log("--- VERCEL LOG: RootLayout rendering on server ---");
 
   return (
     <html lang="en" suppressHydrationWarning>
