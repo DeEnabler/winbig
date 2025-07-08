@@ -24,7 +24,6 @@ if (isProjectIdValid) {
   try {
     createAppKit({
       adapters: [wagmiAdapter],
-      enableAnalytics: false, // Explicitly set to false for diagnostics
       // You can add other AppKit options here, like:
       // themeMode: 'dark',
       // themeVariables: {
