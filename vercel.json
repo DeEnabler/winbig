@@ -1,9 +1,4 @@
 
 {
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "YOUR_FIREBASE_FUNCTION_URL_HERE/$1"
-    }
-  ]
+  "rewrites": []
 }
