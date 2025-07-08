@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { appKitModal } from '@/context/index'; // Adjusted import path
+import { useAppKit } from '@reown/appkit/react';
 
 function truncateAddress(address: string) {
   if (!address) return '';
@@ -23,18 +23,19 @@ function truncateAddress(address: string) {
 export default function ConnectWalletButton() {
   const { address, isConnected, chain } = useAccount();
   const { disconnect } = useDisconnect();
+  const { open } = useAppKit();
 
   const handleOpenModal = () => {
-    if (appKitModal && typeof appKitModal.open === 'function') {
-      console.log('[ConnectWalletButton] "Connect Wallet" button clicked. Attempting to call appKitModal.open().');
-      appKitModal.open();
+    if (open) {
+      console.log('[ConnectWalletButton] "Connect Wallet" button clicked. Attempting to call open().');
+      open();
     } else {
-      console.error('[ConnectWalletButton] appKitModal or appKitModal.open is not available. Reown AppKit might not be initialized.');
+      console.error('[ConnectWalletButton] open function is not available. Reown AppKit might not be initialized.');
       alert("Wallet connect service is not available. Please check configuration or console for errors.");
     }
   };
   
-  if (!appKitModal) {
+  if (!open) {
      return (
       <Button variant="outline" disabled size="lg" className="flex items-center space-x-2 border-destructive text-destructive rounded-lg">
         <AlertTriangle className="h-5 w-5" />
