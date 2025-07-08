@@ -28,7 +28,7 @@ const mockRecentBets = [
 
 export default function PersonalStatsLeaderboardPanel() {
   const currentUserRank = mockLeaderboardData.find(u => u.id === 'leader5')?.rank || 'N/A';
-  const totalWinnings = mockRecentBets.filter(b => b.outcome === 'WON').reduce((sum, bet) => sum + (bet.payout - bet.amount), 0);
+  const totalWinnings = mockRecentBets.filter(b => b.outcome === 'WON').reduce((sum, bet) => sum + ((bet.payout || 0) - bet.amount), 0);
 
   return (
     <section className="py-8 md:py-12">
