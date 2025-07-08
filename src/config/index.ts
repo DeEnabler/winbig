@@ -20,7 +20,7 @@ if (!projectId || projectId === 'undefined' || projectId === PLACEHOLDER_PROJECT
 }
 
 // Define the networks your app supports - adjust as needed
-export const networks = [mainnet, polygonAmoy, arbitrum] as const;
+export const networks = [mainnet, polygonAmoy, arbitrum] as [any, ...any[]];
 console.log('[Reown Config] Supported networks:', networks.map(n => n.name).join(', '));
 
 
