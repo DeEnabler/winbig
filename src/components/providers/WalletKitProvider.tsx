@@ -7,7 +7,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { WagmiProvider } from 'wagmi';
 import { createAppKit } from '@reown/appkit/react';
-import { wagmiConfig, chains, projectId as ImportedProjectId, metadata as ImportedMetadata } from '@/config';
+import { config as wagmiConfig, networks as chains, projectId as ImportedProjectId } from '@/config';
 
 const queryClient = new QueryClient();
 
@@ -24,7 +24,6 @@ if (isProjectIdValid) {
     wagmiConfig,
     projectId: effectiveProjectId, // This should be your WalletConnect Cloud Project ID
     chains,
-    metadata,
     enableAnalytics: false, // Explicitly setting to false for diagnostics
     // Other AppKit options can be added here:
     // themeMode: 'light',
@@ -40,7 +39,6 @@ if (isProjectIdValid) {
       wagmiConfig: wagmiConfig,
       projectId: effectiveProjectId,
       chains: chains,
-      metadata: metadata,
       enableAnalytics: false, // Explicitly set to false for diagnostics
       // You can add other AppKit options here, like:
       // themeMode: 'dark',
