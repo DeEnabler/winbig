@@ -7,7 +7,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { WagmiProvider } from 'wagmi';
 import { createAppKit } from '@reown/appkit/react';
-import { wagmiConfig, chains, projectId as ImportedProjectId, metadata as ImportedMetadata } from '@/config/walletConfig';
+import { wagmiConfig, chains, projectId as ImportedProjectId, metadata as ImportedMetadata } from '@/config';
 
 const queryClient = new QueryClient();
 
