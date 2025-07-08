@@ -9,6 +9,7 @@ import { WagmiProvider } from 'wagmi';
 import { createAppKit } from '@reown/appkit/react';
 import { wagmiAdapter, config as wagmiConfig, projectId as ImportedProjectId, networks } from '@/config';
 
+
 const queryClient = new QueryClient();
 
 const PLACEHOLDER_PROJECT_ID = 'your_wallet_connect_project_id_here'; // Or a more generic placeholder
