@@ -7,7 +7,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { WagmiProvider } from 'wagmi';
 import { createAppKit } from '@reown/appkit/react';
-import { wagmiAdapter, config as wagmiConfig, projectId as ImportedProjectId } from '@/config';
+import { wagmiAdapter, config as wagmiConfig, projectId as ImportedProjectId, networks } from '@/config';
 
 const queryClient = new QueryClient();
 
@@ -24,6 +24,8 @@ if (isProjectIdValid) {
   try {
     createAppKit({
       adapters: [wagmiAdapter],
+      projectId: effectiveProjectId,
+      networks,
       // You can add other AppKit options here, like:
       // themeMode: 'dark',
       // themeVariables: {
