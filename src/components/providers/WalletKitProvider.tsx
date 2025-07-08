@@ -7,7 +7,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { WagmiProvider } from 'wagmi';
 import { createAppKit } from '@reown/appkit/react';
-import { config as wagmiConfig, networks as chains, projectId as ImportedProjectId } from '@/config';
+import { wagmiAdapter, config as wagmiConfig, projectId as ImportedProjectId } from '@/config';
 
 const queryClient = new QueryClient();
 
@@ -20,25 +20,10 @@ const isProjectIdValid = effectiveProjectId && effectiveProjectId !== PLACEHOLDE
 
 if (isProjectIdValid) {
   // Log all parameters being passed to createAppKit for debugging
-  console.log('[AppKitProvider] Initializing AppKit. Config being passed:', {
-    wagmiConfig,
-    projectId: effectiveProjectId, // This should be your WalletConnect Cloud Project ID
-    chains,
-    enableAnalytics: false, // Explicitly setting to false for diagnostics
-    // Other AppKit options can be added here:
-    // themeMode: 'light',
-    // themeVariables: {
-    //   '--w3m-font-family': 'inherit', // Use app's font
-    //   '--w3m-accent': 'hsl(var(--primary))', // Use app's primary color
-    //   '--w3m-border-radius-master': 'var(--radius)', // Use app's border radius
-    //   // ... more theme variables
-    // },
-  });
+  console.log('[AppKitProvider] Initializing AppKit with adapter...');
   try {
     createAppKit({
-      wagmiConfig: wagmiConfig,
-      projectId: effectiveProjectId,
-      chains: chains,
+      adapter: wagmiAdapter,
       enableAnalytics: false, // Explicitly set to false for diagnostics
       // You can add other AppKit options here, like:
       // themeMode: 'dark',
