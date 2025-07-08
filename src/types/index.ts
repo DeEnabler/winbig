@@ -201,7 +201,7 @@ export interface ShareMessageDetails {
   betAmount?: number;
   finalAmount?: number;
   potentialWinnings?: number;
-  currency?: string;
+  currency: string;
   opponentUsername?: string;
   callToAction?: string;
 }

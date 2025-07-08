@@ -168,6 +168,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       const details: ShareMessageDetails = {
         predictionText: match.predictionText,
         outcomeDescription: `I'm betting ${selectedChoice || 'YES'} that`,
+        currency: '$',
         betAmount: baseBetAmount,
         potentialWinnings: executionPreview?.potentialPayout,
         opponentUsername: typeof match.opponent === 'string' ? match.opponent : match.opponent?.username || 'a Rival',
