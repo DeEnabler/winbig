@@ -10,18 +10,20 @@ import { mockCurrentUser, mockPredictions } from '@/lib/mockData';
 import { redirect } from 'next/navigation';
 
 type MatchPageProps = {
-  params: { matchId: string };
-  searchParams: { [key: string]: string | string[] | undefined };
+  params: Promise<{ matchId: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
 export async function generateMetadata(
   { params, searchParams }: MatchPageProps,
   parent: ResolvingMetadata
 ): Promise<Metadata> {
-  const matchId = params.matchId;
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
+  const matchId = resolvedParams.matchId;
 
   let predictionIdForOg: string | undefined;
-  const predictionIdSearchParam = searchParams.predictionId;
+  const predictionIdSearchParam = resolvedSearchParams.predictionId;
   if (typeof predictionIdSearchParam === 'string') {
     predictionIdForOg = predictionIdSearchParam;
   } else if (Array.isArray(predictionIdSearchParam) && predictionIdSearchParam.length > 0 && typeof predictionIdSearchParam[0] === 'string') {
@@ -41,7 +43,7 @@ export async function generateMetadata(
     };
   }
   
-  const ogData = await getMatchDetailsForOg(matchId, { ...searchParams, predictionId: predictionIdForOg });
+  const ogData = await getMatchDetailsForOg(matchId, { ...resolvedSearchParams, predictionId: predictionIdForOg });
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
   const ogImageUrl = new URL(`${appUrl}/api/og`);
@@ -59,9 +61,9 @@ export async function generateMetadata(
   if (ogData.rank) ogImageUrl.searchParams.set('rank', ogData.rank);
   if (ogData.rankCategory) ogImageUrl.searchParams.set('rankCategory', ogData.rankCategory);
 
-  const isInitialChallengeLink = searchParams.challenge === 'true' && searchParams.referrer && !searchParams.confirmChallenge;
+  const isInitialChallengeLink = resolvedSearchParams.challenge === 'true' && resolvedSearchParams.referrer && !resolvedSearchParams.confirmChallenge;
   let referrerForOg: string | undefined;
-  const referrerSearchParamForOg = searchParams.referrer;
+  const referrerSearchParamForOg = resolvedSearchParams.referrer;
   if (typeof referrerSearchParamForOg === 'string') {
     referrerForOg = referrerSearchParamForOg;
   } else if (Array.isArray(referrerSearchParamForOg) && referrerSearchParamForOg.length > 0) {
@@ -75,7 +77,7 @@ export async function generateMetadata(
   if (isInitialChallengeLink && referrerForOg) {
     title = `@${referrerForOg} challenged you on ViralBet: "${ogData.predictionText.substring(0, 40)}..."`;
     description = `Accept the challenge from @${referrerForOg} and bet on "${ogData.predictionText.substring(0,50)}..."!`;
-  } else if (searchParams.confirmChallenge === 'true' && referrerForOg) {
+  } else if (resolvedSearchParams.confirmChallenge === 'true' && referrerForOg) {
     title = `Confirm your bet against @${referrerForOg} on: "${ogData.predictionText.substring(0, 40)}..."`;
     description = `You've accepted @${referrerForOg}'s challenge. Confirm your ${ogData.userChoice} bet on "${ogData.predictionText.substring(0,50)}..."!`;
   }
@@ -87,7 +89,7 @@ export async function generateMetadata(
   
   const currentPath = `/match/${matchId}`;
   const queryForCanonical = new URLSearchParams();
-    for (const [key, value] of Object.entries(searchParams)) {
+    for (const [key, value] of Object.entries(resolvedSearchParams)) {
     if (value === undefined) continue;
     if (typeof value === 'string') {
       queryForCanonical.set(key, value);
@@ -134,21 +136,23 @@ function ChallengeInviteWrapper({ challengeProps }: { challengeProps: ChallengeI
 }
 
 export default async function MatchPage({ params, searchParams }: MatchPageProps) {
-  const matchId = params.matchId; 
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
+  const matchId = resolvedParams.matchId; 
 
   let referrer: string | undefined = undefined;
-  const referrerSearchParam = searchParams.referrer;
+  const referrerSearchParam = resolvedSearchParams.referrer;
   if (typeof referrerSearchParam === 'string' && referrerSearchParam.length > 0) {
     referrer = referrerSearchParam;
   } else if (Array.isArray(referrerSearchParam) && referrerSearchParam.length > 0 && typeof referrerSearchParam[0] === 'string' && referrerSearchParam[0].length > 0) {
     referrer = referrerSearchParam[0];
   }
 
-  const isInitialChallenge = searchParams.challenge === 'true' && !!referrer;
-  const isConfirmingChallenge = searchParams.confirmChallenge === 'true' && !!searchParams.choice && !!searchParams.predictionId;
+  const isInitialChallenge = resolvedSearchParams.challenge === 'true' && !!referrer;
+  const isConfirmingChallenge = resolvedSearchParams.confirmChallenge === 'true' && !!resolvedSearchParams.choice && !!resolvedSearchParams.predictionId;
   
   let predictionIdFromSearch: string | undefined;
-  const predIdSearchParam = searchParams.predictionId;
+  const predIdSearchParam = resolvedSearchParams.predictionId;
   if (typeof predIdSearchParam === 'string') {
     predictionIdFromSearch = predIdSearchParam;
   } else if (Array.isArray(predIdSearchParam) && predIdSearchParam.length > 0 && typeof predIdSearchParam[0] === 'string') {
@@ -182,9 +186,9 @@ export default async function MatchPage({ params, searchParams }: MatchPageProps
         <ChallengeInviteWrapper challengeProps={challengeProps} />
       </Suspense>
     );
-  } else { 
+      } else { 
     try {
-      const matchDisplayData = await getMatchDisplayData(matchId, searchParams);
+      const matchDisplayData = await getMatchDisplayData(matchId, resolvedSearchParams);
       return (
         <Suspense fallback={<div className="text-center p-10">Loading match details...</div>}>
           <MatchViewWrapper matchData={matchDisplayData} />

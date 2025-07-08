@@ -81,6 +81,7 @@ export interface PredictionCardProps {
   id: string;
   question: string;
   thumbnailUrl: string;
+  aiHint?: string; // Added aiHint property
   payoutTeaser: string;
   streakCount?: number;
   facePileCount?: number;

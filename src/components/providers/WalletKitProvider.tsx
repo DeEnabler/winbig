@@ -5,10 +5,10 @@
 import type { ReactNode } from 'react';
 import { WagmiProvider, cookieToInitialState, type Config } from 'wagmi'; // Import cookieToInitialState and Config
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createAppKit, type AppKitModal } from '@reown/appkit/react';
+import { createAppKit } from '@reown/appkit/react';
 import { wagmiAdapter, projectId as ImportedProjectId, appKitNetworks as ImportedAppKitNetworks, metadata as ImportedMetadata } from '@/config/walletConfig';
 
-let appKitModalInstance: AppKitModal | null = null;
+let appKitModalInstance: any | null = null;
 const PLACEHOLDER_PROJECT_ID = 'your_wallet_connect_project_id_here';
 
 const isProjectIdMissing = !ImportedProjectId;
@@ -29,7 +29,7 @@ if (!isProjectIdMissing && !isProjectIdPlaceholder && !isWagmiAdapterInvalid) {
     appKitModalInstance = createAppKit({
       adapters: [wagmiAdapter!],
       projectId: ImportedProjectId!,
-      networks: ImportedAppKitNetworks,
+      networks: ImportedAppKitNetworks as [any, ...any[]],
       defaultNetwork: ImportedAppKitNetworks[0] || undefined,
       metadata: ImportedMetadata,
       features: { analytics: false } 

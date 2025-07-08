@@ -29,7 +29,7 @@ export default async function RootLayout({ // Made this function async
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const cookie = headers().get('cookie'); // Get cookies
+  const cookie = (await headers()).get('cookie'); // Get cookies with await
 
   return (
     <html lang="en" suppressHydrationWarning>

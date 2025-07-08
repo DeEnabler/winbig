@@ -2,7 +2,8 @@
 // src/config/walletConfig.ts
 'use client'; // Ensures client-side execution for environment variable access
 
-import { cookieStorage, createStorage, noopStorage, type Chain } from 'wagmi';
+import { cookieStorage, createStorage, noopStorage } from 'wagmi';
+import { type Chain } from 'viem';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 // Import Reown AppKit chains for initial logging, then we'll use a manual one
 import { mainnet as reownMainnet, arbitrum as reownArbitrum, polygonAmoy as reownPolygonAmoy } from '@reown/appkit/networks';
@@ -76,4 +77,4 @@ export const wagmiAdapter = new WagmiAdapter({
 
 export const wagmiConfig = wagmiAdapter.wagmiConfig;
 
-export const chains = appKitNetworks as readonly [Chain, ...Chain[]];
+export const chains = appKitNetworks as readonly [Chain, ...Chain[]] | readonly Chain[];

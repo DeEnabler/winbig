@@ -89,6 +89,7 @@ export const getMockMatch = (predictionId: string): Match => {
   return {
     id: `match-${predictionId}-${Date.now()}`,
     predictionText: prediction.text,
+    predictionId: predictionId, // Added missing predictionId property
     user1Username: mockCurrentUser.username,
     user1AvatarUrl: mockCurrentUser.avatarUrl,
     user2Username: mockOpponentUser.username,
