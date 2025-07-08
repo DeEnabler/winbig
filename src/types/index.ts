@@ -197,7 +197,7 @@ export interface OpenPosition {
 
 export interface ShareMessageDetails {
   predictionText: string;
-  outcomeDescription?: string;
+  outcomeDescription: string;
   betAmount?: number;
   finalAmount?: number;
   potentialWinnings?: number;
