@@ -23,7 +23,7 @@ if (isProjectIdValid) {
   console.log('[AppKitProvider] Initializing AppKit with adapter...');
   try {
     createAppKit({
-      adapter: wagmiAdapter,
+      adapters: [wagmiAdapter],
       enableAnalytics: false, // Explicitly set to false for diagnostics
       // You can add other AppKit options here, like:
       // themeMode: 'dark',
