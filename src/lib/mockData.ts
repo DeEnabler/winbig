@@ -58,6 +58,7 @@ export const mockOpponentUser: User = {
 
 export const getMockMatch = (predictionId: string): Match => {
   const prediction = mockPredictions.find(p => p.id === predictionId) || mockPredictions[0];
+  const yesProb = Math.random() * 0.6 + 0.2; // Random probability between 0.2 and 0.8
   return {
     id: `match-${predictionId}-${Date.now()}`,
     predictionText: prediction.text,
@@ -70,6 +71,10 @@ export const getMockMatch = (predictionId: string): Match => {
     potentialWinnings: 190, // Example potential winnings (includes stake back)
     countdownEnds: Date.now() + (prediction.endsAt ? (prediction.endsAt.getTime() - Date.now()) : 3 * 60 * 60 * 1000), // 3 hours from now or prediction end
     shareUrl: typeof window !== 'undefined' ? `${window.location.origin}/match/match-${predictionId}-${Date.now()}` : `/match/match-${predictionId}-${Date.now()}`,
+    yesPrice: yesProb,
+    noPrice: 1 - yesProb,
+    yesImpliedProbability: yesProb,
+    noImpliedProbability: 1 - yesProb,
   };
 };
 
