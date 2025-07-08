@@ -8,18 +8,20 @@ import { getMatchDetailsForOg, getMatchDisplayData } from '@/lib/matchData';
 import { mockCurrentUser } from '@/lib/mockData'; 
 
 type MatchPageProps = {
-  params: { matchId: string };
-  searchParams: { [key: string]: string | string[] | undefined };
+  params: Promise<{ matchId: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
 export async function generateMetadata(
   { params, searchParams }: MatchPageProps,
   parent: ResolvingMetadata
 ): Promise<Metadata> {
-  const matchId = params.matchId;
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
+  const matchId = resolvedParams.matchId;
 
   // The predictionId in the search params IS the marketId for our purposes here.
-  const predictionIdForOg = searchParams.predictionId as string;
+  const predictionIdForOg = resolvedSearchParams.predictionId as string;
 
   if (!predictionIdForOg) {
     console.warn(`OG Metadata: predictionId missing for matchId: ${matchId}. Using generic OG.`);
@@ -30,7 +32,7 @@ export async function generateMetadata(
   }
   
   // This function now correctly fetches live data
-  const ogData = await getMatchDetailsForOg(matchId, { ...searchParams, predictionId: predictionIdForOg });
+  const ogData = await getMatchDetailsForOg(matchId, { ...resolvedSearchParams, predictionId: predictionIdForOg });
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
   const ogImageUrl = new URL(`${appUrl}/api/og`);
@@ -73,9 +75,12 @@ export async function generateMetadata(
 
 export default async function MatchPage({ params, searchParams }: MatchPageProps) {
     try {
+      const resolvedParams = await params;
+      const resolvedSearchParams = await searchParams;
+      
       // This function is now corrected to fetch live data from Redis.
       // The complex logic for challenges is removed to simplify and fix the core flow.
-      const matchDisplayData = await getMatchDisplayData(params.matchId, searchParams);
+      const matchDisplayData = await getMatchDisplayData(resolvedParams.matchId, resolvedSearchParams);
       
       return (
         <Suspense fallback={<div className="text-center p-10">Loading match details...</div>}>
