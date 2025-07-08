@@ -63,8 +63,8 @@ export default function HeroBetDisplay() {
           yesImpliedProbability: 0.5,
           noImpliedProbability: 0.5,
           endsAt: mockPredictions[0].endsAt,
-          imageUrl: mockPredictions[0].imageUrl,
-          aiHint: mockPredictions[0].aiHint
+          imageUrl: mockPredictions[0].imageUrl || 'https://placehold.co/600x400.png',
+          aiHint: mockPredictions[0].aiHint || 'prediction'
         };
         setMarket(fallbackMarket);
       }
@@ -82,8 +82,8 @@ export default function HeroBetDisplay() {
         yesImpliedProbability: 0.60,
         noImpliedProbability: 0.40,
         endsAt: mockPredictions[1].endsAt,
-        imageUrl: mockPredictions[1].imageUrl,
-        aiHint: mockPredictions[1].aiHint
+        imageUrl: mockPredictions[1].imageUrl || 'https://placehold.co/600x400.png',
+                  aiHint: mockPredictions[1].aiHint || 'prediction'
       };
       setMarket(fallbackMarket);
     } finally {
