@@ -15,7 +15,7 @@ import { motion } from 'framer-motion';
 import { useEntryContext } from '@/contexts/EntryContext';
 import { useToast } from '@/hooks/use-toast';
 import { useAccount } from 'wagmi';
-import { appKitModal } from '@/context/index';
+import { useAppKit } from '@reown/appkit/react';
 import { useState, useMemo } from 'react';
 import { generateXShareMessage } from '@/ai/flows/generate-x-share-message';
 import dynamic from 'next/dynamic';
@@ -32,6 +32,7 @@ function formatCurrency(amount: number, includeSign = true) {
 export default function PositionsPage() {
   const { toast } = useToast();
   const { isConnected } = useAccount();
+  const { open } = useAppKit();
   const [allPositions, setAllPositions] = useState<OpenPosition[]>(mockOpenPositions);
   const { appendEntryParams } = useEntryContext();
 
@@ -54,7 +55,7 @@ export default function PositionsPage() {
   const handleSellPosition = (positionId: string, sellValue: number) => {
     if (!isConnected) {
       toast({ title: "Connect Wallet", description: "Please connect your wallet to sell your position." });
-      if (appKitModal && typeof appKitModal.open === 'function') appKitModal.open();
+      if (open) open();
       return;
     }
     toast({ title: "Selling Position...", description: `Attempting to sell for ${formatCurrency(sellValue)}` });
@@ -71,7 +72,7 @@ export default function PositionsPage() {
   const handleCollectWinnings = (positionId: string, winnings: number) => {
     if (!isConnected) {
       toast({ title: "Connect Wallet", description: "Please connect your wallet to collect winnings." });
-      if (appKitModal && typeof appKitModal.open === 'function') appKitModal.open();
+      if (open) open();
       return;
     }
     toast({ title: "Collecting Winnings...", description: `Attempting to collect ${formatCurrency(winnings)}` });

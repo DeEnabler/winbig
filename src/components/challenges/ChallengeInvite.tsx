@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, Swords, ShieldCheck, Users, Zap, BarChartHorizontalBig, Clock, AlertTriangle, Crown, Coins, Info, Flame } from 'lucide-react';
 import { mockOpponentUser } from '@/lib/mockData';
 import { useAccount } from 'wagmi';
-import { appKitModal } from '@/context/index';
+import { useAppKit } from '@reown/appkit/react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { networks } from '@/config/index';
 import { Progress } from '@/components/ui/progress';
@@ -62,6 +62,7 @@ export default function ChallengeInvite({
   const { toast } = useToast();
   const { appendEntryParams } = useEntryContext();
   const { isConnected, address } = useAccount();
+  const { open } = useAppKit();
 
   const [pendingActionData, setPendingActionData] = useState<{
     userAction: 'with' | 'against';
@@ -254,19 +255,25 @@ export default function ChallengeInvite({
 
       toast({ title: toastTitle, description: toastDescription });
 
-      if (appKitModal && typeof appKitModal.open === 'function') {
-        appKitModal.open();
-      } else {
-        console.error('ChallengeInvite: appKitModal or appKitModal.open is not available.');
-        toast({
-          variant: "destructive",
-          title: "Wallet Error",
-          description: "Could not initiate wallet connection.",
-        });
-      }
+      if (open) open();
       return;
     }
     proceedWithNavigation(userAction, actualUserChoice, bonusAppliedForThisAction);
+  };
+
+  const handleWalletConnectAndEarn = () => {
+    const rewardAlreadyGiven = !!address && localStorage.getItem(REWARD_GIVEN_STORAGE_KEY) === address;
+    let toastTitle = "Connect Wallet";
+    let toastDescription = "Please connect your wallet.";
+    if(!rewardAlreadyGiven) {
+      toastTitle = "Connect & Get XP!";
+      toastDescription = `Connect your wallet to earn ${REWARD_AMOUNT} ${REWARD_CURRENCY}!`;
+    }
+    toast({
+      title: toastTitle,
+      description: toastDescription,
+    });
+    if (open) open();
   };
 
   const formatTime = (seconds: number) => {
@@ -292,6 +299,7 @@ export default function ChallengeInvite({
     return message;
   }, [referrerStats, referrerName]);
 
+  const totalBettors = yesBettors + noBettors;
 
   return (
     <>
