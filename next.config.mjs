@@ -1,7 +1,6 @@
 
-import type {NextConfig} from 'next';
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   transpilePackages: ['lucide-react'],
   /* config options here */
   typescript: {
@@ -19,6 +18,16 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
+  },
+  webpack: (config) => {
+    config.module.rules.push({
+      test: /\.worker\.js$/,
+      type: 'asset/resource',
+      generator: {
+        filename: 'static/chunks/[name].[hash].js',
+      },
+    });
+    return config;
   },
 };
 

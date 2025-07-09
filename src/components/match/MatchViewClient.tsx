@@ -11,7 +11,6 @@ import { Share2, ArrowLeft, TrendingUp, CheckCircle, Sparkles, Loader2, Info, Sh
 import { Progress } from '@/components/ui/progress';
 import { useEffect, useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { generateXShareMessage } from '@/ai/flows/generate-x-share-message';
 import Link from 'next/link';
 import ShareDialog from '@/components/sharing/ShareDialog';
 import { Slider } from '@/components/ui/slider';
@@ -163,33 +162,13 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     }
 
     setIsLoadingShareMessage(true);
-    try {
-      const baseBetAmount = match.userBet?.amount || betAmountState;
-      const details: ShareMessageDetails = {
-        predictionText: match.predictionText,
-        outcomeDescription: `I'm betting ${selectedChoice || 'YES'} that`,
-        currency: '$',
-        betAmount: baseBetAmount,
-        potentialWinnings: executionPreview?.potentialPayout,
-        opponentUsername: typeof match.opponent === 'string' ? match.opponent : match.opponent?.username || 'a Rival',
-      };
-      const result = await generateXShareMessage(details);
-      let finalMessage = result.shareMessage;
-      if (match.bonusApplied || match.userBet?.bonusApplied) {
-        finalMessage += " (+20% Bonus!)";
-      }
-      setShareMessage(finalMessage);
-    } catch (error) {
-      console.error("Failed to generate share message:", error);
-      let defaultMsg = `I just bet $${match.userBet?.amount || betAmountState} that "${match.predictionText}"! Potential winnings: $${executionPreview?.potentialPayout?.toFixed(2)}! #WinBig`;
-      if (match.bonusApplied || match.userBet?.bonusApplied) {
-        defaultMsg += " (includes +20% Bonus!)";
-      }
-      setShareMessage(defaultMsg);
-      toast({ variant: "destructive", title: "Error", description: "Could not generate AI share message. Using default." });
-    } finally {
-      setIsLoadingShareMessage(false);
+    // AI-generated message is now disabled. Using fallback.
+    let defaultMsg = `I just bet $${match.userBet?.amount || betAmountState} that "${match.predictionText}"! Potential winnings: $${executionPreview?.potentialPayout?.toFixed(2)}! #WinBig`;
+    if (match.bonusApplied || match.userBet?.bonusApplied) {
+      defaultMsg += " (includes +20% Bonus!)";
     }
+    setShareMessage(defaultMsg);
+    setIsLoadingShareMessage(false);
   };
 
   const openShareDialog = () => {

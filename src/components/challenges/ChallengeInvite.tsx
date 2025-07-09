@@ -12,9 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, Swords, ShieldCheck, Users, Zap, BarChartHorizontalBig, Clock, AlertTriangle, Crown, Coins, Info, Flame } from 'lucide-react';
 import { mockOpponentUser } from '@/lib/mockData';
 import { useAccount } from 'wagmi';
-import { useAppKit } from '@reown/appkit/react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { networks } from '@/config/index';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import BonusDisplay from './BonusDisplay';
@@ -62,7 +60,6 @@ export default function ChallengeInvite({
   const { toast } = useToast();
   const { appendEntryParams } = useEntryContext();
   const { isConnected, address } = useAccount();
-  const { open } = useAppKit();
 
   const [pendingActionData, setPendingActionData] = useState<{
     userAction: 'with' | 'against';
@@ -248,33 +245,38 @@ export default function ChallengeInvite({
         toastDescription = `Connect your wallet to proceed and earn ${REWARD_AMOUNT} ${REWARD_CURRENCY} instantly!`;
       }
        if (bonusAppliedForThisAction && !rewardAlreadyGiven) {
-        toastDescription += ` Your +${BONUS_PERCENTAGE}% bonus is also waiting!`;
-      } else if (bonusAppliedForThisAction) {
-        toastDescription += ` Your +${BONUS_PERCENTAGE}% bonus will be applied.`;
+        toastTitle = `Connect for Bonus & ${REWARD_AMOUNT} ${REWARD_CURRENCY}!`;
+        toastDescription = `Connect your wallet to lock in a +${BONUS_PERCENTAGE}% bonus and get free points!`;
       }
-
-      toast({ title: toastTitle, description: toastDescription });
-
-      if (open) open();
+      
+      toast({
+        title: toastTitle,
+        description: toastDescription,
+        duration: 8000
+      });
       return;
     }
+
     proceedWithNavigation(userAction, actualUserChoice, bonusAppliedForThisAction);
   };
 
   const handleWalletConnectAndEarn = () => {
-    const rewardAlreadyGiven = !!address && localStorage.getItem(REWARD_GIVEN_STORAGE_KEY) === address;
-    let toastTitle = "Connect Wallet";
-    let toastDescription = "Please connect your wallet.";
-    if(!rewardAlreadyGiven) {
-      toastTitle = "Connect & Get XP!";
-      toastDescription = `Connect your wallet to earn ${REWARD_AMOUNT} ${REWARD_CURRENCY}!`;
-    }
-    toast({
-      title: toastTitle,
-      description: toastDescription,
-    });
-    if (open) open();
-  };
+    // This function is now redundant as handleBetAction covers the logic.
+    // It can be removed or repurposed if needed.
+    // For now, we can have it just trigger the toast and open the modal.
+     const rewardAlreadyGiven = !!address && localStorage.getItem(REWARD_GIVEN_STORAGE_KEY) === address;
+      let toastTitle = "Connect Wallet";
+      let toastDescription = "Please connect your wallet to continue.";
+      if (!rewardAlreadyGiven) {
+        toastTitle = "Connect Wallet & Earn!";
+        toastDescription = `Connect your wallet to proceed and earn ${REWARD_AMOUNT} ${REWARD_CURRENCY} instantly!`;
+      }
+       toast({
+        title: toastTitle,
+        description: toastDescription,
+        duration: 8000
+      });
+  }
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);

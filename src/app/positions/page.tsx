@@ -15,9 +15,7 @@ import { motion } from 'framer-motion';
 import { useEntryContext } from '@/contexts/EntryContext';
 import { useToast } from '@/hooks/use-toast';
 import { useAccount } from 'wagmi';
-import { useAppKit } from '@reown/appkit/react';
 import { useState, useMemo } from 'react';
-import { generateXShareMessage } from '@/ai/flows/generate-x-share-message';
 import dynamic from 'next/dynamic';
 
 const ShareDialog = dynamic(() => import('@/components/sharing/ShareDialog'), {
@@ -32,7 +30,6 @@ function formatCurrency(amount: number, includeSign = true) {
 export default function PositionsPage() {
   const { toast } = useToast();
   const { isConnected } = useAccount();
-  const { open } = useAppKit();
   const [allPositions, setAllPositions] = useState<OpenPosition[]>(mockOpenPositions);
   const { appendEntryParams } = useEntryContext();
 
@@ -55,7 +52,6 @@ export default function PositionsPage() {
   const handleSellPosition = (positionId: string, sellValue: number) => {
     if (!isConnected) {
       toast({ title: "Connect Wallet", description: "Please connect your wallet to sell your position." });
-      if (open) open();
       return;
     }
     toast({ title: "Selling Position...", description: `Attempting to sell for ${formatCurrency(sellValue)}` });
@@ -72,7 +68,6 @@ export default function PositionsPage() {
   const handleCollectWinnings = (positionId: string, winnings: number) => {
     if (!isConnected) {
       toast({ title: "Connect Wallet", description: "Please connect your wallet to collect winnings." });
-      if (open) open();
       return;
     }
     toast({ title: "Collecting Winnings...", description: `Attempting to collect ${formatCurrency(winnings)}` });
@@ -155,29 +150,9 @@ export default function PositionsPage() {
     }
     setCurrentShareOgImageUrl(`${appUrl}/api/og?${ogParams.toString()}`);
     
-    try {
-      const shareDetails: ShareMessageDetails = {
-        predictionText: position.predictionText,
-        betAmount: position.betAmount,
-        outcomeDescription: outcomeDescriptionForShare,
-        finalAmount: finalAmountForShare,
-        currency: '$', 
-        callToAction: "What's your take? #WinBig"
-      };
-      const result = await generateXShareMessage(shareDetails);
-      let finalMessage = result.shareMessage;
-      if (position.bonusApplied && (position.status === 'SETTLED_WON' || position.status === 'COLLECTED' || position.status === 'LIVE' || position.status === 'ENDING_SOON')) {
-        const bonusAmount = (position.status === 'SETTLED_WON' || position.status === 'COLLECTED' ? (position.settledAmount || 0) * 0.2 / 1.2 : position.potentialPayout * 0.2 / 1.2).toFixed(0);
-        if (parseFloat(bonusAmount) > 0) finalMessage += ` (+${bonusAmount} Bonus!)`;
-      }
-      setCurrentShareMessage(finalMessage);
-    } catch (error) {
-      console.error("Failed to generate share message for position:", error);
-      setCurrentShareMessage(`Check out my position on "${position.predictionText}"! ${outcomeDescriptionForShare} #WinBig`);
-      toast({ variant: "destructive", title: "Error", description: "Could not generate AI share message. Using default." });
-    } finally {
-      setIsLoadingShareMessage(false);
-    }
+    // AI-generated message is now disabled. Using fallback.
+    setCurrentShareMessage(`Check out my position on "${position.predictionText}"! ${outcomeDescriptionForShare} #WinBig`);
+    setIsLoadingShareMessage(false);
   };
 
   return (

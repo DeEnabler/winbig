@@ -6,7 +6,6 @@ import { Gift, Zap, LogIn } from 'lucide-react'; // Added LogIn
 import { useEntryContext } from '@/contexts/EntryContext';
 import { useRouter } from 'next/navigation';
 import { useAccount } from 'wagmi';
-import { useAppKit } from '@reown/appkit/react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function StickyCtaBanner() {
@@ -14,21 +13,15 @@ export default function StickyCtaBanner() {
   const { appendEntryParams, source: entrySource } = useEntryContext();
   const { isConnected } = useAccount();
   const { toast } = useToast();
-  const { open } = useAppKit();
 
   const showBonusCTA = entrySource === 'x_promo'; // Example condition for bonus CTA
 
   const handleCTAClick = () => {
     if (!isConnected) {
-        if (open) {
-            toast({ 
-              title: showBonusCTA ? "Connect Wallet for Bonus!" : "Connect Wallet", 
-              description: showBonusCTA ? "Connect your wallet to claim your 10 SOL bonus and start betting!" : "Connect your wallet to start betting!" 
-            });
-            open();
-        } else {
-            toast({ variant: "destructive", title: "Error", description: "Wallet connection service not available." });
-        }
+      toast({ 
+        title: showBonusCTA ? "Connect Wallet for Bonus!" : "Connect Wallet", 
+        description: showBonusCTA ? "Connect your wallet to claim your 10 SOL bonus and start betting!" : "Connect your wallet to start betting! Wallet connection is temporarily disabled." 
+      });
     } else {
       // If connected, navigate to a primary betting area, e.g., the main challenge or feed.
       router.push(appendEntryParams('/challenge')); 

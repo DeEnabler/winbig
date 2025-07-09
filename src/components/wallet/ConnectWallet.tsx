@@ -13,7 +13,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useAppKit } from '@reown/appkit/react';
 
 function truncateAddress(address: string) {
   if (!address) return '';
@@ -23,27 +22,6 @@ function truncateAddress(address: string) {
 export default function ConnectWalletButton() {
   const { address, isConnected, chain } = useAccount();
   const { disconnect } = useDisconnect();
-  const { open } = useAppKit();
-
-  const handleOpenModal = () => {
-    if (open) {
-      console.log('[ConnectWalletButton] "Connect Wallet" button clicked. Attempting to call open().');
-      open();
-    } else {
-      console.error('[ConnectWalletButton] open function is not available. Reown AppKit might not be initialized.');
-      alert("Wallet connect service is not available. Please check configuration or console for errors.");
-    }
-  };
-  
-  if (!open) {
-     return (
-      <Button variant="outline" disabled className="flex items-center space-x-2 border-destructive text-destructive h-12 text-base rounded-lg">
-        <AlertTriangle className="w-5 h-5" />
-        <span>Wallet Disabled</span>
-      </Button>
-    );
-  }
-
 
   if (isConnected && address) {
     return (
@@ -82,14 +60,13 @@ export default function ConnectWalletButton() {
 
   return (
     <div className="flex flex-col items-center w-full">
-      {/* Trust text removed from here */}
       <Button
-        onClick={handleOpenModal}
-        size="lg" // Uses the updated lg size: h-12, text-base, rounded-lg
-        className="bg-primary hover:bg-primary/90 w-full shadow-md hover:shadow-lg transition-shadow animate-pulse-glow"
+        disabled
+        size="lg"
+        className="bg-primary hover:bg-primary/90 w-full shadow-md"
       >
         <LogIn className="mr-2 h-5 w-5" />
-        Connect Wallet
+        Connect Wallet (Disabled)
       </Button>
     </div>
   );
