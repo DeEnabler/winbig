@@ -1,7 +1,5 @@
 
 // src/config/index.ts
-'use client'; // Ensure this runs client-side where NEXT_PUBLIC_ vars are available
-
 import { cookieStorage, createStorage } from 'wagmi'; // Corrected import for wagmi v2
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { mainnet, polygonAmoy, arbitrum } from '@reown/appkit/networks';
