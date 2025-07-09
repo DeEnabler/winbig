@@ -2,57 +2,22 @@
 // src/components/providers/WalletKitProvider.tsx
 'use client';
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import dynamic from 'next/dynamic';
 import type { ReactNode } from 'react';
-import { useEffect } from 'react';
-import { WagmiProvider } from 'wagmi';
-import { createAppKit } from '@reown/appkit/react';
-import { wagmiAdapter, config as wagmiConfig, projectId as ImportedProjectId, networks } from '@/config';
 
-
-const queryClient = new QueryClient();
-
-const PLACEHOLDER_PROJECT_ID = 'your_wallet_connect_project_id_here';
-
-const effectiveProjectId = ImportedProjectId === 'undefined' ? undefined : ImportedProjectId;
-
-const isProjectIdValid = effectiveProjectId && effectiveProjectId !== PLACEHOLDER_PROJECT_ID && effectiveProjectId !== 'your_reown_project_id_here';
-
-let appKitInitialized = false;
+// Dynamically import the actual provider logic with SSR turned off
+const ClientOnlyWalletKit = dynamic(
+  () => import('./ClientOnlyWalletKit').then(mod => mod.ClientOnlyWalletKit),
+  {
+    ssr: false,
+    // Optional: add a loading component while the client-side code is loading
+    loading: () => <div style={{ display: 'none' }}>Loading Wallet...</div>
+  }
+);
 
 export function WalletKitProvider({ children }: { children: ReactNode }) {
-  useEffect(() => {
-    if (appKitInitialized) {
-      return;
-    }
-
-    if (isProjectIdValid) {
-      try {
-        console.log('[AppKitProvider] Initializing AppKit inside useEffect...');
-        createAppKit({
-          adapters: [wagmiAdapter],
-          projectId: effectiveProjectId,
-          networks,
-        });
-        appKitInitialized = true;
-        console.log('[AppKitProvider] AppKit created successfully inside useEffect.');
-      } catch (error) {
-        console.error('[AppKitProvider] Error calling createAppKit inside useEffect:', error);
-      }
-    } else {
-        if (!effectiveProjectId) {
-            console.error('[AppKitProvider] CRITICAL ERROR: NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is not defined. AppKit will not be initialized.');
-        } else if (effectiveProjectId === PLACEHOLDER_PROJECT_ID || effectiveProjectId === 'your_reown_project_id_here') {
-            console.error(`[AppKitProvider] CRITICAL ERROR: NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is still the placeholder value "${effectiveProjectId}". AppKit will not be initialized.`);
-        }
-    }
-  }, []);
-
-  return (
-    <WagmiProvider config={wagmiConfig}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    </WagmiProvider>
-  );
+  // The dynamically imported component will be rendered here on the client
+  return <ClientOnlyWalletKit>{children}</ClientOnlyWalletKit>;
 }
 
 export default WalletKitProvider;
