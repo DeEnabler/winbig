@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import AppLayout from '@/components/layout/AppLayout';
 import { Suspense } from 'react';
 import { WalletKitProvider } from '@/components/providers/WalletKitProvider';
+import { EntryContextProvider } from '@/contexts/EntryContext';
 
 export const dynamic = 'force-dynamic'; // Ensure dynamic rendering
 
@@ -26,9 +27,11 @@ export default async function RootLayout({
       <body className={`antialiased flex flex-col min-h-screen`}>
         <WalletKitProvider>
           <Suspense fallback={<div>Loading...</div>}>
-            <AppLayout>
-              {children}
-            </AppLayout>
+            <EntryContextProvider>
+              <AppLayout>
+                {children}
+              </AppLayout>
+            </EntryContextProvider>
           </Suspense>
         </WalletKitProvider>
         <Toaster />
