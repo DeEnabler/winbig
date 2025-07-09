@@ -12,60 +12,51 @@ import { wagmiAdapter, config as wagmiConfig, projectId as ImportedProjectId, ne
 
 const queryClient = new QueryClient();
 
-const PLACEHOLDER_PROJECT_ID = 'your_wallet_connect_project_id_here'; // Or a more generic placeholder
+const PLACEHOLDER_PROJECT_ID = 'your_wallet_connect_project_id_here';
 
-// Ensure ImportedProjectId is treated as potentially undefined initially
 const effectiveProjectId = ImportedProjectId === 'undefined' ? undefined : ImportedProjectId;
 
-const isProjectIdValid = effectiveProjectId && effectiveProjectId !== PLACEHOLDER_PROJECT_ID && effectiveProjectId !== 'your_reown_project_id_here'; // Added reown placeholder check for safety
+const isProjectIdValid = effectiveProjectId && effectiveProjectId !== PLACEHOLDER_PROJECT_ID && effectiveProjectId !== 'your_reown_project_id_here';
 
-if (isProjectIdValid) {
-  // Log all parameters being passed to createAppKit for debugging
-  console.log('[AppKitProvider] Initializing AppKit with adapter...');
-  try {
-    createAppKit({
-      adapters: [wagmiAdapter],
-      projectId: effectiveProjectId,
-      networks,
-      // You can add other AppKit options here, like:
-      // themeMode: 'dark',
-      // themeVariables: {
-      //   '--w3m-font-family': 'Roboto, sans-serif',
-      //   '--w3m-accent': '#A020F0', // Your primary purple
-      // }
-    });
-    console.log('[AppKitProvider] AppKit created successfully with analytics disabled.');
-  } catch (error) {
-    console.error('[AppKitProvider] Error calling createAppKit:', error);
-  }
-} else {
-  if (!effectiveProjectId) {
-    console.error('[AppKitProvider] CRITICAL ERROR: NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is not defined. AppKit will not be initialized.');
-  } else if (effectiveProjectId === PLACEHOLDER_PROJECT_ID || effectiveProjectId === 'your_reown_project_id_here') {
-    console.error(`[AppKitProvider] CRITICAL ERROR: NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is still the placeholder value "${effectiveProjectId}". AppKit will not be initialized.`);
-  } else {
-    console.warn('[AppKitProvider] createAppKit not called due to invalid or missing projectId. Current effectiveProjectId:', effectiveProjectId);
-  }
-}
+// This new state will track if AppKit has been initialized
+let appKitInitialized = false;
 
 export function WalletKitProvider({ children }: { children: ReactNode }) {
   const [isMounted, setIsMounted] = useState(false);
+
   useEffect(() => {
     setIsMounted(true);
-    console.log('[AppKitProvider] Component mounted.');
+    // Ensure this block runs only once and only on the client
+    if (isProjectIdValid && !appKitInitialized) {
+      console.log('[AppKitProvider] Initializing AppKit with adapter inside useEffect...');
+      try {
+        createAppKit({
+          adapters: [wagmiAdapter],
+          projectId: effectiveProjectId,
+          networks,
+        });
+        console.log('[AppKitProvider] AppKit created successfully inside useEffect.');
+        appKitInitialized = true; // Mark as initialized
+      } catch (error) {
+        console.error('[AppKitProvider] Error calling createAppKit inside useEffect:', error);
+      }
+    } else if (!appKitInitialized) {
+      if (!effectiveProjectId) {
+        console.error('[AppKitProvider] CRITICAL ERROR: NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is not defined. AppKit will not be initialized.');
+      } else if (effectiveProjectId === PLACEHOLDER_PROJECT_ID || effectiveProjectId === 'your_reown_project_id_here') {
+        console.error(`[AppKitProvider] CRITICAL ERROR: NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is still the placeholder value "${effectiveProjectId}". AppKit will not be initialized.`);
+      }
+    }
   }, []);
 
   if (!isMounted) {
-    console.log('[AppKitProvider] Not mounted yet, rendering null.');
-    return null; // Or a loading spinner
+    return null;
   }
 
   if (!isProjectIdValid) {
     console.warn("[AppKitProvider] WalletKitProvider rendered, but AppKit was not initialized due to invalid Project ID. Wallet functionality will be impaired.");
-    // Optionally render a message to the user or a disabled state
   }
 
-  console.log('[AppKitProvider] Rendering with WagmiProvider.');
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
