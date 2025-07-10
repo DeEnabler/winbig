@@ -1,8 +1,11 @@
 
 import { Redis } from '@upstash/redis';
 
+// The Vercel-Upstash integration provides environment variables that `fromEnv` is designed to parse automatically.
+// This is the most robust way to initialize the client in a Vercel environment.
 if (!process.env.UPSTASH_REDIS_REST_URL) {
-  throw new Error('CRITICAL: Redis credentials are not set in environment variables (UPSTASH_REDIS_REST_URL is required).');
+  // This error will be thrown during the build process or at server startup if the variable is missing.
+  throw new Error('CRITICAL: UPSTASH_REDIS_REST_URL environment variable is not set.');
 }
 
 // Declare a uniquely named global variable to hold the Redis instance.
@@ -11,9 +14,9 @@ declare global {
   var __redisClient: Redis | undefined;
 }
 
-// Initialize the client only if it doesn't already exist on the global object.
-// This pattern prevents re-initialization during Next.js hot-reloading in development.
+// This pattern prevents re-initializing the client during Next.js hot-reloading.
 if (!globalThis.__redisClient) {
+  // `fromEnv` will correctly handle the connection details provided by Vercel.
   globalThis.__redisClient = Redis.fromEnv();
 }
 
