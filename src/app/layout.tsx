@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 // import { Suspense } from 'react';
 // import { WalletKitProvider } from '@/components/providers/WalletKitProvider';
 // import { EntryClientProvider } from '@/components/providers/EntryClientProvider';
+import { EntryContextProvider } from '@/contexts/EntryContext';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,15 +15,15 @@ export const metadata: Metadata = {
   description: 'Instantly challenge others on high-emotion predictions. Swipe, bet, and share virally on X!',
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  console.log("--- VERCEL LOG: RootLayout rendering (EXTREMELY SIMPLIFIED) ---");
-
+  console.log('RootLayout initializing...');
   return (
     <html lang="en" suppressHydrationWarning>
+      <head />
       <body className={`antialiased flex flex-col min-h-screen`}>
         {/* All providers and layouts have been removed for debugging. */}
         <main>{children}</main>
