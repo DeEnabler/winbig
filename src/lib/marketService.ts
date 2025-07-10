@@ -93,28 +93,29 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
   // Caching logic removed to comply with read-only token permissions.
   // This function will now fetch directly from Redis on every call.
   try {
-    const marketKeys: string[] = [];
-    let cursor = 0;
-    do {
-      const [nextCursor, keys] = await redis.scan(cursor, { match: 'market:*', count: 100 });
-      marketKeys.push(...keys);
-      cursor = Number(nextCursor);
-    } while (cursor !== 0);
+    // Fetching keys from a dedicated 'active_market_ids' set instead of using SCAN.
+    // This is more performant and compatible with read-only credentials.
+    const marketIds = await redis.smembers('active_market_ids');
 
-    if (marketKeys.length === 0) {
+    if (marketIds.length === 0) {
       return { markets: [], total: 0 };
     }
 
-    const marketIds = marketKeys.map(key => key.replace('market:', ''));
+    const paginatedIds = marketIds.slice(offset, offset + limit);
+
+    if (paginatedIds.length === 0) {
+      return { markets: [], total: marketIds.length };
+    }
+
     const pipeline = redis.pipeline();
-    marketIds.forEach(id => {
+    paginatedIds.forEach(id => {
       pipeline.hgetall(`market:${id}`);
       pipeline.hgetall(`market_meta:${id}`);
     });
     const results = await pipeline.exec<Record<string, any>[]>();
     const allMarkets: LiveMarket[] = [];
 
-    for (let i = 0; i < marketIds.length; i++) {
+    for (let i = 0; i < paginatedIds.length; i++) {
       const marketData = results[i * 2];
       const metaData = results[i * 2 + 1];
       if (marketData && metaData) {
@@ -123,9 +124,9 @@ export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsP
       }
     }
 
-    return { markets: allMarkets.slice(offset, offset + limit), total: allMarkets.length };
+    return { markets: allMarkets, total: marketIds.length };
   } catch (error) {
-    console.error('[MarketService] A critical error occurred in getLiveMarkets (v2):', error);
+    console.error('[MarketService] A critical error occurred in getLiveMarkets (v3-smembers):', error);
     return { markets: [], total: 0 };
   }
 }
