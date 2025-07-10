@@ -1,18 +1,21 @@
 
-import type { Metadata } from 'next';
-import './globals.css';
-import { Toaster } from '@/components/ui/toaster';
-// import AppLayout from '@/components/layout/AppLayout';
-// import { Suspense } from 'react';
-// import { WalletKitProvider } from '@/components/providers/WalletKitProvider';
-// import { EntryClientProvider } from '@/components/providers/EntryClientProvider';
+import { GeistMono } from 'geist/font/mono';
+import { GeistSans } from 'geist/font/sans';
+import { Toaster } from 'sonner';
+import { Navbar } from '@/components/layout/Navbar';
+import { PageTransitionWrapper } from '@/components/layout/PageTransitionWrapper';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { EntryContextProvider } from '@/contexts/EntryContext';
+import { ClientSideWeb3ProviderLoader } from '@/components/providers/ClientSideWeb3ProviderLoader';
+import { cn } from '@/lib/utils';
+import './globals.css';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = {
-  title: 'ViralBet - DEBUG',
-  description: 'Instantly challenge others on high-emotion predictions. Swipe, bet, and share virally on X!',
+export const metadata = {
+  title: 'WinBig',
+  description: 'WinBig is a decentralized prediction market platform.',
 };
 
 export default function RootLayout({
@@ -20,14 +23,32 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  console.log('RootLayout initializing...');
   return (
     <html lang="en" suppressHydrationWarning>
       <head />
-      <body className={`antialiased flex flex-col min-h-screen`}>
-        {/* All providers and layouts have been removed for debugging. */}
-        <main>{children}</main>
-        <Toaster />
+      <body
+        className={cn(
+          'antialiased flex flex-col min-h-screen',
+          GeistSans.variable,
+          GeistMono.variable,
+        )}
+      >
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <EntryContextProvider>
+            <ClientSideWeb3ProviderLoader>
+              <AppLayout>
+                <Navbar />
+                <PageTransitionWrapper>{children}</PageTransitionWrapper>
+              </AppLayout>
+              <Toaster />
+            </ClientSideWeb3ProviderLoader>
+          </EntryContextProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
