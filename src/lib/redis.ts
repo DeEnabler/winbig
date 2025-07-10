@@ -1,4 +1,6 @@
 
+// src/lib/redis.ts
+// This file centralizes the Redis client initialization for the application.
 import { Redis } from '@upstash/redis';
 
 // The Vercel-Upstash integration provides environment variables that `fromEnv` is designed to parse automatically.
