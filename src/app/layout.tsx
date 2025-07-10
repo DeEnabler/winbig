@@ -2,12 +2,12 @@
 import { GeistMono } from 'geist/font/mono';
 import { GeistSans } from 'geist/font/sans';
 import { Toaster } from 'sonner';
-import { Navbar } from '@/components/layout/Navbar';
-import { PageTransitionWrapper } from '@/components/layout/PageTransitionWrapper';
-import { AppLayout } from '@/components/layout/AppLayout';
+import Navbar from '@/components/layout/Navbar';
+import PageTransitionWrapper from '@/components/layout/PageTransitionWrapper';
+import AppLayout from '@/components/layout/AppLayout';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { EntryContextProvider } from '@/contexts/EntryContext';
-import { ClientSideWeb3ProviderLoader } from '@/components/providers/ClientSideWeb3ProviderLoader';
+import { WalletKitProvider } from '@/components/providers/WalletKitProvider';
 import { cn } from '@/lib/utils';
 import './globals.css';
 
@@ -40,13 +40,13 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <EntryContextProvider>
-            <ClientSideWeb3ProviderLoader>
+            <WalletKitProvider>
               <AppLayout>
                 <Navbar />
                 <PageTransitionWrapper>{children}</PageTransitionWrapper>
               </AppLayout>
               <Toaster />
-            </ClientSideWeb3ProviderLoader>
+            </WalletKitProvider>
           </EntryContextProvider>
         </ThemeProvider>
       </body>

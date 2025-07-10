@@ -2,22 +2,42 @@
 // src/components/providers/WalletKitProvider.tsx
 'use client';
 
-import dynamic from 'next/dynamic';
-import type { ReactNode } from 'react';
+import React from 'react';
+import { WagmiProvider, createConfig, http } from 'wagmi';
+import { mainnet, polygon } from 'wagmi/chains';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ConnectKitProvider, getDefaultConfig } from 'connectkit';
 
-// Dynamically import the actual provider logic with SSR turned off
-const ClientOnlyWalletKit = dynamic(
-  () => import('./ClientOnlyWalletKit').then(mod => mod.ClientOnlyWalletKit),
-  {
-    ssr: false,
-    // Optional: add a loading component while the client-side code is loading
-    loading: () => <div style={{ display: 'none' }}>Loading Wallet...</div>
-  }
+const config = createConfig(
+  getDefaultConfig({
+    // Your dApps chains
+    chains: [mainnet, polygon],
+    transports: {
+      [mainnet.id]: http(),
+      [polygon.id]: http(),
+    },
+
+    // Required API Keys
+    walletConnectProjectId:
+      process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '',
+
+    // Required App Info
+    appName: 'WinBig',
+  }),
 );
 
-export function WalletKitProvider({ children }: { children: ReactNode }) {
-  // The dynamically imported component will be rendered here on the client
-  return <ClientOnlyWalletKit>{children}</ClientOnlyWalletKit>;
-}
+const queryClient = new QueryClient();
 
-export default WalletKitProvider;
+export const WalletKitProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
+  return (
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>
+        <ConnectKitProvider>{children}</ConnectKitProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
+  );
+};
