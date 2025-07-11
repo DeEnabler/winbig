@@ -1,3 +1,4 @@
+import type { AppKitNetwork } from '@reown/appkit/networks';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { mainnet, polygon } from '@reown/appkit/networks';
 import { cookieStorage, createStorage } from 'wagmi';
@@ -13,7 +14,7 @@ export const metadata = {
   icons: ['https://avatars.githubusercontent.com/u/179229932']
 };
 
-export const networks = [mainnet, polygon];
+export const networks = [mainnet, polygon] as [AppKitNetwork, ...AppKitNetwork[]];
 
 export const wagmiAdapter = new WagmiAdapter({
   storage: createStorage({

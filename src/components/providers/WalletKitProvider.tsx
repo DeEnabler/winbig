@@ -11,7 +11,6 @@ createAppKit({
   projectId,
   networks,
   metadata,
-  enableAnalytics: true,
   themeMode: 'dark',
 });
 
