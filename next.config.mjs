@@ -30,11 +30,27 @@ const nextConfig = {
       'utf-8-validate': 'commonjs utf-8-validate',
       bufferutil: 'commonjs bufferutil',
     });
-    config.module.rules.push({
+    config.module.rules.unshift({
       test: /\.(js|mjs)$/,
       include: /node_modules\/(wagmi|viem|connectkit)/,
       type: 'javascript/auto',
     });
+
+    function stringifySafe(obj) {
+      const seen = new WeakSet();
+      return JSON.stringify(obj, (key, value) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) {
+            return '[Circular]';
+          }
+          seen.add(value);
+        }
+        return value;
+      }, 2);
+    }
+    
+    console.log('Final Webpack Config:', stringifySafe(config));
+    
     return config;
   },
 };
