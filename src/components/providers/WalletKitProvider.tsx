@@ -3,7 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import { WagmiProvider, State } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createAppKit } from '@reown/appkit';
+import { createAppKit } from '@reown/appkit/react';
 import { config, wagmiAdapter, projectId, networks } from './wagmi-config';
 
 const queryClient = new QueryClient();
@@ -18,7 +18,7 @@ export const WalletKitProvider = ({
   const initialized = useRef(false);
 
   useEffect(() => {
-    if (!initialized.current) {
+    if (!initialized.current && projectId) {
       const metadata = {
         name: 'WinBig',
         description: 'WinBig App',
@@ -29,8 +29,13 @@ export const WalletKitProvider = ({
         adapters: [wagmiAdapter],
         projectId,
         networks,
+        defaultNetwork: networks[1], // Assuming polygonAmoy is the second; adjust if needed
         metadata,
+        features: {
+          analytics: true
+        },
         themeMode: 'dark',
+        themeVariables: {} // Add custom theme variables if needed
       });
       initialized.current = true;
     }
