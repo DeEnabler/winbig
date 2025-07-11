@@ -36,9 +36,13 @@ const nextConfig = {
       type: 'javascript/auto',
     });
 
+    // Debug: Serialize config with BigInt handling
     function stringifySafe(obj) {
       const seen = new WeakSet();
       return JSON.stringify(obj, (key, value) => {
+        if (typeof value === 'bigint') {
+          return value.toString();
+        }
         if (typeof value === 'object' && value !== null) {
           if (seen.has(value)) {
             return '[Circular]';
@@ -48,9 +52,9 @@ const nextConfig = {
         return value;
       }, 2);
     }
-    
+
     console.log('Final Webpack Config:', stringifySafe(config));
-    
+
     return config;
   },
 };
