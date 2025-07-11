@@ -30,10 +30,9 @@ const nextConfig = {
       'utf-8-validate': 'commonjs utf-8-validate',
       bufferutil: 'commonjs bufferutil',
     });
-    // Add rule for .mjs files in node_modules
     config.module.rules.push({
-      test: /\.mjs$/,
-      include: /node_modules/,
+      test: /\.(js|mjs)$/,
+      include: /node_modules\/(wagmi|viem|connectkit)/,
       type: 'javascript/auto',
     });
     return config;
