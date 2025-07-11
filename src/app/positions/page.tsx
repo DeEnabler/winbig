@@ -151,8 +151,8 @@ export default function PositionsPage() {
     setCurrentShareOgImageUrl(`${appUrl}/api/og?${ogParams.toString()}`);
     
     // AI-generated message is now disabled. Using fallback.
-    setCurrentShareMessage(`Check out my position on "${position.predictionText}"! ${outcomeDescriptionForShare} #WinBig`);
-    setIsLoadingShareMessage(false);
+      setCurrentShareMessage(`Check out my position on "${position.predictionText}"! ${outcomeDescriptionForShare} #WinBig`);
+      setIsLoadingShareMessage(false);
   };
 
   return (

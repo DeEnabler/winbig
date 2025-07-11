@@ -18,10 +18,10 @@ export default function StickyCtaBanner() {
 
   const handleCTAClick = () => {
     if (!isConnected) {
-      toast({ 
-        title: showBonusCTA ? "Connect Wallet for Bonus!" : "Connect Wallet", 
+            toast({ 
+              title: showBonusCTA ? "Connect Wallet for Bonus!" : "Connect Wallet", 
         description: showBonusCTA ? "Connect your wallet to claim your 10 SOL bonus and start betting!" : "Connect your wallet to start betting! Wallet connection is temporarily disabled." 
-      });
+            });
     } else {
       // If connected, navigate to a primary betting area, e.g., the main challenge or feed.
       router.push(appendEntryParams('/challenge')); 

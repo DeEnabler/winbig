@@ -40,13 +40,12 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <EntryContextProvider>
-            <WalletKitProvider>
-              <AppLayout>
-                <Navbar />
+        <WalletKitProvider>
+            <AppLayout>
                 <PageTransitionWrapper>{children}</PageTransitionWrapper>
-              </AppLayout>
+            </AppLayout>
               <Toaster />
-            </WalletKitProvider>
+        </WalletKitProvider>
           </EntryContextProvider>
         </ThemeProvider>
       </body>

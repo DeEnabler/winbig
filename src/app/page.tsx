@@ -33,8 +33,8 @@ export default async function HomePage() {
             </p>
           }
         >
-          <div className="flex flex-col space-y-10 md:space-y-16">
-            <HeroNewSection />
+      <div className="flex flex-col space-y-10 md:space-y-16">
+        <HeroNewSection />
             <Suspense
               fallback={
                 <div className="w-full min-h-[300px] flex items-center justify-center">
@@ -46,9 +46,9 @@ export default async function HomePage() {
                 initialMarkets={markets}
                 initialError={error}
               />
-            </Suspense>
-          </div>
-        </ErrorBoundary>
+        </Suspense>
+      </div>
+    </ErrorBoundary>
       </main>
       <StickyCtaBanner />
     </div>

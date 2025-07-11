@@ -248,7 +248,7 @@ export default function ChallengeInvite({
         toastTitle = `Connect for Bonus & ${REWARD_AMOUNT} ${REWARD_CURRENCY}!`;
         toastDescription = `Connect your wallet to lock in a +${BONUS_PERCENTAGE}% bonus and get free points!`;
       }
-      
+
       toast({
         title: toastTitle,
         description: toastDescription,
@@ -264,18 +264,18 @@ export default function ChallengeInvite({
     // This function is now redundant as handleBetAction covers the logic.
     // It can be removed or repurposed if needed.
     // For now, we can have it just trigger the toast and open the modal.
-     const rewardAlreadyGiven = !!address && localStorage.getItem(REWARD_GIVEN_STORAGE_KEY) === address;
-      let toastTitle = "Connect Wallet";
+    const rewardAlreadyGiven = !!address && localStorage.getItem(REWARD_GIVEN_STORAGE_KEY) === address;
+    let toastTitle = "Connect Wallet";
       let toastDescription = "Please connect your wallet to continue.";
       if (!rewardAlreadyGiven) {
         toastTitle = "Connect Wallet & Earn!";
         toastDescription = `Connect your wallet to proceed and earn ${REWARD_AMOUNT} ${REWARD_CURRENCY} instantly!`;
-      }
-       toast({
-        title: toastTitle,
-        description: toastDescription,
+    }
+    toast({
+      title: toastTitle,
+      description: toastDescription,
         duration: 8000
-      });
+    });
   }
 
   const formatTime = (seconds: number) => {

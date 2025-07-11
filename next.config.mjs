@@ -20,13 +20,10 @@ const nextConfig = {
     ],
   },
   webpack: (config) => {
-    // Initialize externals if not present, and ensure it's an array
     if (!Array.isArray(config.externals)) {
       config.externals = [];
     }
-    // Add server-side only packages to externals
     config.externals.push('pino-pretty', 'lokijs', 'encoding');
-    // Add packages that need to be treated as commonjs modules
     config.externals.push({
       'utf-8-validate': 'commonjs utf-8-validate',
       bufferutil: 'commonjs bufferutil',
@@ -36,37 +33,6 @@ const nextConfig = {
       include: /node_modules\/(wagmi|viem|connectkit)/,
       type: 'javascript/auto',
     });
-
-    // Debug: Serialize config with enhanced handling for common unserializable types
-    function stringifySafe(obj) {
-      const seen = new WeakSet();
-      return JSON.stringify(obj, (key, value) => {
-        if (typeof value === 'bigint') {
-          return value.toString();
-        }
-        if (typeof value === 'function') {
-          return '[Function]';
-        }
-        if (value instanceof RegExp) {
-          return value.toString();
-        }
-        if (typeof value === 'symbol') {
-          return value.toString();
-        }
-        if (typeof value === 'undefined') {
-          return '[undefined]';
-        }
-        if (typeof value === 'object' && value !== null) {
-          if (seen.has(value)) {
-            return '[Circular]';
-          }
-          seen.add(value);
-        }
-        return value;
-      }, 2);
-    }
-
-    console.log('Final Webpack Config:', stringifySafe(config));
 
     return config;
   },

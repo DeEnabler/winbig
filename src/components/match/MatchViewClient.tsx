@@ -163,12 +163,12 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
 
     setIsLoadingShareMessage(true);
     // AI-generated message is now disabled. Using fallback.
-    let defaultMsg = `I just bet $${match.userBet?.amount || betAmountState} that "${match.predictionText}"! Potential winnings: $${executionPreview?.potentialPayout?.toFixed(2)}! #WinBig`;
-    if (match.bonusApplied || match.userBet?.bonusApplied) {
-      defaultMsg += " (includes +20% Bonus!)";
-    }
-    setShareMessage(defaultMsg);
-    setIsLoadingShareMessage(false);
+      let defaultMsg = `I just bet $${match.userBet?.amount || betAmountState} that "${match.predictionText}"! Potential winnings: $${executionPreview?.potentialPayout?.toFixed(2)}! #WinBig`;
+      if (match.bonusApplied || match.userBet?.bonusApplied) {
+        defaultMsg += " (includes +20% Bonus!)";
+      }
+      setShareMessage(defaultMsg);
+      setIsLoadingShareMessage(false);
   };
 
   const openShareDialog = () => {
