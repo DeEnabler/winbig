@@ -20,12 +20,15 @@ const nextConfig = {
     ],
   },
   webpack: (config) => {
+    config.resolve.externals.push('pino-pretty', 'lokijs', 'encoding');
+    config.externals.push({
+      'utf-8-validate': 'commonjs utf-8-validate',
+      bufferutil: 'commonjs bufferutil',
+    });
     config.module.rules.push({
-      test: /\.worker\.js$/,
-      type: 'asset/resource',
-      generator: {
-        filename: 'static/chunks/[name].[hash].js',
-      },
+      test: /\.mjs$/,
+      include: /node_modules/,
+      type: 'javascript/auto',
     });
     return config;
   },
