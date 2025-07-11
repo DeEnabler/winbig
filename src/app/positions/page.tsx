@@ -205,7 +205,7 @@ export default function PositionsPage() {
                         <div className="relative w-full h-36">
                           <NextImage src={position.imageUrl} alt={position.predictionText} fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" style={{ objectFit: 'cover' }} data-ai-hint={position.aiHint || position.category} />
                           {position.bonusApplied && (
-                            <Badge className="absolute top-2 right-2 bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90 shadow-md text-xs px-2 py-0.5">
+                            <Badge className="absolute top-2 right-2 bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90 dark:bg-yellow-600 dark:text-yellow-50 dark:hover:bg-yellow-600/90 shadow-md text-xs px-2 py-0.5">
                               <Sparkles className="w-3 h-3 mr-1" /> Bonus
                             </Badge>
                           )}

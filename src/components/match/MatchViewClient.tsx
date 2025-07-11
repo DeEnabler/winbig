@@ -362,7 +362,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                               (Avg Price: ${executionPreview.vwap?.toFixed(4)}, Impact: {executionPreview.price_impact_pct?.toFixed(2)}%)
                             </div>
                             {match.bonusApplied && (
-                              <Badge variant="default" className="ml-2 bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90 text-xs">
+                              <Badge variant="default" className="ml-2 bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90 dark:bg-yellow-600 dark:text-yellow-50 dark:hover:bg-yellow-600/90 text-xs">
                                 <Sparkles className="w-3 h-3 mr-1" /> +20% Bonus
                               </Badge>
                             )}
@@ -391,7 +391,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                     <p>
                       Potential Payout: <span className="font-bold text-green-600 dark:text-green-400">${executionPreview.potentialPayout?.toFixed(2)}</span>
                       {match.bonusApplied && (
-                        <Badge variant="default" className="ml-2 bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90 text-xs">
+                        <Badge variant="default" className="ml-2 bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90 dark:bg-yellow-600 dark:text-yellow-50 dark:hover:bg-yellow-600/90 text-xs">
                           <Sparkles className="w-3 h-3 mr-1" /> +20% Bonus
                         </Badge>
                       )}

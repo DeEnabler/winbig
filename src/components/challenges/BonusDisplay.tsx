@@ -43,28 +43,17 @@ export default function BonusDisplay({
   return (
     <div
       ref={displayRef}
-      style={{
-        position: 'fixed', // Already set by parent in ChallengeInvite, but good to be explicit
-        bottom: '20px', // Already set by parent
-        right: '20px', // Already set by parent
-        padding: '10px',
-        backgroundColor: 'cornsilk', // "Yellow box" background
-        border: '3px solid darkorange', // "Yellow box" border
-        borderRadius: '8px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        zIndex: 1000, // Ensure it's on top
-        minWidth: '280px', // Ensure it has some width
-      }}
+      className="fixed bottom-5 right-5 p-2.5 bg-yellow-50 dark:bg-yellow-950 border-4 border-orange-600 dark:border-orange-400 rounded-lg shadow-xl z-[1000] min-w-[280px]"
     >
       {/* This content should always render as isActive will be true and isClaimed false
           when BonusDisplay is mounted by ChallengeInvite based on the new logic */}
       <div
-        className={`flex items-center justify-start gap-2 p-2 rounded-md border-2 ${timeLeftSeconds < lowTimeThreshold ? 'border-yellow-500 bg-yellow-100 animate-pulse' : 'border-primary bg-primary/10'}`}
+        className={`flex items-center justify-start gap-2 p-2 rounded-md border-2 ${timeLeftSeconds < lowTimeThreshold ? 'border-yellow-500 dark:border-yellow-300 bg-yellow-100 dark:bg-yellow-800 animate-pulse' : 'border-primary bg-primary/10 dark:bg-primary/20'}`}
         style={{ minHeight: '50px' }} // Ensure inner div has height
       >
         <Zap
           size={22}
-          className={`mr-1 ${timeLeftSeconds < lowTimeThreshold ? 'text-yellow-600' : 'text-primary'}`}
+          className={`mr-1 ${timeLeftSeconds < lowTimeThreshold ? 'text-yellow-600 dark:text-yellow-200' : 'text-primary'}`}
         />
         <span className="font-bold text-sm text-foreground">
           +{percentage}% Bonus!
@@ -75,7 +64,7 @@ export default function BonusDisplay({
         />
         <Clock
           size={16}
-          className={`mr-1 ${timeLeftSeconds < lowTimeThreshold ? 'text-yellow-600' : 'text-muted-foreground'}`}
+          className={`mr-1 ${timeLeftSeconds < lowTimeThreshold ? 'text-yellow-600 dark:text-yellow-200' : 'text-muted-foreground'}`}
         />
         <span className="font-semibold text-xs text-foreground">
           {formatTime(timeLeftSeconds)}
@@ -93,9 +82,9 @@ export default function BonusDisplay({
 
       {/* Fallback for isClaimed - should not be reached if parent logic is correct */}
       {isClaimed && (
-         <div className="flex items-center justify-center gap-2 p-3 rounded-md bg-green-100 border border-green-600" style={{minHeight: '50px'}}>
-            <ShieldCheck size={20} className="text-green-700 mr-1.5" />
-            <span className="font-semibold text-sm text-green-800">Bonus Locked (Debug Fallback)</span>
+         <div className="flex items-center justify-center gap-2 p-3 rounded-md bg-green-100 dark:bg-green-900 border border-green-600 dark:border-green-300" style={{minHeight: '50px'}}>
+            <ShieldCheck size={20} className="text-green-700 dark:text-green-200 mr-1.5" />
+            <span className="font-semibold text-sm text-green-800 dark:text-green-100">Bonus Locked (Debug Fallback)</span>
         </div>
       )}
     </div>
