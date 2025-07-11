@@ -36,12 +36,24 @@ const nextConfig = {
       type: 'javascript/auto',
     });
 
-    // Debug: Serialize config with BigInt handling
+    // Debug: Serialize config with enhanced handling for common unserializable types
     function stringifySafe(obj) {
       const seen = new WeakSet();
       return JSON.stringify(obj, (key, value) => {
         if (typeof value === 'bigint') {
           return value.toString();
+        }
+        if (typeof value === 'function') {
+          return '[Function]';
+        }
+        if (value instanceof RegExp) {
+          return value.toString();
+        }
+        if (typeof value === 'symbol') {
+          return value.toString();
+        }
+        if (typeof value === 'undefined') {
+          return '[undefined]';
         }
         if (typeof value === 'object' && value !== null) {
           if (seen.has(value)) {
