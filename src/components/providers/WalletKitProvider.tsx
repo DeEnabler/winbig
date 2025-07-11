@@ -4,15 +4,27 @@ import React from 'react';
 import { WagmiProvider, State } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createAppKit } from '@reown/appkit';
-import { config, wagmiAdapter, projectId, networks, metadata } from './wagmi-config';
+import { config, wagmiAdapter, projectId, networks } from './wagmi-config';
 
-createAppKit({
-  adapters: [wagmiAdapter],
-  projectId,
-  networks,
-  metadata,
-  themeMode: 'dark',
-});
+const metadata = {
+  name: 'WinBig',
+  description: 'WinBig App',
+  url: typeof window !== 'undefined' ? window.location.origin : 'https://winbig.com',
+  icons: ['https://avatars.githubusercontent.com/u/179229932']
+};
+
+let isAppKitInitialized = false;
+
+if (!isAppKitInitialized) {
+  createAppKit({
+    adapters: [wagmiAdapter],
+    projectId,
+    networks,
+    metadata,
+    themeMode: 'dark',
+  });
+  isAppKitInitialized = true;
+}
 
 const queryClient = new QueryClient();
 
