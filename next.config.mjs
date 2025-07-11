@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  swcMinify: false, // Disable SWC minifier to fix HeartbeatWorker.js Terser error
   transpilePackages: ['lucide-react'],
   /* config options here */
   typescript: {
