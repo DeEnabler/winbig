@@ -9,7 +9,9 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { mockCurrentUser } from '@/lib/mockData';
-import ConnectWalletButton from '@/components/wallet/ConnectWallet'; 
+import dynamic from 'next/dynamic';
+
+const ConnectWallet = dynamic(() => import('@/components/wallet/ConnectWallet'), { ssr: false });
 
 const navItems = [
   { href: '/', label: 'Home', icon: Home }, // Changed 'Bet' to 'Home' for clarity
@@ -59,7 +61,7 @@ export default function Navbar() {
             </span>
           </div>
           <div className="hidden md:block ml-2">
-            <ConnectWalletButton />
+            <ConnectWallet />
           </div>
 
           {/* Mobile Menu Button */}
@@ -102,7 +104,7 @@ export default function Navbar() {
                 </span>
             </div>
             <div className="p-2 border-t pt-3">
-              <ConnectWalletButton />
+              <ConnectWallet />
             </div>
           </nav>
         </div>

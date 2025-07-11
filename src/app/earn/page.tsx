@@ -6,9 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
 import { Share2, Coins, Users, MessageCircleQuestion, Flame, TrendingUp, Clock, Rocket, ShieldCheck } from 'lucide-react';
-import ConnectWalletButton from '@/components/wallet/ConnectWalletButton'; // Using the more styled version
+import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import React, { useState } from 'react';
+
+const ConnectWalletButton = dynamic(() => import('@/components/wallet/ConnectWalletButton'), { ssr: false });
 
 export default function EarnPage() {
   const [simulatedFriends, setSimulatedFriends] = useState(5);
