@@ -1,42 +1,33 @@
-
-// src/components/providers/WalletKitProvider.tsx
 'use client';
 
 import React from 'react';
-import { WagmiProvider, createConfig, http } from 'wagmi';
-import { mainnet, polygon } from 'wagmi/chains';
+import { WagmiProvider, State } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ConnectKitProvider, getDefaultConfig } from 'connectkit';
+import { createAppKit } from '@reown/appkit';
+import { config, wagmiAdapter, projectId, networks, metadata } from './wagmi-config';
 
-const config = createConfig(
-  getDefaultConfig({
-    // Your dApps chains
-    chains: [mainnet, polygon],
-    transports: {
-      [mainnet.id]: http(),
-      [polygon.id]: http(),
-    },
-
-    // Required API Keys
-    walletConnectProjectId:
-      process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '',
-
-    // Required App Info
-    appName: 'WinBig',
-  }),
-);
+createAppKit({
+  adapters: [wagmiAdapter],
+  projectId,
+  networks,
+  metadata,
+  enableAnalytics: true,
+  themeMode: 'dark',
+});
 
 const queryClient = new QueryClient();
 
 export const WalletKitProvider = ({
   children,
+  initialState,
 }: {
   children: React.ReactNode;
+  initialState?: State;
 }) => {
   return (
-    <WagmiProvider config={config}>
+    <WagmiProvider config={config} initialState={initialState}>
       <QueryClientProvider client={queryClient}>
-        <ConnectKitProvider>{children}</ConnectKitProvider>
+        {children}
       </QueryClientProvider>
     </WagmiProvider>
   );

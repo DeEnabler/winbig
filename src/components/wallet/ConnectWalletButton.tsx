@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAppKit } from '@reown/appkit/react';
 
 function truncateAddress(address: string) {
   if (!address) return '';
@@ -22,6 +23,7 @@ function truncateAddress(address: string) {
 export default function ConnectWalletButton() {
   const { address, isConnected, chain } = useAccount();
   const { disconnect } = useDisconnect();
+  const { open } = useAppKit();
 
   if (isConnected && address) {
     return (
@@ -38,6 +40,15 @@ export default function ConnectWalletButton() {
             {chain?.name || 'Unknown Network'}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => open({ view: 'Account' })}>
+            <UserCircle className="mr-2 h-4 w-4" />
+            <span>Account Details</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => open({ view: 'Networks' })}>
+            <LogIn className="mr-2 h-4 w-4" />
+            <span>Switch Network</span>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => disconnect()} className="text-destructive focus:text-destructive focus:bg-destructive/10">
             <LogOut className="mr-2 h-4 w-4" />
             <span>Disconnect</span>
@@ -50,12 +61,12 @@ export default function ConnectWalletButton() {
   return (
     <div className="flex flex-col items-center w-full">
       <Button
-        disabled
-        size="lg" // Use Shadcn large size - h-12, text-base, rounded-lg
+        onClick={() => open()}
+        size="lg"
         className="bg-primary hover:bg-primary/90 w-full shadow-md"
       >
         <LogIn className="mr-2 h-5 w-5" />
-        Connect Wallet (Disabled)
+        Connect Wallet
       </Button>
     </div>
   );
