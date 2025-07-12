@@ -89,47 +89,73 @@ function parseAndMergeMarketData(marketData: Record<string, any>, metaData: Reco
   }
 }
 
+export async function debugRedisAccess() {
+  try {
+    // Test basic connectivity first
+    await redis.ping();
+    
+    // Test KEYS operation specifically
+    const keys = await redis.keys('market:*');
+    console.log(`Found ${keys.length} market keys:`, keys);
+    
+    return keys.length > 0;
+  } catch (error) {
+    console.error('Redis access test failed:', error);
+    // This might reveal token permission issues
+    return false;
+  }
+}
+
 export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
   try {
-    // Get the total number of markets efficiently, without fetching all IDs.
-    const totalCount = await redis.scard('active_market_ids');
-    if (totalCount === 0) {
-      return { markets: [], total: 0 };
+    // Try the keys-based approach first
+    const marketKeys = await redis.keys('market:*');
+    console.log(`[MarketService] Found ${marketKeys.length} market keys:`, marketKeys);
+    
+    let totalCount = marketKeys.length;
+    let allMarketIds: string[] = [];
+    
+    if (totalCount > 0) {
+      allMarketIds = marketKeys.map(key => key.replace('market:', ''));
+    } else {
+      // Fallback to original set-based approach
+      totalCount = await redis.scard('active_market_ids');
+      if (totalCount === 0) {
+        return { markets: [], total: 0 };
+      }
+      const [nextCursor, marketIds] = await redis.sscan('active_market_ids', 0, { count: limit * 2 });
+      allMarketIds = marketIds as string[];
     }
 
-    // Use SSCAN to iterate over the set of market IDs in a memory-efficient way.
-    // This prevents server crashes by not loading all keys into memory at once.
-    // NOTE: This implementation is for stability and does not support true pagination with offset.
-    // It will fetch `limit` number of items from the beginning of an iteration.
-    const cursor = 0; // We always start from the beginning for this simplified implementation.
-    const [nextCursor, marketIds] = await redis.sscan('active_market_ids', cursor, { count: limit * 2 }); // Fetch more to ensure we can satisfy the limit.
-
-    const paginatedIds = marketIds.slice(0, limit);
+    // Paginate IDs
+    const paginatedIds = allMarketIds.slice(offset, offset + limit);
 
     if (paginatedIds.length === 0) {
       return { markets: [], total: totalCount };
     }
 
+    // Pipeline to fetch data
     const pipeline = redis.pipeline();
     paginatedIds.forEach(id => {
       pipeline.hgetall(`market:${id}`);
       pipeline.hgetall(`market_meta:${id}`);
     });
     const results = await pipeline.exec<Record<string, any>[]>();
-    const allMarkets: LiveMarket[] = [];
 
+    // Parse results
+    const markets: LiveMarket[] = [];
     for (let i = 0; i < paginatedIds.length; i++) {
       const marketData = results[i * 2];
       const metaData = results[i * 2 + 1];
       if (marketData && metaData) {
         const market = parseAndMergeMarketData(marketData, metaData);
-        if (market) allMarkets.push(market);
+        if (market) markets.push(market);
       }
     }
 
-    return { markets: allMarkets, total: totalCount };
+    return { markets, total: totalCount };
   } catch (error) {
-    console.error('[MarketService] A critical error occurred in getLiveMarkets (v4-sscan):', error);
+    console.error('[MarketService] A critical error occurred in getLiveMarkets:', error);
     return { markets: [], total: 0 };
   }
 }

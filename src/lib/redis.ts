@@ -5,9 +5,9 @@ import { Redis } from '@upstash/redis';
 
 // The Vercel-Upstash integration provides environment variables that `fromEnv` is designed to parse automatically.
 // This is the most robust way to initialize the client in a Vercel environment.
-if (!process.env.UPSTASH_REDIS_REST_URL) {
-  // This error will be thrown during the build process or at server startup if the variable is missing.
-  throw new Error('CRITICAL: UPSTASH_REDIS_REST_URL environment variable is not set.');
+if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+  console.error('Missing Redis environment variables');
+  console.log('Available env vars:', Object.keys(process.env).filter(key => key.includes('REDIS')));
 }
 
 // Declare a uniquely named global variable to hold the Redis instance.
