@@ -89,6 +89,24 @@ function parseAndMergeMarketData(marketData: Record<string, any>, metaData: Reco
   }
 }
 
+/**
+ * Counts the number of keys matching a pattern using SCAN iteration.
+ */
+async function countKeysMatching(pattern: string): Promise<number> {
+  let cursor = '0';
+  let total = 0;
+  do {
+    const result = await safeRedisOperation(
+      () => redis.scan(cursor, { match: pattern, count: 100 }),
+      null
+    );
+    if (!result) break;
+    [cursor, ] = result;
+    total += result[1].length;
+  } while (cursor !== '0');
+  return total;
+}
+
 export async function debugRedisAccess(): Promise<boolean> {
   const pingResult = await safeRedisOperation(
     () => redis.ping(),
@@ -118,28 +136,28 @@ export async function debugRedisAccess(): Promise<boolean> {
 
 export async function getLiveMarkets({ limit = 10, cursor = '0' }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
   try {
-    // Use SSCAN-only approach for production-safe querying
+    // Use SCAN to discover markets from 'market:*' keys
     const scanResult = await safeRedisOperation(
-      () => redis.sscan('active_market_ids', cursor, { count: limit }),
+      () => redis.scan(cursor, { match: 'market:*', count: limit }),
       null
     );
 
     if (!scanResult) {
-      console.error('[MarketService] Failed to scan active market IDs');
+      console.error('[MarketService] Failed to scan market keys');
       return { markets: [], total: 0 };
     }
 
-    const [nextCursor, marketIds] = scanResult;
+    const [nextCursor, marketKeys] = scanResult;
     
-    if (marketIds.length === 0) {
+    if (marketKeys.length === 0) {
       return { markets: [], total: 0, nextCursor: nextCursor !== '0' ? nextCursor : undefined };
     }
 
-    // Get total count for pagination info
-    const totalCount = await safeRedisOperation(
-      () => redis.scard('active_market_ids'),
-      0
-    );
+    // Extract IDs from keys (e.g., 'market:0x123...' -> '0x123...')
+    const marketIds = marketKeys.map(key => key.split(':')[1]);
+
+    // Get total count using SCAN iteration
+    const totalCount = await countKeysMatching('market:*');
 
     // Pipeline to fetch market data efficiently
     const pipeline = redis.pipeline();
