@@ -1,17 +1,18 @@
 
 // src/lib/marketService.ts
 import 'server-only';
-import redis from '@/lib/redis';
+import redis, { safeRedisOperation } from '@/lib/redis';
 import type { LiveMarket, OrderBook } from '@/types';
 
 interface GetLiveMarketsParams {
   limit?: number;
-  offset?: number;
+  cursor?: string;
 }
 
 interface LiveMarketsResponse {
   markets: LiveMarket[];
   total: number;
+  nextCursor?: string;
 }
 
 /**
@@ -42,7 +43,6 @@ function parseOrderbook(data: any): OrderBook | null {
   return null;
 }
 
-
 /**
  * Parses and merges raw data from Redis hashes (`market:*` and `market_meta:*`)
  * into a structured LiveMarket object.
@@ -60,7 +60,7 @@ function parseAndMergeMarketData(marketData: Record<string, any>, metaData: Reco
   }
 
   try {
-    // Use the new safe parsing function
+    // Use the safe parsing function for orderbook data
     const orderbookYes: OrderBook | null = parseOrderbook(marketData.orderbook_yes);
     const orderbookNo: OrderBook | null = parseOrderbook(marketData.orderbook_no);
 
@@ -89,71 +89,94 @@ function parseAndMergeMarketData(marketData: Record<string, any>, metaData: Reco
   }
 }
 
-export async function debugRedisAccess() {
-  try {
-    // Test basic connectivity first
-    await redis.ping();
-    
-    // Test KEYS operation specifically
-    const keys = await redis.keys('market:*');
-    console.log(`Found ${keys.length} market keys:`, keys);
-    
-    return keys.length > 0;
-  } catch (error) {
-    console.error('Redis access test failed:', error);
-    // This might reveal token permission issues
+export async function debugRedisAccess(): Promise<boolean> {
+  const pingResult = await safeRedisOperation(
+    () => redis.ping(),
+    null
+  );
+  
+  if (!pingResult) {
+    console.error('Redis ping failed');
     return false;
   }
+  
+  // Test SSCAN on active_market_ids set
+  const scanResult = await safeRedisOperation(
+    () => redis.sscan('active_market_ids', 0, { count: 5 }),
+    null
+  );
+  
+  if (!scanResult) {
+    console.error('Redis SSCAN test failed');
+    return false;
+  }
+  
+  const [cursor, marketIds] = scanResult;
+  console.log(`Redis debug: Found ${marketIds.length} market IDs in scan test`);
+  return true;
 }
 
-export async function getLiveMarkets({ limit = 10, offset = 0 }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
+export async function getLiveMarkets({ limit = 10, cursor = '0' }: GetLiveMarketsParams): Promise<LiveMarketsResponse> {
   try {
-    // Try the keys-based approach first
-    const marketKeys = await redis.keys('market:*');
-    console.log(`[MarketService] Found ${marketKeys.length} market keys:`, marketKeys);
-    
-    let totalCount = marketKeys.length;
-    let allMarketIds: string[] = [];
-    
-    if (totalCount > 0) {
-      allMarketIds = marketKeys.map(key => key.replace('market:', ''));
-    } else {
-      // Fallback to original set-based approach
-      totalCount = await redis.scard('active_market_ids');
-      if (totalCount === 0) {
-        return { markets: [], total: 0 };
-      }
-      const [nextCursor, marketIds] = await redis.sscan('active_market_ids', 0, { count: limit * 2 });
-      allMarketIds = marketIds as string[];
+    // Use SSCAN-only approach for production-safe querying
+    const scanResult = await safeRedisOperation(
+      () => redis.sscan('active_market_ids', cursor, { count: limit }),
+      null
+    );
+
+    if (!scanResult) {
+      console.error('[MarketService] Failed to scan active market IDs');
+      return { markets: [], total: 0 };
     }
 
-    // Paginate IDs
-    const paginatedIds = allMarketIds.slice(offset, offset + limit);
-
-    if (paginatedIds.length === 0) {
-      return { markets: [], total: totalCount };
+    const [nextCursor, marketIds] = scanResult;
+    
+    if (marketIds.length === 0) {
+      return { markets: [], total: 0, nextCursor: nextCursor !== '0' ? nextCursor : undefined };
     }
 
-    // Pipeline to fetch data
+    // Get total count for pagination info
+    const totalCount = await safeRedisOperation(
+      () => redis.scard('active_market_ids'),
+      0
+    );
+
+    // Pipeline to fetch market data efficiently
     const pipeline = redis.pipeline();
-    paginatedIds.forEach(id => {
+    marketIds.forEach(id => {
       pipeline.hgetall(`market:${id}`);
       pipeline.hgetall(`market_meta:${id}`);
     });
-    const results = await pipeline.exec<Record<string, any>[]>();
+    
+    const results = await safeRedisOperation(
+      () => pipeline.exec<Record<string, any>[]>(),
+      []
+    );
 
-    // Parse results
+    if (!results) {
+      console.error('[MarketService] Pipeline execution failed');
+      return { markets: [], total: totalCount || 0 };
+    }
+
+    // Parse results into LiveMarket objects
     const markets: LiveMarket[] = [];
-    for (let i = 0; i < paginatedIds.length; i++) {
+    for (let i = 0; i < marketIds.length; i++) {
       const marketData = results[i * 2];
       const metaData = results[i * 2 + 1];
+      
       if (marketData && metaData) {
         const market = parseAndMergeMarketData(marketData, metaData);
-        if (market) markets.push(market);
+        if (market) {
+          markets.push(market);
+        }
       }
     }
 
-    return { markets, total: totalCount };
+    return { 
+      markets, 
+      total: totalCount || 0,
+      nextCursor: nextCursor !== '0' ? nextCursor : undefined
+    };
   } catch (error) {
     console.error('[MarketService] A critical error occurred in getLiveMarkets:', error);
     return { markets: [], total: 0 };
@@ -165,11 +188,24 @@ export async function getMarketDetails(marketId: string): Promise<LiveMarket | n
     const pipeline = redis.pipeline();
     pipeline.hgetall(`market:${marketId}`);
     pipeline.hgetall(`market_meta:${marketId}`);
-    const [marketData, metaData] = await pipeline.exec<Record<string, any>[]>();
+    
+    const results = await safeRedisOperation(
+      () => pipeline.exec<Record<string, any>[]>(),
+      null
+    );
 
-    if (!marketData || !metaData) {
+    if (!results) {
+      console.error(`[MarketService] Failed to fetch market details for ID ${marketId}`);
       return null;
     }
+
+    const [marketData, metaData] = results;
+
+    if (!marketData || !metaData) {
+      console.warn(`[MarketService] Incomplete data for market ${marketId}`);
+      return null;
+    }
+    
     return parseAndMergeMarketData(marketData, metaData);
   } catch (error) {
     console.error(`[MarketService] A critical error occurred in getMarketDetails for ID ${marketId}:`, error);

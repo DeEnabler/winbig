@@ -12,21 +12,24 @@ import { LoadingSpinner } from '../LoadingSpinner';
 interface MarketFeedSectionProps {
   initialMarkets: LiveMarket[];
   initialError: string | null;
+  initialNextCursor?: string;
 }
 
 // This component now receives initial data via props, but can fetch more on the client.
-export default function MarketFeedSection({ initialMarkets, initialError }: MarketFeedSectionProps) {
+export default function MarketFeedSection({ initialMarkets, initialError, initialNextCursor }: MarketFeedSectionProps) {
   const [markets, setMarkets] = useState<LiveMarket[]>(initialMarkets);
   const [error, setError] = useState<string | null>(initialError);
-  const [offset, setOffset] = useState(initialMarkets.length);
+  const [nextCursor, setNextCursor] = useState<string | undefined>(initialNextCursor);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(initialMarkets.length > 0);
+  const [hasMore, setHasMore] = useState(!!initialNextCursor);
 
   const handleLoadMore = async () => {
+    if (!nextCursor) return;
+    
     setIsLoadingMore(true);
     setError(null);
     try {
-      const response = await fetch(`/api/markets/live-odds?limit=3&offset=${offset}`);
+      const response = await fetch(`/api/markets/live-odds?limit=3&cursor=${nextCursor}`);
       if (!response.ok) {
         throw new Error('Failed to fetch more markets.');
       }
@@ -36,7 +39,8 @@ export default function MarketFeedSection({ initialMarkets, initialError }: Mark
           setHasMore(false);
         } else {
           setMarkets(prev => [...prev, ...data.markets]);
-          setOffset(prev => prev + data.markets.length);
+          setNextCursor(data.nextCursor);
+          setHasMore(!!data.nextCursor);
         }
       } else {
         throw new Error(data.message || 'Could not load more markets.');

@@ -1,6 +1,6 @@
 // src/app/api/execution-analysis/route.ts
 import { type NextRequest, NextResponse } from 'next/server';
-import redis from '@/lib/redis';
+import redis, { safeRedisOperation } from '@/lib/redis';
 import type { OrderBook, OrderLevel, ExecutionPreview } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -106,7 +106,6 @@ function calculateExecutionFromCost(orderbook: OrderBook, targetCost: number, si
     };
 }
 
-
 export async function GET(req: NextRequest) {
     const { searchParams } = req.nextUrl;
     const conditionId = searchParams.get('condition_id');
@@ -125,7 +124,10 @@ export async function GET(req: NextRequest) {
 
     try {
         const marketKey = `market:${conditionId}`;
-        const rawOrderbookData = await redis.hget(marketKey, `orderbook_${outcome.toLowerCase()}`);
+        const rawOrderbookData = await safeRedisOperation(
+            () => redis.hget(marketKey, `orderbook_${outcome.toLowerCase()}`),
+            null
+        );
 
         if (!rawOrderbookData) {
             return NextResponse.json({ 

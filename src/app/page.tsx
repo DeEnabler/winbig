@@ -12,13 +12,14 @@ export const dynamic = 'force-dynamic'; // Ensure the page is dynamically render
 export default async function HomePage() {
   let markets: LiveMarket[] = [];
   let error: string | null = null;
+  let nextCursor: string | undefined;
 
   try {
-    // Fetch data directly on the server
-    const marketData = await getLiveMarkets({ limit: 3, offset: 0 });
+    // Fetch data directly on the server using cursor-based pagination
+    const marketData = await getLiveMarkets({ limit: 3, cursor: '0' });
     markets = marketData.markets;
-  } catch (e)
-  {
+    nextCursor = marketData.nextCursor;
+  } catch (e) {
     console.error('[HomePage] Failed to fetch markets on server:', e);
     error = e instanceof Error ? e.message : 'An unknown error occurred.';
   }
@@ -33,8 +34,8 @@ export default async function HomePage() {
             </p>
           }
         >
-      <div className="flex flex-col space-y-10 md:space-y-16">
-        <HeroNewSection />
+          <div className="flex flex-col space-y-10 md:space-y-16">
+            <HeroNewSection />
             <Suspense
               fallback={
                 <div className="w-full min-h-[300px] flex items-center justify-center">
@@ -45,10 +46,11 @@ export default async function HomePage() {
               <MarketFeedSection
                 initialMarkets={markets}
                 initialError={error}
+                initialNextCursor={nextCursor}
               />
-        </Suspense>
-      </div>
-    </ErrorBoundary>
+            </Suspense>
+          </div>
+        </ErrorBoundary>
       </main>
       <StickyCtaBanner />
     </div>

@@ -1,13 +1,8 @@
 // src/app/api/markets/live-odds/route.ts
 import { type NextRequest, NextResponse } from 'next/server';
-import { getLiveMarkets } from '@/lib/marketService'; // Use the new shared service
+import { getLiveMarkets } from '@/lib/marketService';
 
 export const dynamic = 'force-dynamic';
-
-// In-memory cache
-let cachedData: any = null;
-let lastCacheTime: number = 0;
-const CACHE_DURATION = 5000; // 5 seconds
 
 export async function GET(req: NextRequest) {
   const overallStartTime = Date.now();
@@ -15,23 +10,15 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = req.nextUrl;
   const limitQuery = searchParams.get('limit');
-  const offsetQuery = searchParams.get('offset');
+  const cursorQuery = searchParams.get('cursor');
 
   const limit = limitQuery ? parseInt(limitQuery) : 10;
-  const offset = offsetQuery ? parseInt(offsetQuery) : 0;
+  const cursor = cursorQuery || '0';
 
-  console.log(`[API /markets/live-odds] Processing request. Limit: ${limit}, Offset: ${offset}`);
-
-  // Check cache first
-  if (cachedData && (Date.now() - lastCacheTime < CACHE_DURATION)) {
-    console.log('[API /markets/live-odds] Serving from cache.');
-    const overallEndTime = Date.now();
-    console.log(`[API /markets/live-odds] Successfully served from cache. Total execution time: ${overallEndTime - overallStartTime}ms`);
-    return NextResponse.json(cachedData);
-  }
+  console.log(`[API /markets/live-odds] Processing request. Limit: ${limit}, Cursor: ${cursor}`);
 
   try {
-    const marketData = await getLiveMarkets({ limit, offset });
+    const marketData = await getLiveMarkets({ limit, cursor });
 
     const response = {
       success: true,
@@ -39,14 +26,9 @@ export async function GET(req: NextRequest) {
       marketCount: marketData.markets.length,
       totalAvailable: marketData.total,
       markets: marketData.markets,
-      query: { limit, offset }
+      nextCursor: marketData.nextCursor,
+      query: { limit, cursor }
     };
-
-    // Update cache
-    cachedData = response;
-    lastCacheTime = Date.now();
-    console.log('[API /markets/live-odds] Updated cache.');
-
 
     const overallEndTime = Date.now();
     console.log(`[API /markets/live-odds] Successfully fetched ${marketData.markets.length} markets. Total execution time: ${overallEndTime - overallStartTime}ms`);
@@ -63,7 +45,7 @@ export async function GET(req: NextRequest) {
       success: false,
       error: 'Failed to fetch live market odds.',
       message: responseError,
-      query: { limit, offset }
+      query: { limit, cursor }
     }, { status: 500 });
   }
 }
