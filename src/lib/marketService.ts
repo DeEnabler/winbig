@@ -16,6 +16,93 @@ interface LiveMarketsResponse {
 }
 
 /**
+ * 🎯 **CORRECTED APPROACH: Use Pre-calculated Normalized Odds**
+ * 
+ * This function properly extracts market odds from Redis data that has already been
+ * normalized using midpoint calculations. It avoids the trap of adding raw execution
+ * prices which don't sum to 100% due to spreads and market inefficiencies.
+ */
+function getMarketOddsFromRedis(marketData: Record<string, any>): {
+  yesImpliedProbability: number;
+  noImpliedProbability: number;
+  marketEfficiency: number;
+  calculationMethod: string;
+} {
+  try {
+    // ✅ CORRECT: Use pre-calculated normalized odds from Redis
+    const marketOddsYes = parseFloat(String(marketData.market_odds_yes || '0'));
+    const marketOddsNo = parseFloat(String(marketData.market_odds_no || '0'));
+    
+    // Verify the normalized odds are valid and sum to ~100%
+    const oddsSum = marketOddsYes + marketOddsNo;
+    if (marketOddsYes > 0 && marketOddsNo > 0 && oddsSum >= 0.95 && oddsSum <= 1.05) {
+      // Calculate market efficiency from midpoints
+      const yesMidpoint = parseFloat(String(marketData.yes_midpoint || '0'));
+      const noMidpoint = parseFloat(String(marketData.no_midpoint || '0'));
+      const totalMidpoints = yesMidpoint + noMidpoint;
+      const marketEfficiency = totalMidpoints > 0 ? 1.0 / totalMidpoints : 0;
+      
+      return {
+        yesImpliedProbability: marketOddsYes,
+        noImpliedProbability: marketOddsNo,
+        marketEfficiency,
+        calculationMethod: 'normalized_midpoint'
+      };
+    }
+    
+    // Fallback: Calculate from midpoints if normalized odds aren't available
+    const yesMidpoint = parseFloat(String(marketData.yes_midpoint || '0'));
+    const noMidpoint = parseFloat(String(marketData.no_midpoint || '0'));
+    
+    if (yesMidpoint > 0 && noMidpoint > 0) {
+      const totalMidpoints = yesMidpoint + noMidpoint;
+      const marketEfficiency = 1.0 / totalMidpoints;
+      
+      return {
+        yesImpliedProbability: yesMidpoint / totalMidpoints,
+        noImpliedProbability: noMidpoint / totalMidpoints,
+        marketEfficiency,
+        calculationMethod: 'calculated_midpoint'
+      };
+    }
+    
+    // ⚠️ Last resort: Use execution prices with normalization warning
+    const yesBuyPrice = parseFloat(String(marketData.yes_buy_price || '0'));
+    const noBuyPrice = parseFloat(String(marketData.no_buy_price || '0'));
+    
+    if (yesBuyPrice > 0 && noBuyPrice > 0) {
+      const totalBuyPrice = yesBuyPrice + noBuyPrice;
+      console.warn(`[MarketService] Using execution prices for odds calculation (not ideal): ${totalBuyPrice}`);
+      
+      return {
+        yesImpliedProbability: yesBuyPrice / totalBuyPrice,
+        noImpliedProbability: noBuyPrice / totalBuyPrice,
+        marketEfficiency: 1.0 / totalBuyPrice,
+        calculationMethod: 'execution_price_normalized'
+      };
+    }
+    
+    // Default fallback
+    console.warn('[MarketService] No valid price data found, using 50/50 default');
+    return {
+      yesImpliedProbability: 0.5,
+      noImpliedProbability: 0.5,
+      marketEfficiency: 0.5,
+      calculationMethod: 'default_fallback'
+    };
+    
+  } catch (error) {
+    console.error('[MarketService] Error extracting market odds from Redis:', error);
+    return {
+      yesImpliedProbability: 0.5,
+      noImpliedProbability: 0.5,
+      marketEfficiency: 0.5,
+      calculationMethod: 'error_fallback'
+    };
+  }
+}
+
+/**
  * Safely parses orderbook data that might be a JSON string or a pre-parsed object.
  * @param data The raw orderbook data from Redis.
  * @returns A structured OrderBook object or null if parsing fails.
@@ -44,11 +131,10 @@ function parseOrderbook(data: any): OrderBook | null {
 }
 
 /**
+ * 📊 **COMPLETE MARKET DATA EXTRACTION**
+ * 
  * Parses and merges raw data from Redis hashes (`market:*` and `market_meta:*`)
- * into a structured LiveMarket object.
- * @param marketData - The raw hash data from `market:{id}`.
- * @param metaData - The raw hash data from `market_meta:{id}`.
- * @returns A structured LiveMarket object or null if data is invalid.
+ * into a structured LiveMarket object using the correct normalization approach.
  */
 function parseAndMergeMarketData(marketData: Record<string, any>, metaData: Record<string, any>): LiveMarket | null {
   const question = metaData?.question;
@@ -60,7 +146,20 @@ function parseAndMergeMarketData(marketData: Record<string, any>, metaData: Reco
   }
 
   try {
-    // Use the safe parsing function for orderbook data
+    // ✅ CORRECT: Get normalized odds from Redis
+    const { yesImpliedProbability, noImpliedProbability, marketEfficiency, calculationMethod } = getMarketOddsFromRedis(marketData);
+    
+    // 💰 Extract execution prices (what users actually pay)
+    const yesBuyPrice = parseFloat(String(marketData.yes_buy_price || '0'));
+    const yesSellPrice = parseFloat(String(marketData.yes_sell_price || '0'));
+    const noBuyPrice = parseFloat(String(marketData.no_buy_price || '0'));
+    const noSellPrice = parseFloat(String(marketData.no_sell_price || '0'));
+    
+    // 📈 Extract market efficiency metrics
+    const yesMidpoint = parseFloat(String(marketData.yes_midpoint || '0'));
+    const noMidpoint = parseFloat(String(marketData.no_midpoint || '0'));
+    
+    // Parse orderbook data (still useful for advanced analytics)
     const orderbookYes: OrderBook | null = parseOrderbook(marketData.orderbook_yes);
     const orderbookNo: OrderBook | null = parseOrderbook(marketData.orderbook_no);
 
@@ -71,12 +170,26 @@ function parseAndMergeMarketData(marketData: Record<string, any>, metaData: Reco
       endsAt: metaData.end_date ? new Date(metaData.end_date) : undefined,
       imageUrl: `https://placehold.co/600x400.png`,
       aiHint: metaData.category?.toLowerCase() || question.split(' ').slice(0, 2).join(' ') || 'general',
-      yesBuyPrice: parseFloat(marketData.yes_buy_price || '0'),
-      yesSellPrice: parseFloat(marketData.yes_sell_price || '0'),
-      noBuyPrice: parseFloat(marketData.no_buy_price || '0'),
-      noSellPrice: parseFloat(marketData.no_sell_price || '0'),
-      yesImpliedProbability: parseFloat(marketData.market_odds_yes || '0.5'),
-      noImpliedProbability: parseFloat(marketData.market_odds_no || '0.5'),
+      
+      // 💰 Execution prices (what users actually pay)
+      yesBuyPrice: yesBuyPrice,
+      yesSellPrice: yesSellPrice,
+      noBuyPrice: noBuyPrice,
+      noSellPrice: noSellPrice,
+      
+      // ✅ CORRECT: Normalized market probabilities (always sum to 100%)
+      yesImpliedProbability: yesImpliedProbability,
+      noImpliedProbability: noImpliedProbability,
+      
+      // 📊 Market efficiency and analytics
+      marketEfficiency: marketEfficiency,
+      calculationMethod: calculationMethod,
+      
+      // 📈 Midpoint prices for advanced analytics
+      yesMidpoint: yesMidpoint,
+      noMidpoint: noMidpoint,
+      
+      // 📚 Orderbook data (optional, for advanced users)
       orderbook: (orderbookYes || orderbookNo) ? {
         yes: orderbookYes || { bids: [], asks: [] },
         no: orderbookNo || { bids: [], asks: [] },
@@ -227,6 +340,99 @@ export async function getMarketDetails(marketId: string): Promise<LiveMarket | n
     return parseAndMergeMarketData(marketData, metaData);
   } catch (error) {
     console.error(`[MarketService] A critical error occurred in getMarketDetails for ID ${marketId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * 🎯 **UTILITY FUNCTION: Get Market Odds with Full Context**
+ * 
+ * Returns comprehensive market odds data including normalized probabilities,
+ * execution prices, and market efficiency metrics.
+ */
+export async function getMarketOdds(conditionId: string): Promise<{
+  conditionId: string;
+  odds: {
+    yes: number;
+    no: number;
+    calculationMethod: string;
+  };
+  execution: {
+    yesBuyPrice: number;
+    noBuyPrice: number;
+    yesSellPrice: number;
+    noSellPrice: number;
+  };
+  efficiency: {
+    yesMidpoint: number;
+    noMidpoint: number;
+    totalMidpoints: number;
+    marketEfficiency: number;
+  };
+  raw: {
+    yesExecutionPercent: number;
+    noExecutionPercent: number;
+    totalRaw: number;
+    warning: string;
+  };
+} | null> {
+  try {
+    const marketKey = `market:${conditionId}`;
+    const marketData = await safeRedisOperation(
+      () => redis.hgetall(marketKey),
+      null
+    );
+    
+    if (!marketData) {
+      console.error(`[MarketService] No market data found for ${conditionId}`);
+      return null;
+    }
+    
+         const { yesImpliedProbability, noImpliedProbability, marketEfficiency, calculationMethod } = getMarketOddsFromRedis(marketData);
+     
+     const yesBuyPrice = parseFloat(String(marketData.yes_buy_price || '0'));
+     const noBuyPrice = parseFloat(String(marketData.no_buy_price || '0'));
+     const yesSellPrice = parseFloat(String(marketData.yes_sell_price || '0'));
+     const noSellPrice = parseFloat(String(marketData.no_sell_price || '0'));
+     const yesMidpoint = parseFloat(String(marketData.yes_midpoint || '0'));
+     const noMidpoint = parseFloat(String(marketData.no_midpoint || '0'));
+    
+    return {
+      conditionId,
+      
+      // ✅ CORRECT: Use pre-calculated normalized odds
+      odds: {
+        yes: yesImpliedProbability,
+        no: noImpliedProbability,
+        calculationMethod
+      },
+      
+      // 💰 Execution prices (what users actually pay)
+      execution: {
+        yesBuyPrice,
+        noBuyPrice,
+        yesSellPrice,
+        noSellPrice
+      },
+      
+      // 📈 Market efficiency metrics
+      efficiency: {
+        yesMidpoint,
+        noMidpoint,
+        totalMidpoints: yesMidpoint + noMidpoint,
+        marketEfficiency
+      },
+      
+      // ⚠️ DON'T USE: Raw execution prices (they don't sum to 100%)
+      raw: {
+        yesExecutionPercent: yesBuyPrice * 100,
+        noExecutionPercent: noBuyPrice * 100,
+        totalRaw: (yesBuyPrice + noBuyPrice) * 100,
+        warning: "These don't sum to 100% - use normalized odds instead"
+      }
+    };
+  } catch (error) {
+    console.error('[MarketService] Error fetching market odds:', error);
     return null;
   }
 }

@@ -44,6 +44,10 @@ export default function HeroBetDisplay() {
           noSellPrice: 0.63,
           yesImpliedProbability: 0.35,
           noImpliedProbability: 0.65,
+          marketEfficiency: 0.95,
+          calculationMethod: 'fallback_sample',
+          yesMidpoint: 0.34,
+          noMidpoint: 0.64,
           endsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           imageUrl: 'https://placehold.co/600x400.png',
           aiHint: 'technology music'
@@ -62,6 +66,10 @@ export default function HeroBetDisplay() {
           noSellPrice: 0.5,
           yesImpliedProbability: 0.5,
           noImpliedProbability: 0.5,
+          marketEfficiency: 1.0,
+          calculationMethod: 'fallback_mock',
+          yesMidpoint: 0.5,
+          noMidpoint: 0.5,
           endsAt: mockPredictions[0].endsAt,
           imageUrl: mockPredictions[0].imageUrl || 'https://placehold.co/600x400.png',
           aiHint: mockPredictions[0].aiHint || 'prediction'
@@ -81,6 +89,10 @@ export default function HeroBetDisplay() {
         noSellPrice: 0.38,
         yesImpliedProbability: 0.60,
         noImpliedProbability: 0.40,
+        marketEfficiency: 1.0,
+        calculationMethod: 'fallback_error',
+        yesMidpoint: 0.59,
+        noMidpoint: 0.39,
         endsAt: mockPredictions[1].endsAt,
         imageUrl: mockPredictions[1].imageUrl || 'https://placehold.co/600x400.png',
                   aiHint: mockPredictions[1].aiHint || 'prediction'

@@ -20,6 +20,12 @@ export interface LiveMarket {
   yesImpliedProbability: number;
   noImpliedProbability: number;
 
+  // Market efficiency and analytics
+  marketEfficiency: number;
+  calculationMethod: string;
+  yesMidpoint: number;
+  noMidpoint: number;
+
   // Full orderbook data (as parsed objects)
   orderbook?: {
     yes: { bids: OrderLevel[], asks: OrderLevel[] };
