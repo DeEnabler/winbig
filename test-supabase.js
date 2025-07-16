@@ -90,18 +90,9 @@ async function testBetInsertion() {
     console.log('✅ Bet inserted successfully!');
     console.log('📋 Inserted record:', data);
     
-    // Clean up - delete the test record
-    console.log('🧹 Cleaning up test record...');
-    const { error: deleteError } = await supabase
-      .from('bets')
-      .delete()
-      .eq('id', data.id);
-    
-    if (deleteError) {
-      console.warn('⚠️ Could not clean up test record:', deleteError);
-    } else {
-      console.log('✅ Test record cleaned up');
-    }
+    // Keeping test record in database for verification
+    console.log('📊 Test record left in database for verification - ID:', data.id);
+    console.log('🔍 Check your Supabase dashboard to see this record!');
     
     return true;
   } catch (err) {
