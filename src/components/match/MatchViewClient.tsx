@@ -182,40 +182,64 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   };
   
   const handlePlaceBet = async () => {
+    console.log('🎯 handlePlaceBet called');
+    console.log('📊 Current state:', { selectedChoice, predictionId: match.predictionId, executionPreview: executionPreview?.success, betAmountState });
+    
     if (!selectedChoice || !match.predictionId || !executionPreview?.success) {
+      console.error('❌ Bet validation failed:', { 
+        selectedChoice, 
+        predictionId: match.predictionId, 
+        executionPreviewSuccess: executionPreview?.success 
+      });
       toast({ variant: "destructive", title: "Cannot Place Bet", description: "Please ensure your bet details are correct and the market is available." });
       return;
     }
+    
     setIsBetting(true);
+    console.log('🚀 Starting bet placement process...');
+    
     toast({
         title: "Placing your bet...",
         description: `You chose ${selectedChoice} for "${match.predictionText.substring(0,30)}...". Amount: $${betAmountState}${match.bonusApplied ? " (+20% Bonus!)" : ""}`,
     });
 
+    const betPayload = {
+        userId: mockCurrentUser.id,
+        challengeMatchId: match.id,
+        predictionId: match.predictionId,
+        choice: selectedChoice,
+        amount: betAmountState,
+        referrerName: match.originalReferrer,
+        bonusApplied: match.bonusApplied ?? false,
+    };
+    
+    console.log('📤 Sending bet payload:', betPayload);
+
     try {
+        console.log('🌐 Making API request to /api/bets...');
         const response = await fetch('/api/bets', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                userId: mockCurrentUser.id,
-                challengeMatchId: match.id,
-                predictionId: match.predictionId,
-                choice: selectedChoice,
-                amount: betAmountState, // Send the user's intended dollar amount
-                referrerName: match.originalReferrer,
-                bonusApplied: match.bonusApplied ?? false,
-            }),
+            body: JSON.stringify(betPayload),
         });
+        
+        console.log('📥 API response status:', response.status, response.statusText);
+        
         const result = await response.json();
+        console.log('📋 API response body:', result);
+        
         if (!response.ok || !result.success) {
+            console.error('❌ API request failed:', { status: response.status, result });
             throw new Error(result.message || 'Failed to place bet via API.');
         }
 
+        console.log('✅ Bet placement successful, showing success toast...');
         toast({
             title: "Bet Confirmed & Placed!",
             description: `Your ${selectedChoice} bet is in! Good luck!${result.data?.bonusApplied ? " Bonus applied!" : ""}`,
         });
 
+        console.log('🔄 Updating local state...');
         setMatch(prevMatch => ({
             ...prevMatch,
             isConfirmingChallenge: false,

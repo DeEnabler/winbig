@@ -1,9 +1,22 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
+console.log('🔧 Initializing Supabase client...');
+console.log('🌐 SUPABASE_URL exists:', !!process.env.SUPABASE_URL);
+console.log('🔑 SUPABASE_KEY exists:', !!process.env.SUPABASE_KEY);
+
 const supabaseUrl = process.env.SUPABASE_URL!
 const supabaseAnonKey = process.env.SUPABASE_KEY!
 
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('❌ Missing Supabase environment variables!');
+  console.error('SUPABASE_URL:', supabaseUrl || 'MISSING');
+  console.error('SUPABASE_KEY:', supabaseAnonKey || 'MISSING');
+  throw new Error('Missing required Supabase environment variables');
+}
+
+console.log('✅ Supabase environment variables found, creating client...');
 export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey)
+console.log('✅ Supabase client created successfully');
 
 // Type for the bets table matching the schema from the guide
 export interface BetRecord {
@@ -38,21 +51,34 @@ export interface BetRecord {
 // Helper function to insert a new bet
 export async function insertBet(bet: Omit<BetRecord, 'id' | 'created_at'>): Promise<{ success: boolean; data?: BetRecord; error?: string }> {
   try {
+    console.log('🎯 insertBet called with:', bet);
+    console.log('🔧 Supabase client configured and ready');
+    
+    console.log('🚀 Executing Supabase insert query...');
     const { data, error } = await supabase
       .from('bets')
       .insert([bet])
       .select()
       .single()
 
+    console.log('📥 Supabase response:', { data, error });
+
     if (error) {
-      console.error('Error inserting bet:', error)
+      console.error('❌ Supabase error details:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      console.error('Error details:', error.details);
+      console.error('Error hint:', error.hint);
       return { success: false, error: error.message }
     }
 
+    console.log('✅ Bet inserted successfully:', data);
     return { success: true, data }
   } catch (err) {
-    console.error('Exception inserting bet:', err)
-    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+    console.error('❌ Unexpected error in insertBet:', err);
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+    console.error('Error message:', errorMessage);
+    return { success: false, error: errorMessage }
   }
 }
 
