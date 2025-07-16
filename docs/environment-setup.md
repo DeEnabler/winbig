@@ -1,33 +1,21 @@
-# Environment Setup for Supabase Betting System
+# Supabase Environment Variables
 
 ## Required Environment Variables
 
-Add these environment variables to your `.env.local` file in the root of your project:
-
-```env
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
-
-# Optional: Service Role Key for backend operations (if you plan to use server-side operations)
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
+```
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your_anon_key_here
 ```
 
-## Where to Find These Values
+## Variable Descriptions
 
-1. **Go to your Supabase Dashboard**: https://supabase.com/dashboard
-2. **Select your project** (or create a new one)
-3. **Go to Settings → API**
-4. **Copy the values:**
-   - **Project URL** → Use for `NEXT_PUBLIC_SUPABASE_URL`
-   - **anon public** key → Use for `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - **service_role** key → Use for `SUPABASE_SERVICE_ROLE_KEY` (optional)
+- **Project URL** → Use for `SUPABASE_URL`
+- **anon public** key → Use for `SUPABASE_KEY`
 
 ## Security Notes
 
-- ✅ **NEXT_PUBLIC_SUPABASE_URL** - Safe to expose to client-side
-- ✅ **NEXT_PUBLIC_SUPABASE_ANON_KEY** - Safe to expose to client-side (has limited permissions)
-- ❌ **SUPABASE_SERVICE_ROLE_KEY** - Keep secret! Never expose to client-side
+- ✅ **SUPABASE_URL** - Safe to expose to client-side
+- ✅ **SUPABASE_KEY** - Safe to expose to client-side (has limited permissions)
 
 ## Database Setup
 
