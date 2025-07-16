@@ -54,10 +54,20 @@ export async function insertBet(bet: Omit<BetRecord, 'id' | 'created_at'>): Prom
     console.log('🎯 insertBet called with:', bet);
     console.log('🔧 Supabase client configured and ready');
     
-    console.log('🚀 Executing Supabase insert query...');
+    // Create a bet record that matches the current table structure
+    const simplifiedBet = {
+      user_id: bet.user_id,
+      market_id: bet.market_id,
+      outcome: bet.outcome,
+      amount: bet.amount,
+      odds_shown_to_user: bet.odds_shown_to_user,
+      execution_price: bet.execution_price || null
+    };
+    
+    console.log('🚀 Executing Supabase insert query with simplified bet:', simplifiedBet);
     const { data, error } = await supabase
       .from('bets')
-      .insert([bet])
+      .insert([simplifiedBet])
       .select()
       .single()
 
