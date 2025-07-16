@@ -1,7 +1,9 @@
 
 // src/app/api/bets/route.ts
 import { type NextRequest, NextResponse } from 'next/server';
-import { mockCurrentUser } from '@/lib/mockData'; // For a mock user ID
+import { mockCurrentUser } from '@/lib/mockData';
+import { insertBet, type BetRecord } from '@/lib/supabase';
+import { getMarketOdds } from '@/lib/marketService';
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,39 +18,96 @@ export async function POST(req: NextRequest) {
       bonusApplied // Added to receive bonus status
     } = body;
 
-    // --- Backend Logic Placeholder ---
-    // In a real application, you would:
-    // 1. Validate the input (e.g., ensure predictionId exists, user has funds, etc.)
-    // 2. Get the authenticated userId securely (not from the request body for sensitive ops)
-    // 3. Record the bet in your database (e.g., Firestore)
-    //    - Associate with userId, predictionId, choice, amount, timestamp, bonusApplied
-    //    - Handle P2P matching or liquidity pool interaction
-    //    - Generate a unique bet ID
-    // 4. Potentially update user's balance, XP, etc. (factor in bonus for potential display)
-    // 5. If it's a P2P challenge, notify the original challenger.
+    // Validate required fields
+    if (!predictionId || !choice || !amount) {
+      return NextResponse.json({
+        success: false,
+        message: 'Missing required fields: predictionId, choice, and amount are required.',
+      }, { status: 400 });
+    }
+
+    // Validate choice
+    if (choice !== 'YES' && choice !== 'NO') {
+      return NextResponse.json({
+        success: false,
+        message: 'Invalid choice. Must be either "YES" or "NO".',
+      }, { status: 400 });
+    }
+
+    // Validate amount
+    const betAmount = parseFloat(amount);
+    if (isNaN(betAmount) || betAmount <= 0) {
+      return NextResponse.json({
+        success: false,
+        message: 'Invalid amount. Must be a positive number.',
+      }, { status: 400 });
+    }
+
+    // Use provided userId or fall back to mock user
+    const finalUserId = userId || mockCurrentUser.id;
+
+    // Get current market odds for accurate recording
+    let currentOdds = choice === 'YES' ? 0.5 : 0.5; // Default fallback
+    
+    try {
+      const marketOdds = await getMarketOdds(predictionId);
+      if (marketOdds) {
+        currentOdds = choice === 'YES' ? marketOdds.odds.yes : marketOdds.odds.no;
+        console.log(`✅ Retrieved market odds for ${predictionId}: YES=${marketOdds.odds.yes.toFixed(3)}, NO=${marketOdds.odds.no.toFixed(3)}`);
+      } else {
+        console.warn(`⚠️ Could not retrieve market odds for ${predictionId}, using fallback odds`);
+      }
+    } catch (error) {
+      console.error(`❌ Error fetching market odds for ${predictionId}:`, error);
+    }
 
     console.log('Received bet placement request:');
-    console.log({ userId, challengeMatchId, predictionId, choice, amount, referrerName, bonusApplied });
+    console.log({ userId: finalUserId, challengeMatchId, predictionId, choice, amount: betAmount, currentOdds, referrerName, bonusApplied });
 
-    // For now, we just simulate a successful bet placement.
-    const mockBetId = `bet_${Date.now()}`;
+    // Create bet record for Supabase
+    const betRecord: Omit<BetRecord, 'id' | 'created_at'> = {
+      user_id: finalUserId,
+      session_id: challengeMatchId, // Using challengeMatchId as session_id for tracking
+      market_id: predictionId,
+      outcome: choice as 'YES' | 'NO',
+      amount: betAmount,
+      odds_shown_to_user: currentOdds,
+      status: 'pending',
+      notes: bonusApplied ? `Bonus applied by referrer: ${referrerName || 'unknown'}` : undefined
+    };
+
+    // Insert bet into Supabase
+    const result = await insertBet(betRecord);
+    
+    if (!result.success) {
+      console.error('Failed to insert bet into database:', result.error);
+      return NextResponse.json({
+        success: false,
+        message: 'Failed to save bet to database.',
+        error: result.error,
+      }, { status: 500 });
+    }
+
+    // Format response to match existing frontend expectations
     const betDetails = {
-      betId: mockBetId,
-      userId: userId || mockCurrentUser.id, // Use provided or mock
+      betId: result.data!.id,
+      userId: finalUserId,
       challengeMatchId,
       predictionId,
       choice,
-      amount,
-      status: 'PENDING', // Bets start as pending
-      timestamp: new Date().toISOString(),
-      bonusApplied: !!bonusApplied, // Ensure it's a boolean
+      amount: betAmount,
+      status: 'PENDING',
+      timestamp: result.data!.created_at,
+      bonusApplied: !!bonusApplied,
+      // Include database record for debugging
+      dbRecord: result.data
     };
 
-    // --- End Backend Logic Placeholder ---
+    console.log('✅ Bet successfully saved to Supabase:', result.data!.id);
 
     return NextResponse.json({
       success: true,
-      message: 'Bet placed successfully (mock).',
+      message: 'Bet placed successfully and saved to database.',
       data: betDetails,
     }, { status: 200 });
 

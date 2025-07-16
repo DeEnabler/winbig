@@ -3,7 +3,6 @@
 import 'server-only';
 import redis, { safeRedisOperation } from '@/lib/redis';
 import type { LiveMarket, OrderBook } from '@/types';
-import { mockLiveMarkets, getMockMarketById, isMockMarket } from '@/lib/mockData';
 
 interface GetLiveMarketsParams {
   limit?: number;
@@ -101,25 +100,6 @@ function getMarketOddsFromRedis(marketData: Record<string, any>): {
       calculationMethod: 'error_fallback'
     };
   }
-}
-
-/**
- * 🎯 **MOCK MARKET ODDS EXTRACTION**
- * 
- * Extracts normalized odds from mock market data for testing purposes.
- */
-function getMarketOddsFromMock(mockMarket: LiveMarket): {
-  yesImpliedProbability: number;
-  noImpliedProbability: number;
-  marketEfficiency: number;
-  calculationMethod: string;
-} {
-  return {
-    yesImpliedProbability: mockMarket.yesImpliedProbability,
-    noImpliedProbability: mockMarket.noImpliedProbability,
-    marketEfficiency: mockMarket.marketEfficiency,
-    calculationMethod: mockMarket.calculationMethod
-  };
 }
 
 /**
@@ -277,25 +257,13 @@ export async function getLiveMarkets({ limit = 10, cursor = '0' }: GetLiveMarket
 
     if (!scanResult) {
       console.error('[MarketService] Failed to scan market keys');
-      // 🎯 **FALLBACK TO MOCK MARKETS FOR TESTING**
-      console.log('[MarketService] Returning mock markets for testing');
-      return { 
-        markets: mockLiveMarkets.slice(0, limit), 
-        total: mockLiveMarkets.length,
-        nextCursor: mockLiveMarkets.length > limit ? '1' : undefined
-      };
+      return { markets: [], total: 0 };
     }
 
     const [nextCursor, marketKeys] = scanResult;
     
     if (marketKeys.length === 0) {
-      // 🎯 **NO REAL MARKETS FOUND - RETURN MOCK MARKETS FOR TESTING**
-      console.log('[MarketService] No real markets found, returning mock markets for testing');
-      return { 
-        markets: mockLiveMarkets.slice(0, limit), 
-        total: mockLiveMarkets.length,
-        nextCursor: mockLiveMarkets.length > limit ? '1' : undefined
-      };
+      return { markets: [], total: 0, nextCursor: nextCursor !== '0' ? nextCursor : undefined };
     }
 
     // Extract IDs from keys (e.g., 'market:0x123...' -> '0x123...')
@@ -318,12 +286,7 @@ export async function getLiveMarkets({ limit = 10, cursor = '0' }: GetLiveMarket
 
     if (!results) {
       console.error('[MarketService] Pipeline execution failed');
-      // Fallback to mock markets
-      console.log('[MarketService] Pipeline failed, returning mock markets for testing');
-      return { 
-        markets: mockLiveMarkets.slice(0, limit), 
-        total: mockLiveMarkets.length 
-      };
+      return { markets: [], total: totalCount || 0 };
     }
 
     // Parse results into LiveMarket objects
@@ -340,37 +303,19 @@ export async function getLiveMarkets({ limit = 10, cursor = '0' }: GetLiveMarket
       }
     }
 
-    // 🎯 **HYBRID APPROACH: Include mock markets if we have few real markets**
-    if (markets.length < 3 && markets.length < limit) {
-      console.log(`[MarketService] Only ${markets.length} real markets found, supplementing with mock markets`);
-      const mockMarketsToAdd = mockLiveMarkets.slice(0, limit - markets.length);
-      markets.push(...mockMarketsToAdd);
-    }
-
     return { 
       markets, 
-      total: (totalCount || 0) + mockLiveMarkets.length,
+      total: totalCount || 0,
       nextCursor: nextCursor !== '0' ? nextCursor : undefined
     };
   } catch (error) {
     console.error('[MarketService] A critical error occurred in getLiveMarkets:', error);
-    // Fallback to mock markets for testing
-    console.log('[MarketService] Error occurred, returning mock markets for testing');
-    return { 
-      markets: mockLiveMarkets.slice(0, limit), 
-      total: mockLiveMarkets.length 
-    };
+    return { markets: [], total: 0 };
   }
 }
 
 export async function getMarketDetails(marketId: string): Promise<LiveMarket | null> {
   try {
-    // 🎯 **CHECK IF IT'S A MOCK MARKET FIRST**
-    if (isMockMarket(marketId)) {
-      console.log(`[MarketService] Returning mock market for ID: ${marketId}`);
-      return getMockMarketById(marketId);
-    }
-
     const pipeline = redis.pipeline();
     pipeline.hgetall(`market:${marketId}`);
     pipeline.hgetall(`market_meta:${marketId}`);
@@ -382,26 +327,20 @@ export async function getMarketDetails(marketId: string): Promise<LiveMarket | n
 
     if (!results) {
       console.error(`[MarketService] Failed to fetch market details for ID ${marketId}`);
-      // 🎯 **FALLBACK TO MOCK MARKET**
-      console.log(`[MarketService] Redis failed, trying mock market for ID: ${marketId}`);
-      return getMockMarketById(marketId);
+      return null;
     }
 
     const [marketData, metaData] = results;
 
     if (!marketData || !metaData) {
       console.warn(`[MarketService] Incomplete data for market ${marketId}`);
-      // 🎯 **FALLBACK TO MOCK MARKET**
-      console.log(`[MarketService] Incomplete data, trying mock market for ID: ${marketId}`);
-      return getMockMarketById(marketId);
+      return null;
     }
     
     return parseAndMergeMarketData(marketData, metaData);
   } catch (error) {
     console.error(`[MarketService] A critical error occurred in getMarketDetails for ID ${marketId}:`, error);
-    // 🎯 **FINAL FALLBACK TO MOCK MARKET**
-    console.log(`[MarketService] Error occurred, trying mock market for ID: ${marketId}`);
-    return getMockMarketById(marketId);
+    return null;
   }
 }
 
@@ -410,7 +349,6 @@ export async function getMarketDetails(marketId: string): Promise<LiveMarket | n
  * 
  * Returns comprehensive market odds data including normalized probabilities,
  * execution prices, and market efficiency metrics.
- * Now supports both real and mock markets for testing.
  */
 export async function getMarketOdds(conditionId: string): Promise<{
   conditionId: string;
@@ -439,54 +377,6 @@ export async function getMarketOdds(conditionId: string): Promise<{
   };
 } | null> {
   try {
-    // 🎯 **CHECK IF IT'S A MOCK MARKET FIRST**
-    if (isMockMarket(conditionId)) {
-      const mockMarket = getMockMarketById(conditionId);
-      if (!mockMarket) {
-        console.error(`[MarketService] Mock market not found for ID: ${conditionId}`);
-        return null;
-      }
-
-      console.log(`[MarketService] Returning odds for mock market: ${conditionId}`);
-      const { yesImpliedProbability, noImpliedProbability, marketEfficiency, calculationMethod } = getMarketOddsFromMock(mockMarket);
-      
-      return {
-        conditionId,
-        
-        // ✅ CORRECT: Use pre-calculated normalized odds
-        odds: {
-          yes: yesImpliedProbability,
-          no: noImpliedProbability,
-          calculationMethod
-        },
-        
-        // 💰 Execution prices (what users actually pay)
-        execution: {
-          yesBuyPrice: mockMarket.yesBuyPrice,
-          noBuyPrice: mockMarket.noBuyPrice,
-          yesSellPrice: mockMarket.yesSellPrice,
-          noSellPrice: mockMarket.noSellPrice
-        },
-        
-        // 📈 Market efficiency metrics
-        efficiency: {
-          yesMidpoint: mockMarket.yesMidpoint,
-          noMidpoint: mockMarket.noMidpoint,
-          totalMidpoints: mockMarket.yesMidpoint + mockMarket.noMidpoint,
-          marketEfficiency
-        },
-        
-        // ⚠️ DON'T USE: Raw execution prices (they don't sum to 100%)
-        raw: {
-          yesExecutionPercent: mockMarket.yesBuyPrice * 100,
-          noExecutionPercent: mockMarket.noBuyPrice * 100,
-          totalRaw: (mockMarket.yesBuyPrice + mockMarket.noBuyPrice) * 100,
-          warning: "These don't sum to 100% - use normalized odds instead"
-        }
-      };
-    }
-
-    // Try to get real market data from Redis
     const marketKey = `market:${conditionId}`;
     const marketData = await safeRedisOperation(
       () => redis.hgetall(marketKey),
@@ -495,23 +385,17 @@ export async function getMarketOdds(conditionId: string): Promise<{
     
     if (!marketData) {
       console.error(`[MarketService] No market data found for ${conditionId}`);
-      // 🎯 **FALLBACK TO MOCK MARKET**
-      console.log(`[MarketService] No Redis data, trying mock market for ID: ${conditionId}`);
-      const mockMarket = getMockMarketById(conditionId);
-      if (mockMarket) {
-        return await getMarketOdds(mockMarket.id); // Recursive call will handle mock market
-      }
       return null;
     }
     
-    const { yesImpliedProbability, noImpliedProbability, marketEfficiency, calculationMethod } = getMarketOddsFromRedis(marketData);
-    
-    const yesBuyPrice = parseFloat(String(marketData.yes_buy_price || '0'));
-    const noBuyPrice = parseFloat(String(marketData.no_buy_price || '0'));
-    const yesSellPrice = parseFloat(String(marketData.yes_sell_price || '0'));
-    const noSellPrice = parseFloat(String(marketData.no_sell_price || '0'));
-    const yesMidpoint = parseFloat(String(marketData.yes_midpoint || '0'));
-    const noMidpoint = parseFloat(String(marketData.no_midpoint || '0'));
+         const { yesImpliedProbability, noImpliedProbability, marketEfficiency, calculationMethod } = getMarketOddsFromRedis(marketData);
+     
+     const yesBuyPrice = parseFloat(String(marketData.yes_buy_price || '0'));
+     const noBuyPrice = parseFloat(String(marketData.no_buy_price || '0'));
+     const yesSellPrice = parseFloat(String(marketData.yes_sell_price || '0'));
+     const noSellPrice = parseFloat(String(marketData.no_sell_price || '0'));
+     const yesMidpoint = parseFloat(String(marketData.yes_midpoint || '0'));
+     const noMidpoint = parseFloat(String(marketData.no_midpoint || '0'));
     
     return {
       conditionId,

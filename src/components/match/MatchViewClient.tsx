@@ -3,6 +3,7 @@
 
 import type { MatchViewProps, ShareMessageDetails, ExecutionPreview } from '@/types';
 import { mockCurrentUser, mockOpponentUser } from '@/lib/mockData';
+import { subscribeToBetUpdates, type BetRecord } from '@/lib/supabase';
 import NextImage from 'next/image';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -228,6 +229,50 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
             bonusApplied: result.data?.bonusApplied ?? false,
         }));
         setBetPlaced(true);
+
+        // Set up real-time subscription for bet updates
+        console.log('🔄 Setting up real-time bet status subscription...');
+        const subscription = subscribeToBetUpdates(mockCurrentUser.id, (updatedBet: BetRecord) => {
+          console.log('📡 Received bet update:', updatedBet);
+          
+          // Update match state with execution results
+          if (updatedBet.status === 'executed' && updatedBet.success) {
+            toast({
+              title: "Bet Executed! ✅",
+              description: `Your bet was executed at $${updatedBet.execution_price?.toFixed(4)}. You received ${updatedBet.shares_received?.toFixed(2)} shares.`,
+              duration: 10000,
+            });
+            
+            setMatch(prevMatch => ({
+              ...prevMatch,
+              userBet: {
+                ...prevMatch.userBet!,
+                status: 'EXECUTED' as any,
+              },
+            }));
+          } else if (updatedBet.status === 'failed') {
+            toast({
+              variant: "destructive",
+              title: "Bet Execution Failed ❌",
+              description: `Your bet could not be executed: ${updatedBet.error_message}`,
+              duration: 10000,
+            });
+            
+            setMatch(prevMatch => ({
+              ...prevMatch,
+              userBet: {
+                ...prevMatch.userBet!,
+                status: 'FAILED' as any,
+              },
+            }));
+          }
+        });
+
+        // Clean up subscription on component unmount
+        return () => {
+          console.log('🔌 Cleaning up bet subscription...');
+          subscription.unsubscribe();
+        };
 
     } catch (error) {
         console.error("Error confirming bet:", error);
