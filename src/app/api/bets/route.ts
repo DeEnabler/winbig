@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     console.log('Received bet placement request:');
     console.log({ userId: finalUserId, challengeMatchId, predictionId, choice, amount: betAmount, currentOdds, referrerName, bonusApplied });
 
-    // Create bet record for Supabase - simplified for current table structure
+    // Create bet record for Supabase
     const betRecord: Omit<BetRecord, 'id' | 'created_at'> = {
       user_id: finalUserId,
       session_id: challengeMatchId, // Will be ignored if column doesn't exist
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
       outcome: choice as 'YES' | 'NO',
       amount: betAmount,
       odds_shown_to_user: currentOdds,
-      status: 'pending', // Will be ignored if column doesn't exist
+      status: 'pending', // This will be written to track bet progress
       notes: bonusApplied ? `Bonus applied by referrer: ${referrerName || 'unknown'}` : undefined // Will be ignored if column doesn't exist
     };
 

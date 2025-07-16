@@ -65,7 +65,8 @@ async function testBetInsertion() {
     outcome: 'YES',
     amount: 10.50,
     odds_shown_to_user: 0.65,
-    execution_price: null
+    execution_price: null,
+    status: 'pending'
   };
 
   console.log('📝 Test bet record:', testBet);

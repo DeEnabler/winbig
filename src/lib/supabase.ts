@@ -61,7 +61,8 @@ export async function insertBet(bet: Omit<BetRecord, 'id' | 'created_at'>): Prom
       outcome: bet.outcome,
       amount: bet.amount,
       odds_shown_to_user: bet.odds_shown_to_user,
-      execution_price: bet.execution_price || null
+      execution_price: bet.execution_price || null,
+      status: bet.status || 'pending'
     };
     
     console.log('🚀 Executing Supabase insert query with simplified bet:', simplifiedBet);
