@@ -28,7 +28,7 @@ export const WalletKitProvider = ({
       createAppKit({
         adapters: [wagmiAdapter],
         projectId,
-        networks,
+        networks: networks as [any, ...any[]],
         defaultNetwork: networks[1], // Assuming polygonAmoy is the second; adjust if needed
         metadata,
         features: {

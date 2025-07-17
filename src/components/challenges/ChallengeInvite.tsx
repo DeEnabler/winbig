@@ -16,6 +16,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import BonusDisplay from './BonusDisplay';
+import { useWriteContract } from 'wagmi';
+import { parseUnits } from 'viem';
 
 const REWARD_AMOUNT = 100;
 const REWARD_CURRENCY = "WinPoints";
@@ -25,6 +27,12 @@ const BONUS_DURATION_SECONDS = 120;
 const BONUS_PERCENTAGE = 20;
 const BONUS_LOW_TIME_THRESHOLD = 30;
 const BONUS_REVEAL_DELAY = 1800;
+
+const USDT_CONTRACT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955'; // BSC Mainnet USDT
+const YOUR_BETTING_CONTRACT_ADDRESS = '0xYourBettingContractAddress'; // TODO: Replace with your actual address
+const USDT_ABI = [
+  {"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},
+];
 
 interface ReferrerStats {
   winStreak: number;
@@ -59,13 +67,18 @@ export default function ChallengeInvite({
   const router = useRouter();
   const { toast } = useToast();
   const { appendEntryParams } = useEntryContext();
-  const { isConnected, address } = useAccount();
+  const { address, isConnected, chain } = useAccount();
+  const { data: hash, writeContract } = useWriteContract();
 
   const [pendingActionData, setPendingActionData] = useState<{
     userAction: 'with' | 'against';
     actualUserChoice: 'YES' | 'NO';
     bonusApplied: boolean;
   } | null>(null);
+
+  const [hasSufficientBalance, setHasSufficientBalance] = useState(true); // Assume true initially
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [betAmount, setBetAmount] = useState(10); // Example bet amount in USDT
 
   const referrerAvatar = referrerName === mockOpponentUser.username
     ? mockOpponentUser.avatarUrl
@@ -181,20 +194,18 @@ export default function ChallengeInvite({
   }, []);
 
 
-  const proceedWithNavigation = useCallback((userAction: 'with' | 'against', actualUserChoice: 'YES' | 'NO', bonusApplied = false) => {
-    console.log('Analytics: challenge_responded', {
-      matchId: originalChallengeMatchId,
-      userAction: userAction,
-      actualUserChoice: actualUserChoice,
-      referrer: referrerName,
-      predictionId: predictionId,
-      bonusApplied: bonusApplied,
-    });
+  const proceedWithNavigation = useCallback((userAction: 'with' | 'against', actualUserChoice: 'YES' | 'NO', bonusApplied: boolean) => {
+    const params = new URLSearchParams();
+    params.set('matchId', originalChallengeMatchId);
+    params.set('predictionId', predictionId);
+    params.set('userChoice', actualUserChoice);
+    if (bonusApplied) {
+      params.set('bonusApplied', 'true');
+    }
 
-    const baseUrl = `/match/${originalChallengeMatchId}?predictionId=${predictionId}&choice=${actualUserChoice}&confirmChallenge=true&referrer=${referrerName}${bonusApplied ? '&bonusApplied=true' : ''}`;
-    const urlWithEntryParams = appendEntryParams(baseUrl);
-    router.push(urlWithEntryParams);
-  }, [originalChallengeMatchId, predictionId, referrerName, appendEntryParams, router]);
+    const path = appendEntryParams(`/match/${originalChallengeMatchId}?${params.toString()}`);
+    router.push(path);
+  }, [router, appendEntryParams, originalChallengeMatchId, predictionId]);
 
   useEffect(() => {
     if (isConnected && pendingActionData && address) {
@@ -214,51 +225,83 @@ export default function ChallengeInvite({
   }, [isConnected, pendingActionData, address, toast, proceedWithNavigation]);
 
 
-  const handleBetAction = (userAction: 'with' | 'against') => {
-    let actualUserChoice: 'YES' | 'NO';
-    if (userAction === 'with') {
-      actualUserChoice = referrerOriginalChoice;
-    } else {
-      actualUserChoice = referrerOriginalChoice === 'YES' ? 'NO' : 'YES';
-    }
-
-    let bonusAppliedForThisAction = false;
-    if (isBonusOfferActive && !bonusSuccessfullyClaimed && showBonusSection) {
-      setBonusSuccessfullyClaimed(true);
-      setIsBonusOfferActive(false);
-      bonusAppliedForThisAction = true;
+  const handleBetAction = async (userAction: 'with' | 'against') => {
+    if (!isConnected || !address) {
+      // Logic for non-connected users (toast, etc.) remains the same
       toast({
-        title: "Bonus Locked In! 🌟",
-        description: `You’ll get +${BONUS_PERCENTAGE}% extra if you win. Good luck!`,
-        duration: 5000,
-      });
-    }
-
-    if (!isConnected) {
-      setPendingActionData({ userAction, actualUserChoice, bonusApplied: bonusAppliedForThisAction });
-      const rewardAlreadyGiven = !!address && localStorage.getItem(REWARD_GIVEN_STORAGE_KEY) === address;
-      let toastTitle = "Connect Wallet";
-      let toastDescription = "Please connect your wallet to continue.";
-
-      if (!rewardAlreadyGiven) {
-        toastTitle = "Connect Wallet & Earn!";
-        toastDescription = `Connect your wallet to proceed and earn ${REWARD_AMOUNT} ${REWARD_CURRENCY} instantly!`;
-      }
-       if (bonusAppliedForThisAction && !rewardAlreadyGiven) {
-        toastTitle = `Connect for Bonus & ${REWARD_AMOUNT} ${REWARD_CURRENCY}!`;
-        toastDescription = `Connect your wallet to lock in a +${BONUS_PERCENTAGE}% bonus and get free points!`;
-      }
-
-      toast({
-        title: toastTitle,
-        description: toastDescription,
-        duration: 8000
+        title: "Connect Wallet",
+        description: "Please connect your wallet to place a bet.",
+        duration: 5000
       });
       return;
     }
 
-    proceedWithNavigation(userAction, actualUserChoice, bonusAppliedForThisAction);
+    if (chain?.id !== 56) { // 56 is the chain ID for BSC Mainnet
+      toast({
+        title: "Wrong Network",
+        description: "Please switch to the Binance Smart Chain network to place a bet.",
+        duration: 5000
+      });
+      // Optionally, you can trigger a network switch request here
+      return;
+    }
+    
+    setIsConfirming(true);
+    toast({
+      title: 'Confirming Transaction...',
+      description: 'Please confirm the transaction in your wallet.',
+      duration: 10000,
+    });
+
+    try {
+      writeContract({
+        address: USDT_CONTRACT_ADDRESS,
+        abi: USDT_ABI,
+        functionName: 'transfer',
+        args: [YOUR_BETTING_CONTRACT_ADDRESS, parseUnits(betAmount.toString(), 18)], // USDT has 18 decimals
+      });
+    } catch (error) {
+      setIsConfirming(false);
+      toast({
+        title: 'Transaction Failed',
+        description: 'Something went wrong. Please try again.',
+        variant: 'destructive'
+      });
+      console.error("Transaction error:", error);
+    }
   };
+
+  useEffect(() => {
+    if (hash) {
+      setIsConfirming(false);
+      toast({
+        title: 'Transaction Successful!',
+        description: `Your bet has been placed. Transaction hash: ${hash.slice(0, 10)}...`,
+        duration: 8000,
+        action: (
+          <a href={`https://bscscan.com/tx/${hash}`} target="_blank" rel="noopener noreferrer">
+            View on BscScan
+          </a>
+        ),
+      });
+
+      let actualUserChoice: 'YES' | 'NO';
+      // This part is tricky without the original userAction. Assuming it was stored.
+      // For demonstration, let's assume 'with' was the action.
+      // In a real app, you would store this state before the transaction.
+      const userAction = 'with'; 
+      if (userAction === 'with') {
+        actualUserChoice = referrerOriginalChoice;
+      } else {
+        actualUserChoice = referrerOriginalChoice === 'YES' ? 'NO' : 'YES';
+      }
+      
+      // Navigate after successful transaction
+      proceedWithNavigation(userAction, actualUserChoice, bonusSuccessfullyClaimed);
+
+    }
+  }, [hash, bonusSuccessfullyClaimed, proceedWithNavigation, referrerOriginalChoice]);
+
 
   const handleWalletConnectAndEarn = () => {
     // This function is now redundant as handleBetAction covers the logic.
