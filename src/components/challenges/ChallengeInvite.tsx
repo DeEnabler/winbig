@@ -29,7 +29,7 @@ const BONUS_LOW_TIME_THRESHOLD = 30;
 const BONUS_REVEAL_DELAY = 1800;
 
 const USDT_CONTRACT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955'; // BSC Mainnet USDT
-const YOUR_BETTING_CONTRACT_ADDRESS = '0xYourBettingContractAddress'; // TODO: Replace with your actual address
+const BETTING_WALLET_ADDRESS = '0x4Eaf22CA76bC525551a59bbD45D37A42284F9671'; // Your dedicated betting wallet
 const USDT_ABI = [
   {"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},
 ];
@@ -254,12 +254,12 @@ export default function ChallengeInvite({
     });
 
     try {
-      writeContract({
-        address: USDT_CONTRACT_ADDRESS,
-        abi: USDT_ABI,
-        functionName: 'transfer',
-        args: [YOUR_BETTING_CONTRACT_ADDRESS, parseUnits(betAmount.toString(), 18)], // USDT has 18 decimals
-      });
+             writeContract({
+         address: USDT_CONTRACT_ADDRESS,
+         abi: USDT_ABI,
+         functionName: 'transfer',
+         args: [BETTING_WALLET_ADDRESS, parseUnits(betAmount.toString(), 18)], // USDT has 18 decimals
+       });
     } catch (error) {
       setIsConfirming(false);
       toast({
