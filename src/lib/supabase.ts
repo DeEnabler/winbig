@@ -1,11 +1,21 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 console.log('🔧 Initializing Supabase client...');
-console.log('🌐 SUPABASE_URL exists:', !!process.env.SUPABASE_URL);
-console.log('🔑 SUPABASE_KEY exists:', !!process.env.SUPABASE_KEY);
 
-const supabaseUrl = process.env.SUPABASE_URL
-const supabaseAnonKey = process.env.SUPABASE_KEY
+// Check both server-side and client-side environment variables
+const serverSideUrl = process.env.SUPABASE_URL;
+const serverSideKey = process.env.SUPABASE_KEY;
+const clientSideUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const clientSideKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+console.log('🌐 Server SUPABASE_URL exists:', !!serverSideUrl);
+console.log('🔑 Server SUPABASE_KEY exists:', !!serverSideKey);
+console.log('🌐 Client NEXT_PUBLIC_SUPABASE_URL exists:', !!clientSideUrl);
+console.log('🔑 Client NEXT_PUBLIC_SUPABASE_ANON_KEY exists:', !!clientSideKey);
+
+// Use server-side vars if available (API routes), otherwise client-side vars (browser)
+const supabaseUrl = serverSideUrl || clientSideUrl;
+const supabaseAnonKey = serverSideKey || clientSideKey;
 
 let supabase: SupabaseClient | null = null;
 
@@ -14,9 +24,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('SUPABASE_URL:', supabaseUrl || 'MISSING');
   console.error('SUPABASE_KEY:', supabaseAnonKey || 'MISSING');
   console.error('⚠️ Supabase client not initialized - betting will not work');
-  // Don't throw error - just log it and create a null client
+  console.error('💡 Add both server-side and client-side environment variables:');
+  console.error('   Server: SUPABASE_URL and SUPABASE_KEY');
+  console.error('   Client: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY');
 } else {
   console.log('✅ Supabase environment variables found, creating client...');
+  console.log('🔧 Using URL:', supabaseUrl);
   supabase = createClient(supabaseUrl, supabaseAnonKey);
   console.log('✅ Supabase client created successfully');
 }
