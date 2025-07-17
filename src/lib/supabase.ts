@@ -4,19 +4,24 @@ console.log('🔧 Initializing Supabase client...');
 console.log('🌐 SUPABASE_URL exists:', !!process.env.SUPABASE_URL);
 console.log('🔑 SUPABASE_KEY exists:', !!process.env.SUPABASE_KEY);
 
-const supabaseUrl = process.env.SUPABASE_URL!
-const supabaseAnonKey = process.env.SUPABASE_KEY!
+const supabaseUrl = process.env.SUPABASE_URL
+const supabaseAnonKey = process.env.SUPABASE_KEY
+
+let supabase: SupabaseClient | null = null;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('❌ Missing Supabase environment variables!');
   console.error('SUPABASE_URL:', supabaseUrl || 'MISSING');
   console.error('SUPABASE_KEY:', supabaseAnonKey || 'MISSING');
-  throw new Error('Missing required Supabase environment variables');
+  console.error('⚠️ Supabase client not initialized - betting will not work');
+  // Don't throw error - just log it and create a null client
+} else {
+  console.log('✅ Supabase environment variables found, creating client...');
+  supabase = createClient(supabaseUrl, supabaseAnonKey);
+  console.log('✅ Supabase client created successfully');
 }
 
-console.log('✅ Supabase environment variables found, creating client...');
-export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey)
-console.log('✅ Supabase client created successfully');
+export { supabase };
 
 // Type for the bets table matching the schema from the guide
 export interface BetRecord {
@@ -52,6 +57,12 @@ export interface BetRecord {
 export async function insertBet(bet: Omit<BetRecord, 'id' | 'created_at'>): Promise<{ success: boolean; data?: BetRecord; error?: string }> {
   try {
     console.log('🎯 insertBet called with:', bet);
+    
+    if (!supabase) {
+      console.error('❌ Supabase client not initialized - check environment variables');
+      return { success: false, error: 'Supabase client not initialized - check environment variables' };
+    }
+    
     console.log('🔧 Supabase client configured and ready');
     
     // Create a bet record that matches the current table structure
@@ -96,6 +107,10 @@ export async function insertBet(bet: Omit<BetRecord, 'id' | 'created_at'>): Prom
 // Helper function to get user's betting history
 export async function getUserBets(userId: string, limit: number = 10): Promise<{ success: boolean; data?: BetRecord[]; error?: string }> {
   try {
+    if (!supabase) {
+      return { success: false, error: 'Supabase client not initialized' };
+    }
+    
     const { data, error } = await supabase
       .from('bets')
       .select('*')
@@ -118,6 +133,10 @@ export async function getUserBets(userId: string, limit: number = 10): Promise<{
 // Helper function to update bet execution details
 export async function updateBetExecution(betId: number, executionData: Partial<BetRecord>): Promise<{ success: boolean; data?: BetRecord; error?: string }> {
   try {
+    if (!supabase) {
+      return { success: false, error: 'Supabase client not initialized' };
+    }
+    
     const { data, error } = await supabase
       .from('bets')
       .update(executionData)
@@ -140,6 +159,10 @@ export async function updateBetExecution(betId: number, executionData: Partial<B
 // Helper function to get pending bets (for backend hedger)
 export async function getPendingBets(limit: number = 10): Promise<{ success: boolean; data?: BetRecord[]; error?: string }> {
   try {
+    if (!supabase) {
+      return { success: false, error: 'Supabase client not initialized' };
+    }
+    
     const { data, error } = await supabase
       .from('bets')
       .select('*')
@@ -161,6 +184,11 @@ export async function getPendingBets(limit: number = 10): Promise<{ success: boo
 
 // Real-time subscription for bet updates
 export function subscribeToBetUpdates(userId: string, callback: (bet: BetRecord) => void) {
+  if (!supabase) {
+    console.error('❌ Cannot subscribe to bet updates - Supabase client not initialized');
+    return { unsubscribe: () => {} }; // Return dummy subscription
+  }
+  
   return supabase
     .channel('bet-updates')
     .on(
