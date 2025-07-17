@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAccount } from 'wagmi';
-import { useWriteContract } from 'wagmi';
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseUnits } from 'viem';
 
 // USDT Contract Details (BSC Mainnet)
@@ -65,7 +65,23 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   const { appendEntryParams } = useEntryContext();
   const { toast } = useToast();
   const { address, isConnected, chain } = useAccount();
-  const { data: hash, writeContract } = useWriteContract();
+  const { data: hash, writeContract, isPending, error } = useWriteContract({
+    mutation: { 
+      onError: (err) => {
+        console.error('WriteContract error:', err);
+        toast({ 
+          variant: "destructive", 
+          title: "Transaction Error", 
+          description: `Failed to initiate transaction: ${err.message}` 
+        });
+      }
+    }
+  });
+  
+  const { isSuccess: isConfirmed, isLoading: isConfirming } = useWaitForTransactionReceipt({ 
+    hash,
+    confirmations: 1 
+  });
 
   const [match, setMatch] = useState(initialMatch);
   const [timeLeft, setTimeLeft] = useState(formatTimeLeft(match.countdownEnds));
@@ -77,7 +93,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
 
   const [betAmountState, setBetAmountState] = useState(match.betAmount || 10);
   const [isBetting, setIsBetting] = useState(false);
-  const [isConfirming, setIsConfirming] = useState(false);
+  const [isConfirmingState, setIsConfirmingState] = useState(false);
   
   const [selectedChoice, setSelectedChoice] = useState<'YES' | 'NO' | null>(match.userChoice || null);
   const [betPlaced, setBetPlaced] = useState(!!match.userBet);
@@ -195,8 +211,16 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   };
   
   const handlePlaceBet = async () => {
-    console.log('🎯 handlePlaceBet called');
-    console.log('📊 Current state:', { selectedChoice, predictionId: match.predictionId, executionPreview: executionPreview?.success, betAmountState });
+    console.log('🎯 handlePlaceBet called - START');
+    console.log('📊 Current state:', { 
+      selectedChoice, 
+      predictionId: match.predictionId, 
+      executionPreview: executionPreview?.success, 
+      betAmountState,
+      isConnected,
+      chainId: chain?.id,
+      address: address?.slice(0,10) + '...'
+    });
     
     if (!selectedChoice || !match.predictionId || !executionPreview?.success || betAmountState <= 0) {
       console.error('❌ Bet validation failed:', { 
@@ -210,47 +234,81 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     }
     
     if (!isConnected || !address) {
+      console.error('❌ Wallet not connected:', { isConnected, address });
       toast({ title: "Connect Wallet", description: "Please connect your wallet to place a bet.", duration: 5000 });
       return;
     }
 
     if (chain?.id !== 56) { // 56 is BSC Mainnet
+      console.error('❌ Wrong network:', { currentChainId: chain?.id, expectedChainId: 56 });
       toast({ title: "Wrong Network", description: "Please switch to Binance Smart Chain.", duration: 5000 });
       return;
     }
     
+    console.log('✅ All validations passed, proceeding with transaction...');
     setIsBetting(true);
-    setIsConfirming(true);
+    setIsConfirmingState(true);
     toast({ title: "Confirming Transaction...", description: "Please confirm in your wallet.", duration: 10000 });
+    
+    const transferArgs = [BETTING_WALLET_ADDRESS, parseUnits(betAmountState.toString(), 18)];
+    console.log('📤 Calling writeContract with:', {
+      address: USDT_CONTRACT_ADDRESS,
+      functionName: 'transfer',
+      args: transferArgs,
+      argsFormatted: `to: ${transferArgs[0]}, amount: ${transferArgs[1].toString()}`
+    });
     
     try {
       writeContract({
         address: USDT_CONTRACT_ADDRESS,
         abi: USDT_ABI,
         functionName: 'transfer',
-        args: [BETTING_WALLET_ADDRESS, parseUnits(betAmountState.toString(), 18)],
+        args: transferArgs,
       });
+      console.log('📝 writeContract called successfully');
     } catch (error) {
+      console.error('💥 writeContract threw error:', error);
       setIsBetting(false);
-      setIsConfirming(false);
+      setIsConfirmingState(false);
       toast({ variant: "destructive", title: "Transaction Failed", description: "Something went wrong. Please try again." });
-      console.error("Transaction error:", error);
       return;
     }
   };
 
   useEffect(() => {
+    console.log('🔍 useEffect [hash] triggered:', { hash, error, isPending });
+    if (error) {
+      console.error('❌ Transaction error detected:', error);
+      setIsBetting(false);
+      setIsConfirmingState(false);
+    }
     if (hash) {
-      setIsConfirming(false);
-      toast({ title: "Transaction Successful!", description: `Bet placed. Tx: ${hash.slice(0,10)}...`, duration: 8000 });
+      console.log('✅ Transaction hash received:', hash);
+      toast({ title: "Transaction Sent!", description: `Waiting for confirmation. Tx: ${hash.slice(0,10)}...`, duration: 8000 });
+    }
+  }, [hash, error, isPending]);
+
+  useEffect(() => {
+    console.log('🔍 useEffect [isConfirmed] triggered:', { isConfirmed, isConfirming });
+    if (isConfirmed) {
+      console.log('✅ Transaction confirmed on-chain');
+      setIsConfirmingState(false);
+      toast({ title: "Transaction Confirmed!", description: "Your payment has been confirmed. Placing bet...", duration: 5000 });
       
-      // Proceed with original API call after successful transaction
+      // Proceed with original API call after successful transaction confirmation
+      console.log('🚀 Proceeding with bet placement API call...');
       proceedWithBetPlacement();
     }
-  }, [hash]);
+  }, [isConfirmed]);
   
   const proceedWithBetPlacement = async () => {
+    console.log('🎲 proceedWithBetPlacement called');
     try {
+      if (!selectedChoice) {
+        console.error('❌ selectedChoice is null in proceedWithBetPlacement');
+        return;
+      }
+      
       // Original API logic here
       const betPayload = {
         userId: mockCurrentUser.id,
@@ -262,26 +320,32 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
         bonusApplied: match.bonusApplied ?? false,
       };
       
+      console.log('📤 Sending bet payload to API:', betPayload);
       const response = await fetch('/api/bets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(betPayload),
       });
       
+      console.log('📥 API response status:', response.status);
       const result = await response.json();
+      console.log('📋 API response body:', result);
+      
       if (!response.ok || !result.success) {
         throw new Error(result.message || 'Failed to place bet via API.');
       }
       
-      if (!selectedChoice) return; // Add this to ensure non-null
+      console.log('✅ Bet API call successful');
       toast({ title: "Bet Confirmed!", description: `Your ${selectedChoice} bet is in!` });
       setMatch(prev => ({ ...prev, userBet: { side: selectedChoice, amount: betAmountState, status: 'PENDING', bonusApplied: result.data?.bonusApplied ?? false } }));
       setBetPlaced(true);
       
       // Subscription setup remains the same
     } catch (error: any) {
+      console.error('💥 proceedWithBetPlacement error:', error);
       toast({ variant: "destructive", title: "Bet Failed", description: error.message || 'Unknown error' });
     } finally {
+      console.log('🏁 proceedWithBetPlacement finished, setting isBetting to false');
       setIsBetting(false);
     }
   };
@@ -373,7 +437,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                         }}
                         min={1}
                         className="w-full h-10 text-xl font-bold text-right bg-transparent border-0 shadow-none focus-visible:ring-0 p-0"
-                        disabled={isBetting || isConfirming}
+                        disabled={isBetting || isConfirmingState || isConfirming}
                       />
                     </div>
                   </div>
@@ -385,7 +449,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                     step={1}
                     value={[betAmountState]}
                     onValueChange={(value) => setBetAmountState(value[0])}
-                    disabled={isBetting || isConfirming || !selectedChoice}
+                    disabled={isBetting || isConfirmingState || isConfirming || !selectedChoice}
                   />
 
                   <div className="text-center p-3 bg-muted/50 rounded-lg space-y-1.5 text-sm min-h-[100px] flex flex-col justify-center">
@@ -460,8 +524,22 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                 <Share2 className="w-5 h-5 mr-2" /> Share Your Bet
              </Button>
            ) : (
-             <Button onClick={handlePlaceBet} disabled={isBetting || isConfirming || !selectedChoice || isLoadingPreview || !executionPreview?.success} size="lg" className="w-full bg-green-600 hover:bg-green-700 text-white animate-pulse-glow">
-                {isBetting || isConfirming ? <><Loader2 className="w-5 h-5 animate-spin mr-2" />{isConfirming ? 'Confirming...' : 'Placing Bet...'}</> : (isLoadingPreview ? <><Loader2 className="w-5 h-5 animate-spin mr-2" />Calculating...</> : "Place Bet")}
+             <Button onClick={handlePlaceBet} disabled={isBetting || isConfirmingState || isConfirming || !selectedChoice || isLoadingPreview || !executionPreview?.success} size="lg" className="w-full bg-green-600 hover:bg-green-700 text-white animate-pulse-glow">
+                {isBetting || isConfirmingState || isConfirming ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    {isConfirmingState ? 'Confirm in Wallet...' : isConfirming ? 'Confirming Payment...' : 'Placing Bet...'}
+                  </>
+                ) : (
+                  isLoadingPreview ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                      Calculating...
+                    </>
+                  ) : (
+                    "Place Bet"
+                  )
+                )}
              </Button>
            )}
            <Button size="lg" variant="outline" className="w-full" asChild={isClient}>
