@@ -18,7 +18,7 @@ export async function GET() {
     
     // Test Supabase connection
     let connectionTest = { success: false, error: 'Not tested' };
-    if (envCheck.SUPABASE_URL_exists && envCheck.SUPABASE_KEY_exists) {
+    if (envCheck.SUPABASE_URL_exists && envCheck.SUPABASE_KEY_exists && supabase) {
       try {
         const { data, error, count } = await supabase
           .from('bets')
@@ -35,6 +35,8 @@ export async function GET() {
           error: err instanceof Error ? err.message : 'Unknown error' 
         };
       }
+    } else if (!supabase) {
+      connectionTest = { success: false, error: 'Supabase client not initialized' };
     }
     
     console.log('🌐 Connection test:', connectionTest);
