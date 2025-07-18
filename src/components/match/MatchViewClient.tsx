@@ -21,7 +21,7 @@ import { useEntryContext } from '@/contexts/EntryContext';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi';
 import { parseUnits } from 'viem';
 import { useCurrentChainId } from '@/hooks/useCurrentChainId';
 
@@ -65,6 +65,8 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   const { appendEntryParams } = useEntryContext();
   const { toast } = useToast();
   const { address, isConnected, chain } = useAccount();
+  const { switchChain } = useSwitchChain();
+  const getCurrentChainId = useCurrentChainId();
   const { data: hash, writeContract, isPending, error } = useWriteContract({
     mutation: { 
       onError: (err) => {
@@ -238,12 +240,37 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       return;
     }
 
-    const getCurrentChainId = useCurrentChainId();
     const currentChainId = await getCurrentChainId();
     if (currentChainId !== 56) { // 56 is BSC Mainnet
       console.error('❌ Wrong network:', { currentChainId, expectedChainId: 56 });
-      toast({ title: "Wrong Network", description: "Please switch to Binance Smart Chain.", duration: 5000 });
-      return;
+      toast({ 
+        title: "Switching to BSC", 
+        description: "Please approve the network switch to Binance Smart Chain.", 
+        duration: 8000 
+      });
+      
+      try {
+        await switchChain({ chainId: 56 });
+        console.log('✅ Successfully switched to BSC');
+        // Re-check after switch
+        const newChainId = await getCurrentChainId();
+        if (newChainId !== 56) {
+          toast({ 
+            variant: "destructive", 
+            title: "Network Switch Failed", 
+            description: "Please manually switch to Binance Smart Chain in your wallet." 
+          });
+          return;
+        }
+      } catch (error) {
+        console.error('💥 Network switch failed:', error);
+        toast({ 
+          variant: "destructive", 
+          title: "Network Switch Failed", 
+          description: "Please manually switch to Binance Smart Chain in your wallet." 
+        });
+        return;
+      }
     }
     
     console.log('✅ All validations passed, proceeding with transaction...');

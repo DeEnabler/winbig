@@ -1,6 +1,6 @@
 import type { AppKitNetwork } from '@reown/appkit/networks';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
-import { mainnet, polygon, bsc } from '@reown/appkit/networks';
+import { bsc } from '@reown/appkit/networks';
 import { cookieStorage, createStorage, createConfig, http } from 'wagmi';
 
 export const projectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID || '';
@@ -17,13 +17,12 @@ export const metadata = {
   icons: ['https://avatars.githubusercontent.com/u/179229932']
 };
 
-export const networks: AppKitNetwork[] = [mainnet, polygon, bsc];
+// Simplified to BSC only
+export const networks: AppKitNetwork[] = [bsc];
 
 export const config = createConfig({
-  chains: [mainnet, polygon, bsc],
+  chains: [bsc],
   transports: {
-    [mainnet.id]: http(),
-    [polygon.id]: http(),
     [bsc.id]: http(),
   },
 });
@@ -35,4 +34,4 @@ export const wagmiAdapter = new WagmiAdapter({
   ssr: true,
   projectId,
   networks
-}); 
+});

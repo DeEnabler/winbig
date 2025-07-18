@@ -29,7 +29,7 @@ export const WalletKitProvider = ({
         adapters: [wagmiAdapter],
         projectId,
         networks: networks as [any, ...any[]],
-        defaultNetwork: networks[1], // Assuming polygonAmoy is the second; adjust if needed
+        defaultNetwork: networks[0], // BSC is now the first and only network
         metadata,
         features: {
           analytics: true
