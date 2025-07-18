@@ -21,9 +21,9 @@ import { useEntryContext } from '@/contexts/EntryContext';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAccount } from 'wagmi';
-import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseUnits } from 'viem';
+import { useCurrentChainId } from '@/hooks/useCurrentChainId';
 
 // USDT Contract Details (BSC Mainnet)
 const USDT_CONTRACT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955';
@@ -218,7 +218,6 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       executionPreview: executionPreview?.success, 
       betAmountState,
       isConnected,
-      chainId: chain?.id,
       address: address?.slice(0,10) + '...'
     });
     
@@ -239,8 +238,10 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       return;
     }
 
-    if (chain?.id !== 56) { // 56 is BSC Mainnet
-      console.error('❌ Wrong network:', { currentChainId: chain?.id, expectedChainId: 56 });
+    const getCurrentChainId = useCurrentChainId();
+    const currentChainId = await getCurrentChainId();
+    if (currentChainId !== 56) { // 56 is BSC Mainnet
+      console.error('❌ Wrong network:', { currentChainId, expectedChainId: 56 });
       toast({ title: "Wrong Network", description: "Please switch to Binance Smart Chain.", duration: 5000 });
       return;
     }
