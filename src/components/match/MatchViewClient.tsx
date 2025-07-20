@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAccount, useContractWrite, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi';
 import { parseUnits } from 'viem';
 
 import { useEntryContext } from '@/contexts/EntryContext';
@@ -72,12 +72,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     return [BETTING_WALLET_ADDRESS, parseUnits(betAmountState.toString(), 18)];
   }, [betAmountState]);
 
-  const { data, write, error: sendError, isPending: isPreparing } = useContractWrite({
-    address: USDT_CONTRACT_ADDRESS,
-    abi: USDT_ABI,
-    functionName: 'transfer',
-    args: transferArgs,
-  });
+  const { data, writeContract, error: sendError, isPending: isPreparing } = useWriteContract();
 
   const { isSuccess: isConfirmed, isLoading: isConfirming } = useWaitForTransactionReceipt({
     hash: data?.hash,
@@ -196,14 +191,19 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
         return;
       }
     }
-    if (isPreparing || !write) {
+    if (isPreparing) {
       console.error('Transaction preparation failed:', sendError);
       toast({ variant: "destructive", title: "Transaction Error", description: `Could not prepare transaction. ${sendError?.message || 'Unknown error.'}` });
       return;
     }
     setIsBetting(true);
     toast({ title: "Confirming...", description: "Please confirm the transaction in your wallet." });
-    write();
+    writeContract({
+      address: USDT_CONTRACT_ADDRESS,
+      abi: USDT_ABI,
+      functionName: 'transfer',
+      args: transferArgs,
+    });
   };
   
   const proceedWithBetPlacement = useCallback(async () => {
@@ -387,7 +387,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                 onClick={handlePlaceBet}
                 size="lg"
                 className="w-full font-bold text-lg"
-                disabled={isBetting || isConfirming || !selectedChoice || isPreparing || !write}
+                disabled={isBetting || isConfirming || !selectedChoice || isPreparing}
               >
                 {(isBetting || isConfirming) ? (
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
