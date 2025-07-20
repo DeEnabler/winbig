@@ -24,6 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi';
 import { parseUnits } from 'viem';
 import { useCurrentChainId } from '@/hooks/useCurrentChainId';
+import { useAppKit } from '@reown/appkit/react';
 
 // USDT Contract Details (BSC Mainnet)
 const USDT_CONTRACT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955';
@@ -67,6 +68,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   const { address, isConnected, chain } = useAccount();
   const { switchChain } = useSwitchChain();
   const getCurrentChainId = useCurrentChainId();
+  const { open } = useAppKit();
   const { data: hash, writeContract, isPending, error } = useWriteContract({
     mutation: { 
       onError: (err) => {
@@ -235,8 +237,9 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     }
     
     if (!isConnected || !address) {
-      console.error('❌ Wallet not connected:', { isConnected, address });
-      toast({ title: "Connect Wallet", description: "Please connect your wallet to place a bet.", duration: 5000 });
+      console.log('🔗 Wallet not connected, opening connection dialog...');
+      toast({ title: "Connect Wallet", description: "Opening wallet connection dialog...", duration: 3000 });
+      open();
       return;
     }
 

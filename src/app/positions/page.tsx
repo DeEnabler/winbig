@@ -16,6 +16,7 @@ import { useEntryContext } from '@/contexts/EntryContext';
 import { useToast } from '@/hooks/use-toast';
 import { useAccount } from 'wagmi';
 import { useState, useMemo } from 'react';
+import { useAppKit } from '@reown/appkit/react';
 import dynamic from 'next/dynamic';
 
 const ShareDialog = dynamic(() => import('@/components/sharing/ShareDialog'), {
@@ -30,6 +31,7 @@ function formatCurrency(amount: number, includeSign = true) {
 export default function PositionsPage() {
   const { toast } = useToast();
   const { isConnected } = useAccount();
+  const { open } = useAppKit();
   const [allPositions, setAllPositions] = useState<OpenPosition[]>(mockOpenPositions);
   const { appendEntryParams } = useEntryContext();
 
@@ -51,7 +53,8 @@ export default function PositionsPage() {
 
   const handleSellPosition = (positionId: string, sellValue: number) => {
     if (!isConnected) {
-      toast({ title: "Connect Wallet", description: "Please connect your wallet to sell your position." });
+      toast({ title: "Connect Wallet", description: "Opening wallet connection dialog...", duration: 3000 });
+      open();
       return;
     }
     toast({ title: "Selling Position...", description: `Attempting to sell for ${formatCurrency(sellValue)}` });
@@ -67,7 +70,8 @@ export default function PositionsPage() {
 
   const handleCollectWinnings = (positionId: string, winnings: number) => {
     if (!isConnected) {
-      toast({ title: "Connect Wallet", description: "Please connect your wallet to collect winnings." });
+      toast({ title: "Connect Wallet", description: "Opening wallet connection dialog...", duration: 3000 });
+      open();
       return;
     }
     toast({ title: "Collecting Winnings...", description: `Attempting to collect ${formatCurrency(winnings)}` });
