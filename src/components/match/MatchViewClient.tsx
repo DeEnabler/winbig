@@ -21,8 +21,8 @@ import { useEntryContext } from '@/contexts/EntryContext';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi';
-import { parseUnits } from 'viem';
+import { useAccount, usePrepareContractWrite, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
+import { parseUnits, encodeFunctionData, hexToBigInt } from 'viem';
 import { useCurrentChainId } from '@/hooks/useCurrentChainId';
 import { useAppKit } from '@reown/appkit/react';
 
@@ -69,23 +69,55 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   const { switchChain } = useSwitchChain();
   const getCurrentChainId = useCurrentChainId();
   const { open } = useAppKit();
-  const { data: hash, writeContract, isPending, error } = useWriteContract({
-    mutation: { 
-      onError: (err) => {
-        console.error('WriteContract error:', err);
-        toast({ 
-          variant: "destructive", 
-          title: "Transaction Error", 
-          description: `Failed to initiate transaction: ${err.message}` 
-        });
-      }
-    }
-  });
   
-  const { isSuccess: isConfirmed, isLoading: isConfirming } = useWaitForTransactionReceipt({ 
-    hash,
-    confirmations: 1 
+  const { config, error: prepareError, isError: isPrepareError } = usePrepareContractWrite({
+    address: USDT_CONTRACT_ADDRESS,
+    abi: USDT_ABI,
+    functionName: 'transfer',
+    args: transferArgs,
+    enabled: !!betAmountState,
   });
+
+  const { sendTransaction, isPending: isSending, error: sendError } = useSendTransaction();
+
+  const { data: receipt, isLoading: isConfirming } = useWaitForTransactionReceipt({
+    hash: data?.hash,
+  });
+
+  // Handle errors
+  if (isPrepareError) {
+    console.error('Prepare error:', prepareError);
+    toast({ variant: "destructive", title: "Preparation Error", description: `Failed to prepare transaction: ${prepareError?.message}` });
+  }
+
+  // Transaction execution (in your handlePlaceBet or equivalent function)
+  const handlePlaceBet = async () => {
+    if (!config) return;
+
+    try {
+      // Manually format gas as hex string to fix Trust Wallet compatibility
+      const formattedGas = config.gas ? `0x${config.gas.toString(16)}` : undefined;
+
+      // Encode the function data
+      const encodedData = encodeFunctionData({
+        abi: USDT_ABI,
+        functionName: 'transfer',
+        args: transferArgs,
+      });
+
+      // Send the transaction with formatted params
+      sendTransaction({
+        to: USDT_CONTRACT_ADDRESS,
+        data: encodedData,
+        value: 0n,
+        gas: formattedGas ? hexToBigInt(formattedGas) : undefined,
+        gasPrice: config.gasPrice,
+      });
+    } catch (err) {
+      console.error('Transaction error:', err);
+      toast({ variant: "destructive", title: "Transaction Error", description: `Failed to send: ${err.message}` });
+    }
+  };
 
   const [match, setMatch] = useState(initialMatch);
   const [timeLeft, setTimeLeft] = useState(formatTimeLeft(match.countdownEnds));
@@ -290,11 +322,23 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     });
     
     try {
-      writeContract({
-        address: USDT_CONTRACT_ADDRESS,
+      // Manually format gas as hex string to fix Trust Wallet compatibility
+      const formattedGas = config.gas ? `0x${config.gas.toString(16)}` : undefined;
+
+      // Encode the function data
+      const encodedData = encodeFunctionData({
         abi: USDT_ABI,
         functionName: 'transfer',
         args: transferArgs,
+      });
+
+      // Send the transaction with formatted params
+      sendTransaction({
+        to: USDT_CONTRACT_ADDRESS,
+        data: encodedData,
+        value: 0n,
+        gas: formattedGas ? hexToBigInt(formattedGas) : undefined,
+        gasPrice: config.gasPrice,
       });
       console.log('📝 writeContract called successfully');
     } catch (error) {
