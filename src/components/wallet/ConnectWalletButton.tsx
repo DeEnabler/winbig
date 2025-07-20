@@ -2,12 +2,9 @@
 // src/components/wallet/ConnectWalletButton.tsx
 'use client';
 
-// 🚀 Deployment trigger comment: Let's see if Vercel picks this up! 
-// Random thought of the day: Code is like humor. When you have to explain it, it's bad.
-
 import { Button } from '@/components/ui/button';
 import { useAccount, useDisconnect } from 'wagmi';
-import { LogIn, LogOut, UserCircle, AlertTriangle } from 'lucide-react';
+import { LogIn, LogOut, UserCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useAppKit } from '@reown/appkit/react';
+import { appKit } from '@/components/providers/wagmi-config';
 
 function truncateAddress(address: string) {
   if (!address) return '';
@@ -26,7 +23,6 @@ function truncateAddress(address: string) {
 export default function ConnectWalletButton() {
   const { address, isConnected, chain } = useAccount();
   const { disconnect } = useDisconnect();
-  const { open } = useAppKit();
 
   if (isConnected && address) {
     return (
@@ -43,11 +39,11 @@ export default function ConnectWalletButton() {
             {chain?.name || 'Unknown Network'}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => open({ view: 'Account' })}>
+          <DropdownMenuItem onClick={() => appKit.open({ view: 'Account' })}>
             <UserCircle className="mr-2 h-4 w-4" />
             <span>Account Details</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => open({ view: 'Networks' })}>
+          <DropdownMenuItem onClick={() => appKit.open({ view: 'Networks' })}>
             <LogIn className="mr-2 h-4 w-4" />
             <span>Switch Network</span>
           </DropdownMenuItem>
@@ -64,7 +60,7 @@ export default function ConnectWalletButton() {
   return (
     <div className="flex flex-col items-center w-full">
       <Button
-        onClick={() => open()}
+        onClick={() => appKit.open()}
         size="lg"
         className="bg-primary hover:bg-primary/90 w-full shadow-md"
       >

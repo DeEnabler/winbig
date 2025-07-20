@@ -4,13 +4,13 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi';
-import { parseUnits } from 'viem';
+import { useAccount, useSendTransaction, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi';
+import { parseUnits, encodeFunctionData } from 'viem';
 
 import { useEntryContext } from '@/contexts/EntryContext';
 import { useToast } from '@/hooks/use-toast';
 import { useCurrentChainId } from '@/hooks/useCurrentChainId';
-import { useAppKit } from '@reown/appkit/react';
+import { appKit } from '@/components/providers/wagmi-config';
 
 import { supabase } from '@/lib/supabase';
 import type { BetRecord } from '@/lib/supabase';
@@ -59,8 +59,6 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   const { toast } = useToast();
   const { address, isConnected, chain } = useAccount();
   const { switchChain } = useSwitchChain();
-  const getCurrentChainId = useCurrentChainId();
-  const { open } = useAppKit();
 
   const [match, setMatch] = useState(initialMatch);
   const [betAmountState, setBetAmountState] = useState(match.betAmount || 10);
@@ -68,14 +66,18 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   const [selectedChoice, setSelectedChoice] = useState<'YES' | 'NO' | null>(match.userChoice || null);
   const [betPlaced, setBetPlaced] = useState(!!match.userBet);
   
-  const transferArgs = useMemo(() => {
-    return [BETTING_WALLET_ADDRESS, parseUnits(betAmountState.toString(), 18)];
+  const transferData = useMemo(() => {
+    return encodeFunctionData({
+      abi: USDT_ABI,
+      functionName: 'transfer',
+      args: [BETTING_WALLET_ADDRESS, parseUnits(betAmountState.toString(), 18)]
+    });
   }, [betAmountState]);
 
-  const { data, writeContract, error: sendError, isPending: isPreparing } = useWriteContract();
+  const { data: txHash, sendTransaction, error: sendError, isPending: isPreparing } = useSendTransaction();
 
   const { isSuccess: isConfirmed, isLoading: isConfirming } = useWaitForTransactionReceipt({
-    hash: data?.hash,
+    hash: txHash,
     confirmations: 1
   });
 
@@ -179,7 +181,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     }
     if (!isConnected) {
       toast({ title: "Connect Wallet", description: "Please connect your wallet to place a bet." });
-      open();
+      appKit.open();
       return;
     }
     if (chain?.id !== 56) {
@@ -198,11 +200,9 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     }
     setIsBetting(true);
     toast({ title: "Confirming...", description: "Please confirm the transaction in your wallet." });
-    writeContract({
-      address: USDT_CONTRACT_ADDRESS,
-      abi: USDT_ABI,
-      functionName: 'transfer',
-      args: transferArgs,
+    sendTransaction({
+      to: USDT_CONTRACT_ADDRESS,
+      data: transferData,
     });
   };
   
@@ -275,10 +275,10 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       setIsBetting(false);
       toast({ variant: "destructive", title: "Transaction Failed", description: sendError.message });
     }
-    if (data?.hash) {
-      toast({ title: "Transaction Sent!", description: `Waiting for confirmation... Tx: ${data.hash.slice(0, 10)}...` });
+    if (txHash) {
+      toast({ title: "Transaction Sent!", description: `Waiting for confirmation... Tx: ${txHash.slice(0, 10)}...` });
     }
-  }, [sendError, data, toast]);
+  }, [sendError, txHash, toast]);
 
   useEffect(() => {
     if (isConfirmed) {

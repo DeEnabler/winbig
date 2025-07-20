@@ -1,7 +1,7 @@
-import type { AppKitNetwork } from '@reown/appkit/networks';
-import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
-import { bsc } from '@reown/appkit/networks';
-import { cookieStorage, createStorage, createConfig, http } from 'wagmi';
+import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
+import { createAppKit } from '@reown/appkit/react'
+import { bsc } from '@reown/appkit/networks'
+import { createStorage, cookieStorage } from '@wagmi/core'
 
 export const projectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID || '';
 
@@ -12,26 +12,27 @@ if (!projectId) {
 
 export const metadata = {
   name: 'WinBig',
-  description: 'WinBig App',
+  description: 'WinBig Betting App',
   url: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://winbig.com',
   icons: ['https://avatars.githubusercontent.com/u/179229932']
 };
 
-// Simplified to BSC only
-export const networks: AppKitNetwork[] = [bsc];
-
-export const config = createConfig({
-  chains: [bsc],
-  transports: {
-    [bsc.id]: http(),
-  },
-});
-
 export const wagmiAdapter = new WagmiAdapter({
-  storage: createStorage({
-    storage: cookieStorage
-  }),
-  ssr: true,
+  storage: createStorage({ storage: cookieStorage }),
   projectId,
-  networks
+  networks: [bsc],
+  ssr: true,
 });
+
+export const wagmiConfig = wagmiAdapter.wagmiConfig;
+
+export const appKit = createAppKit({
+  adapters: [wagmiAdapter],
+  projectId,
+  networks: [bsc],
+  metadata,
+});
+
+// Legacy exports for backward compatibility
+export const config = wagmiConfig;
+export const networks = [bsc];

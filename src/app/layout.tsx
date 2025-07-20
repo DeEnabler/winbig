@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import './globals.css';
 import { cookieToInitialState } from 'wagmi';
 import { headers } from 'next/headers';
-import { config } from '@/components/providers/wagmi-config';
+import { wagmiConfig } from '@/components/providers/wagmi-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +26,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const initialState = cookieToInitialState(config, headers().get('cookie'));
+  const initialState = cookieToInitialState(wagmiConfig, headers().get('cookie'));
   return (
     <html lang="en" suppressHydrationWarning>
       <head />
