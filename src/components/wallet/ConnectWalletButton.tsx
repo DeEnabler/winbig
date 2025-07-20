@@ -2,6 +2,9 @@
 // src/components/wallet/ConnectWalletButton.tsx
 'use client';
 
+// 🚀 Deployment trigger comment: Let's see if Vercel picks this up! 
+// Random thought of the day: Code is like humor. When you have to explain it, it's bad.
+
 import { Button } from '@/components/ui/button';
 import { useAccount, useDisconnect } from 'wagmi';
 import { LogIn, LogOut, UserCircle, AlertTriangle } from 'lucide-react';
