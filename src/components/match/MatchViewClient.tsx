@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAccount, useContractWrite, usePrepareContractWrite, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi';
+import { useAccount, useContractWrite, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi';
 import { parseUnits } from 'viem';
 
 import { useEntryContext } from '@/contexts/EntryContext';
@@ -72,15 +72,12 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     return [BETTING_WALLET_ADDRESS, parseUnits(betAmountState.toString(), 18)];
   }, [betAmountState]);
 
-  const { config, error: prepareError, isError: isPrepareError } = usePrepareContractWrite({
+  const { data, write, error: sendError, isPending: isPreparing } = useContractWrite({
     address: USDT_CONTRACT_ADDRESS,
     abi: USDT_ABI,
     functionName: 'transfer',
     args: transferArgs,
-    enabled: !!betAmountState && !!selectedChoice && isConnected,
   });
-
-  const { data, write, error: sendError } = useContractWrite(config);
 
   const { isSuccess: isConfirmed, isLoading: isConfirming } = useWaitForTransactionReceipt({
     hash: data?.hash,
@@ -199,9 +196,9 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
         return;
       }
     }
-    if (isPrepareError || !write) {
-      console.error('Transaction preparation failed:', prepareError);
-      toast({ variant: "destructive", title: "Transaction Error", description: `Could not prepare transaction. ${prepareError?.message || 'Unknown error.'}` });
+    if (isPreparing || !write) {
+      console.error('Transaction preparation failed:', sendError);
+      toast({ variant: "destructive", title: "Transaction Error", description: `Could not prepare transaction. ${sendError?.message || 'Unknown error.'}` });
       return;
     }
     setIsBetting(true);
@@ -390,7 +387,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                 onClick={handlePlaceBet}
                 size="lg"
                 className="w-full font-bold text-lg"
-                disabled={isBetting || isConfirming || !selectedChoice || !write}
+                disabled={isBetting || isConfirming || !selectedChoice || isPreparing || !write}
               >
                 {(isBetting || isConfirming) ? (
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />

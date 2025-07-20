@@ -366,8 +366,8 @@ export default function PositionsPage() {
           isOpen={isShareDialogOpen}
           onOpenChange={setIsShareDialogOpen}
           ogImageUrl={currentShareOgImageUrl}
-          currentShareMessage={isLoadingShareMessage ? "Generating share message..." : currentShareMessage}
-          onShareMessageChange={setCurrentShareMessage}
+          shareMessage={isLoadingShareMessage ? "Generating share message..." : currentShareMessage}
+          isLoading={isLoadingShareMessage}
           shareUrl={currentShareUrl}
           entityContext="position_outcome"
         />
