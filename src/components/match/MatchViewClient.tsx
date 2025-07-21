@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   useAccount,
-  useEstimateGas,
   useSendTransaction,
   useWaitForTransactionReceipt,
   useSwitchChain,
@@ -80,15 +79,6 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       args: [BETTING_WALLET_ADDRESS, parseUnits(betAmountState.toString(), 18)],
     });
   }, [betAmountState, selectedChoice]);
-
-  const { data: gasEstimate } = useEstimateGas(
-    transferData
-      ? {
-          to: USDT_CONTRACT_ADDRESS,
-          data: transferData,
-        }
-      : undefined
-  );
 
   const { data: txHash, sendTransaction, error: sendError, isPending: isSubmitting } = useSendTransaction();
 
@@ -211,8 +201,8 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       }
     }
 
-    if (!transferData || !gasEstimate) {
-      toast({ variant: 'destructive', title: 'Transaction Error', description: 'Could not prepare transaction data or estimate gas.' });
+    if (!transferData) {
+      toast({ variant: 'destructive', title: 'Transaction Error', description: 'Could not prepare transaction data.' });
       return;
     }
 
@@ -222,7 +212,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       sendTransaction({
         to: USDT_CONTRACT_ADDRESS,
         data: transferData,
-        gas: gasEstimate,
+        gas: null, // Let wallet handle gas estimation per Reown docs
       });
     }
   };
@@ -230,6 +220,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   const proceedWithBetPlacement = useCallback(async () => {
     try {
       if (!selectedChoice) return;
+      
       const betPayload = {
         userId: mockCurrentUser.id,
         challengeMatchId: match.id,
@@ -239,6 +230,26 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
         referrerName: match.originalReferrer,
         bonusApplied: match.bonusApplied ?? false,
       };
+      
+      // If Supabase is not configured, simulate successful bet placement for testing
+      if (!supabase) {
+        console.warn('⚠️ Supabase not configured - simulating bet placement for testing');
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
+        
+        toast({ title: "Bet Confirmed!", description: `Your ${selectedChoice} bet is in! (Demo mode - no backend)` });
+        setMatch(prev => ({ 
+          ...prev, 
+          userBet: { 
+            side: selectedChoice, 
+            amount: betAmountState, 
+            status: 'PENDING', 
+            bonusApplied: betPayload.bonusApplied 
+          } 
+        }));
+        setBetPlaced(true);
+        return;
+      }
+      
       const response = await fetch('/api/bets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -251,7 +262,9 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       toast({ title: "Bet Confirmed!", description: `Your ${selectedChoice} bet is in!` });
       setMatch(prev => ({ ...prev, userBet: { side: selectedChoice, amount: betAmountState, status: 'PENDING', bonusApplied: result.data?.bonusApplied ?? false } }));
       setBetPlaced(true);
-      if (supabase) {
+      
+      // Set up real-time subscription only if Supabase is available
+      if (supabase && result.data?.betId) {
         const channel = supabase
           .channel(`bet-status:${result.data.betId}`)
           .on<BetRecord>(
