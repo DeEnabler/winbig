@@ -75,23 +75,12 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   const transferData = useMemo(() => {
     if (!betAmountState || !selectedChoice) return undefined;
     
-    // 🔍 DEBUG: Log raw state and conversion
-    console.log('🐛 DEBUG - Raw betAmountState:', betAmountState);
-    console.log('🐛 DEBUG - Type of betAmountState:', typeof betAmountState);
-    
     const amountInWei = parseUnits(betAmountState.toString(), 18);
-    console.log('🐛 DEBUG - Amount in wei:', amountInWei.toString());
-    console.log('🐛 DEBUG - Expected for $5: 5000000000000000000');
-    
     const data = encodeFunctionData({
       abi: USDT_ABI,
       functionName: 'transfer',
       args: [BETTING_WALLET_ADDRESS, amountInWei],
     });
-    
-    console.log('🐛 DEBUG - Encoded transaction data:', data);
-    console.log('🐛 DEBUG - Target address:', BETTING_WALLET_ADDRESS);
-    console.log('🐛 DEBUG - USDT contract:', USDT_CONTRACT_ADDRESS);
     
     return data;
   }, [betAmountState, selectedChoice]);
@@ -108,11 +97,10 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
 
   const { data: txHash, sendTransaction, error: sendError, isPending: isSubmitting } = useSendTransaction();
 
-  // 🔍 DEBUG: Log gas estimates
+  // Log gas estimates for monitoring
   useEffect(() => {
     if (gasEstimate) {
-      console.log('🐛 DEBUG - Gas estimate:', gasEstimate.toString());
-      console.log('🐛 DEBUG - Expected gas for USDT transfer: ~60k-80k units');
+      console.log('⛽ Gas estimate:', gasEstimate.toString(), 'units');
     }
   }, [gasEstimate]);
 
@@ -240,11 +228,8 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       return;
     }
 
-    // 🔍 DEBUG: Final transaction parameters
-    console.log('🐛 DEBUG - Final transaction params:');
-    console.log('  - to:', USDT_CONTRACT_ADDRESS);
-    console.log('  - data:', transferData);
-    console.log('  - gas:', gasEstimate?.toString() || 'null (wallet managed)');
+    // Log final transaction parameters
+    console.log('💰 Sending USDT transfer:', betAmountState, 'USDT, Gas:', gasEstimate?.toString() || 'wallet-managed');
 
     if (sendTransaction) {
       setIsBetting(true);

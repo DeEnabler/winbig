@@ -13,7 +13,7 @@ if (!projectId) {
 export const metadata = {
   name: 'WinBig',
   description: 'WinBig Betting App',
-  url: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://winbig.com',
+  url: 'https://www.winbig.fun',
   icons: ['https://avatars.githubusercontent.com/u/179229932']
 };
 
