@@ -9,6 +9,7 @@ import {
   useSendTransaction,
   useWaitForTransactionReceipt,
   useSwitchChain,
+  useEstimateGas,
 } from 'wagmi';
 import { parseUnits, encodeFunctionData } from 'viem';
 
@@ -73,14 +74,47 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   
   const transferData = useMemo(() => {
     if (!betAmountState || !selectedChoice) return undefined;
-    return encodeFunctionData({
+    
+    // 🔍 DEBUG: Log raw state and conversion
+    console.log('🐛 DEBUG - Raw betAmountState:', betAmountState);
+    console.log('🐛 DEBUG - Type of betAmountState:', typeof betAmountState);
+    
+    const amountInWei = parseUnits(betAmountState.toString(), 18);
+    console.log('🐛 DEBUG - Amount in wei:', amountInWei.toString());
+    console.log('🐛 DEBUG - Expected for $5: 5000000000000000000');
+    
+    const data = encodeFunctionData({
       abi: USDT_ABI,
       functionName: 'transfer',
-      args: [BETTING_WALLET_ADDRESS, parseUnits(betAmountState.toString(), 18)],
+      args: [BETTING_WALLET_ADDRESS, amountInWei],
     });
+    
+    console.log('🐛 DEBUG - Encoded transaction data:', data);
+    console.log('🐛 DEBUG - Target address:', BETTING_WALLET_ADDRESS);
+    console.log('🐛 DEBUG - USDT contract:', USDT_CONTRACT_ADDRESS);
+    
+    return data;
   }, [betAmountState, selectedChoice]);
 
+  // Add gas estimation for accurate fees
+  const { data: gasEstimate } = useEstimateGas(
+    transferData
+      ? {
+          to: USDT_CONTRACT_ADDRESS,
+          data: transferData,
+        }
+      : undefined
+  );
+
   const { data: txHash, sendTransaction, error: sendError, isPending: isSubmitting } = useSendTransaction();
+
+  // 🔍 DEBUG: Log gas estimates
+  useEffect(() => {
+    if (gasEstimate) {
+      console.log('🐛 DEBUG - Gas estimate:', gasEstimate.toString());
+      console.log('🐛 DEBUG - Expected gas for USDT transfer: ~60k-80k units');
+    }
+  }, [gasEstimate]);
 
   const { isSuccess: isConfirmed, isLoading: isConfirming } = useWaitForTransactionReceipt({
     hash: txHash,
@@ -206,13 +240,19 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       return;
     }
 
+    // 🔍 DEBUG: Final transaction parameters
+    console.log('🐛 DEBUG - Final transaction params:');
+    console.log('  - to:', USDT_CONTRACT_ADDRESS);
+    console.log('  - data:', transferData);
+    console.log('  - gas:', gasEstimate?.toString() || 'null (wallet managed)');
+
     if (sendTransaction) {
       setIsBetting(true);
       toast({ title: 'Confirming...', description: 'Please confirm the transaction in your wallet.' });
       sendTransaction({
         to: USDT_CONTRACT_ADDRESS,
         data: transferData,
-        gas: null, // Let wallet handle gas estimation per Reown docs
+        gas: gasEstimate || null, // Use estimated gas or let wallet handle
       });
     }
   };
@@ -322,7 +362,6 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       proceedWithBetPlacement();
     }
   }, [isConfirmed, proceedWithBetPlacement, toast]);
-
 
   const totalPot = useMemo(() => {
     const yesBets = 1000;
