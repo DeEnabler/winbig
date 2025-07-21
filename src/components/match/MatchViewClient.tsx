@@ -184,7 +184,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       appKit.open();
       return;
     }
-    if (chain?.id !== 56) {
+    if (chain?.id !== 56) { // BSC Mainnet
       toast({ title: "Switching to BSC", description: "Please approve the network switch to continue." });
       try {
         await switchChain({ chainId: 56 });
@@ -193,19 +193,16 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
         return;
       }
     }
-    if (isPreparing) {
-      console.error('Transaction preparation failed:', sendError);
-      toast({ variant: "destructive", title: "Transaction Error", description: `Could not prepare transaction. ${sendError?.message || 'Unknown error.'}` });
-      return;
-    }
+
     setIsBetting(true);
     toast({ title: "Confirming...", description: "Please confirm the transaction in your wallet." });
     sendTransaction({
       to: USDT_CONTRACT_ADDRESS,
       data: transferData,
+      gas: null, // Let wallet handle gas estimation for reliability
     });
   };
-  
+
   const proceedWithBetPlacement = useCallback(async () => {
     try {
       if (!selectedChoice) return;
@@ -273,7 +270,8 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   useEffect(() => {
     if (sendError) {
       setIsBetting(false);
-      toast({ variant: "destructive", title: "Transaction Failed", description: sendError.message });
+      // NOTE: We access `shortMessage` for a user-friendly error, as per wagmi's BaseError type.
+      toast({ variant: "destructive", title: "Transaction Failed", description: (sendError as any).shortMessage || 'An unknown error occurred.' });
     }
     if (txHash) {
       toast({ title: "Transaction Sent!", description: `Waiting for confirmation... Tx: ${txHash.slice(0, 10)}...` });
