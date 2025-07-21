@@ -4,7 +4,14 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAccount, useSendTransaction, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi';
+import {
+  useAccount,
+  useEstimateGas,
+  usePrepareSendTransaction,
+  useSendTransaction,
+  useWaitForTransactionReceipt,
+  useSwitchChain,
+} from 'wagmi';
 import { parseUnits, encodeFunctionData } from 'viem';
 
 import { useEntryContext } from '@/contexts/EntryContext';
@@ -67,18 +74,32 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   const [betPlaced, setBetPlaced] = useState(!!match.userBet);
   
   const transferData = useMemo(() => {
+    if (!betAmountState || !selectedChoice) return undefined;
     return encodeFunctionData({
       abi: USDT_ABI,
       functionName: 'transfer',
-      args: [BETTING_WALLET_ADDRESS, parseUnits(betAmountState.toString(), 18)]
+      args: [BETTING_WALLET_ADDRESS, parseUnits(betAmountState.toString(), 18)],
     });
-  }, [betAmountState]);
+  }, [betAmountState, selectedChoice]);
 
-  const { data: txHash, sendTransaction, error: sendError, isPending: isPreparing } = useSendTransaction();
+  const { data: gasEstimate } = useEstimateGas({
+    to: USDT_CONTRACT_ADDRESS,
+    data: transferData,
+    enabled: !!transferData,
+  });
+
+  const { config, error: prepareError } = usePrepareSendTransaction({
+    to: USDT_CONTRACT_ADDRESS,
+    data: transferData,
+    gas: gasEstimate,
+    enabled: !!transferData && !!gasEstimate,
+  });
+
+  const { data: txHash, sendTransaction, error: sendError, isPending: isSubmitting } = useSendTransaction(config);
 
   const { isSuccess: isConfirmed, isLoading: isConfirming } = useWaitForTransactionReceipt({
     hash: txHash,
-    confirmations: 1
+    confirmations: 1,
   });
 
   const [timeLeft, setTimeLeft] = useState(formatTimeLeft(match.countdownEnds));
@@ -176,31 +197,35 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
 
   const handlePlaceBet = async () => {
     if (!selectedChoice) {
-      toast({ variant: "destructive", title: "Selection Required", description: "Please choose YES or NO." });
+      toast({ variant: 'destructive', title: 'Selection Required', description: 'Please choose YES or NO.' });
       return;
     }
     if (!isConnected) {
-      toast({ title: "Connect Wallet", description: "Please connect your wallet to place a bet." });
+      toast({ title: 'Connect Wallet', description: 'Please connect your wallet to place a bet.' });
       appKit.open();
       return;
     }
-    if (chain?.id !== 56) { // BSC Mainnet
-      toast({ title: "Switching to BSC", description: "Please approve the network switch to continue." });
+    if (chain?.id !== 56) {
+      // BSC Mainnet
+      toast({ title: 'Switching to BSC', description: 'Please approve the network switch to continue.' });
       try {
         await switchChain({ chainId: 56 });
       } catch (error) {
-        toast({ variant: "destructive", title: "Network Switch Failed", description: "Please switch to BSC manually." });
+        toast({ variant: 'destructive', title: 'Network Switch Failed', description: 'Please switch to BSC manually.' });
         return;
       }
     }
 
-    setIsBetting(true);
-    toast({ title: "Confirming...", description: "Please confirm the transaction in your wallet." });
-    sendTransaction({
-      to: USDT_CONTRACT_ADDRESS,
-      data: transferData,
-      gas: null, // Let wallet handle gas estimation for reliability
-    });
+    if (prepareError) {
+      toast({ variant: 'destructive', title: 'Transaction Error', description: `Could not prepare transaction. ${(prepareError as any)?.shortMessage || 'Unknown error.'}` });
+      return;
+    }
+
+    if (sendTransaction) {
+      setIsBetting(true);
+      toast({ title: 'Confirming...', description: 'Please confirm the transaction in your wallet.' });
+      sendTransaction();
+    }
   };
 
   const proceedWithBetPlacement = useCallback(async () => {
@@ -271,10 +296,10 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     if (sendError) {
       setIsBetting(false);
       // NOTE: We access `shortMessage` for a user-friendly error, as per wagmi's BaseError type.
-      toast({ variant: "destructive", title: "Transaction Failed", description: (sendError as any).shortMessage || 'An unknown error occurred.' });
+      toast({ variant: 'destructive', title: 'Transaction Failed', description: (sendError as any).shortMessage || 'An unknown error occurred.' });
     }
     if (txHash) {
-      toast({ title: "Transaction Sent!", description: `Waiting for confirmation... Tx: ${txHash.slice(0, 10)}...` });
+      toast({ title: 'Transaction Sent!', description: `Waiting for confirmation... Tx: ${txHash.slice(0, 10)}...` });
     }
   }, [sendError, txHash, toast]);
 
@@ -385,14 +410,14 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                 onClick={handlePlaceBet}
                 size="lg"
                 className="w-full font-bold text-lg"
-                disabled={isBetting || isConfirming || !selectedChoice || isPreparing}
+                disabled={isBetting || isConfirming || isSubmitting || !sendTransaction}
               >
-                {(isBetting || isConfirming) ? (
+                {isBetting || isConfirming || isSubmitting ? (
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 ) : (
                   <Zap className="mr-2 h-5 w-5" />
                 )}
-                {isConfirming ? 'Confirming...' : isBetting ? 'Processing...' : `Place Bet on ${selectedChoice || ''}`}
+                {isConfirming ? 'Confirming...' : isSubmitting ? 'Check Wallet...' : isBetting ? 'Processing...' : `Place Bet on ${selectedChoice || ''}`}
               </Button>
               <Button
                 onClick={openShareDialog}
