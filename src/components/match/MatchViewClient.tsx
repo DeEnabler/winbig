@@ -18,8 +18,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useCurrentChainId } from '@/hooks/useCurrentChainId';
 import { appKit } from '@/components/providers/wagmi-config';
 
-import { supabase } from '@/lib/supabase';
-import type { BetRecord } from '@/lib/supabase';
+// Removed direct Supabase imports - now using API routes
+// import { supabase } from '@/lib/supabase';
+// import type { BetRecord } from '@/lib/supabase';
 import { mockCurrentUser } from '@/lib/mockData';
 import type { Match, ExecutionPreview, MatchViewProps } from '@/types';
 
@@ -258,79 +259,47 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     try {
       if (!selectedChoice) return;
       
-      const betPayload = {
-        userId: mockCurrentUser.id,
-        challengeMatchId: match.id,
-        predictionId: match.predictionId,
-        choice: selectedChoice,
+      // Create bet record for server-side API
+      const betData = {
+        user_id: mockCurrentUser.id,
+        market_id: match.predictionId,
+        outcome: selectedChoice,
         amount: betAmountState,
-        referrerName: match.originalReferrer,
-        bonusApplied: match.bonusApplied ?? false,
+        odds_shown_to_user: selectedChoice === 'YES' ? match.yesOdds : match.noOdds,
+        status: 'pending' as const,
+        session_id: match.id, // Store match ID for reference
       };
       
-      // If Supabase is not configured, simulate successful bet placement for testing
-      if (!supabase) {
-        console.warn('⚠️ Supabase not configured - simulating bet placement for testing');
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
-        
-        toast({ title: "Bet Confirmed!", description: `Your ${selectedChoice} bet is in! (Demo mode - no backend)` });
-        setMatch(prev => ({ 
-          ...prev, 
-          userBet: { 
-            side: selectedChoice, 
-            amount: betAmountState, 
-            status: 'PENDING', 
-            bonusApplied: betPayload.bonusApplied 
-          } 
-        }));
-        setBetPlaced(true);
-        return;
-      }
+      console.log('🎯 Placing bet via API with data:', betData);
       
       const response = await fetch('/api/bets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(betPayload),
+        body: JSON.stringify(betData),
       });
+      
       const result = await response.json();
+      console.log('📥 API response:', result);
+      
       if (!response.ok || !result.success) {
-        throw new Error(result.message || 'Failed to place bet via API.');
+        throw new Error(result.error || 'Failed to place bet via API.');
       }
+      
       toast({ title: "Bet Confirmed!", description: `Your ${selectedChoice} bet is in!` });
-      setMatch(prev => ({ ...prev, userBet: { side: selectedChoice, amount: betAmountState, status: 'PENDING', bonusApplied: result.data?.bonusApplied ?? false } }));
+      setMatch(prev => ({ 
+        ...prev, 
+        userBet: { 
+          side: selectedChoice, 
+          amount: betAmountState, 
+          status: 'PENDING',
+          betId: result.data?.id
+        } 
+      }));
       setBetPlaced(true);
       
-      // Set up real-time subscription only if Supabase is available
-      if (supabase && result.data?.betId) {
-        const channel = supabase
-          .channel(`bet-status:${result.data.betId}`)
-          .on<BetRecord>(
-            'postgres_changes',
-            { event: 'UPDATE', schema: 'public', table: 'bets', filter: `id=eq.${result.data.betId}` },
-            (payload: { new: BetRecord }) => {
-              console.log('📬 Bet status update received:', payload.new);
-              const updatedBet = payload.new;
-              if (updatedBet.status === 'executed' || updatedBet.status === 'failed') {
-                setMatch(prev => ({
-                  ...prev,
-                  userBet: {
-                    ...prev.userBet!,
-                    status: updatedBet.status === 'executed' ? 'WON' : 'LOST',
-                  }
-                }));
-                toast({
-                  title: `Bet ${updatedBet.status}!`,
-                  description: `Your bet has been ${updatedBet.status}.`,
-                  variant: updatedBet.status === 'failed' ? 'destructive' : 'default'
-                });
-                channel.unsubscribe();
-              }
-            }
-          )
-          .subscribe();
-      }
+      console.log('✅ Bet placed successfully:', result.data);
     } catch (error: any) {
-      console.error("Bet placement API error:", error);
+      console.error("❌ Bet placement API error:", error);
       toast({
         variant: "destructive",
         title: "Bet Placement Failed",
@@ -339,7 +308,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     } finally {
       setIsBetting(false);
     }
-  }, [selectedChoice, betAmountState, supabase, toast]); // Removed 'match' dependency
+  }, [selectedChoice, betAmountState, match, toast]);
 
   useEffect(() => {
     if (sendError) {

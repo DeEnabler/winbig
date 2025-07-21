@@ -5,7 +5,7 @@ import { getLiveMarkets } from '@/lib/marketService';
 import type { LiveMarket } from '@/types';
 import HeroNewSection from '@/components/homepage/HeroNewSection';
 import StickyCtaBanner from '@/components/homepage/StickyCtaBanner';
-import ClientEnvTest from '@/components/ClientEnvTest';
+// import ClientEnvTest from '@/components/ClientEnvTest'; // Removed - using server-side Supabase now
 
 export const dynamic = 'force-dynamic'; // Ensure the page is dynamically rendered
 
@@ -36,10 +36,7 @@ export default async function HomePage() {
           }
         >
           <div className="flex flex-col space-y-10 md:space-y-16">
-            {/* Temporary diagnostic component - remove after debugging */}
-            <div className="container mx-auto px-4">
-              <ClientEnvTest />
-            </div>
+            {/* Diagnostic component removed - now using server-side Supabase */}
             <HeroNewSection />
             <Suspense
               fallback={
