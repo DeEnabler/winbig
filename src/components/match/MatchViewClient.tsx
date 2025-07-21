@@ -71,7 +71,13 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   const [isBetting, setIsBetting] = useState(false);
   const [selectedChoice, setSelectedChoice] = useState<'YES' | 'NO' | null>(match.userChoice || null);
   const [betPlaced, setBetPlaced] = useState(!!match.userBet);
-  
+  const [processedTxHashes, setProcessedTxHashes] = useState<Set<string>>(new Set());
+
+  // Reset processed transactions when bet parameters change
+  useEffect(() => {
+    setProcessedTxHashes(new Set());
+  }, [betAmountState, selectedChoice]);
+
   const transferData = useMemo(() => {
     if (!betAmountState || !selectedChoice) return undefined;
     
@@ -228,6 +234,12 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       return;
     }
 
+    // Prevent multiple simultaneous transactions
+    if (isBetting || isSubmitting || isConfirming) {
+      console.warn('⚠️ Transaction already in progress, ignoring duplicate request');
+      return;
+    }
+
     // Log final transaction parameters
     console.log('💰 Sending USDT transfer:', betAmountState, 'USDT, Gas:', gasEstimate?.toString() || 'wallet-managed');
 
@@ -327,7 +339,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     } finally {
       setIsBetting(false);
     }
-  }, [selectedChoice, betAmountState, match, supabase, toast]);
+  }, [selectedChoice, betAmountState, supabase, toast]); // Removed 'match' dependency
 
   useEffect(() => {
     if (sendError) {
@@ -341,12 +353,15 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   }, [sendError, txHash, toast]);
 
   useEffect(() => {
-    if (isConfirmed) {
+    // Only process each transaction hash once to prevent multiple charges
+    if (isConfirmed && txHash && !processedTxHashes.has(txHash)) {
+      console.log('🔒 Processing transaction confirmation for:', txHash);
+      setProcessedTxHashes(prev => new Set([...prev, txHash]));
       setIsBetting(false);
       toast({ title: "Transaction Confirmed!", description: "Your payment is confirmed. Placing bet..." });
       proceedWithBetPlacement();
     }
-  }, [isConfirmed, proceedWithBetPlacement, toast]);
+  }, [isConfirmed, txHash, processedTxHashes, proceedWithBetPlacement, toast]);
 
   const totalPot = useMemo(() => {
     const yesBets = 1000;
