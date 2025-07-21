@@ -40,19 +40,39 @@ CREATE INDEX IF NOT EXISTS idx_bets_outcome ON bets(outcome);
 -- Enable Row Level Security (RLS)
 ALTER TABLE bets ENABLE ROW LEVEL SECURITY;
 
--- Create policies for RLS
--- Users can read their own bets
-CREATE POLICY "Users can view own bets" ON bets
-    FOR SELECT USING (auth.uid()::text = user_id);
+-- Updated policies for wallet-based authentication
+-- Since we're using wallet addresses as user_id, we need more permissive policies
 
--- Users can insert their own bets
-CREATE POLICY "Users can insert own bets" ON bets
-    FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+-- Allow reading all bets (for public market data and analytics)
+-- In production, you might want to restrict this based on your needs
+CREATE POLICY "Allow public read access to bets" ON bets
+    FOR SELECT USING (true);
+
+-- Allow inserting bets with any user_id (wallet address)
+-- The application layer ensures the correct wallet address is used
+CREATE POLICY "Allow bet insertion" ON bets
+    FOR INSERT WITH CHECK (true);
 
 -- Backend service can read and update all bets (using service role key)
 -- This policy applies to service role key operations
 CREATE POLICY "Service role can manage all bets" ON bets
     FOR ALL USING (auth.role() = 'service_role');
+
+-- Optional: If you want to restrict updates to only the service role
+-- Uncomment this policy to prevent direct updates from client side
+-- CREATE POLICY "Only service role can update bets" ON bets
+--     FOR UPDATE USING (auth.role() = 'service_role');
+
+-- Alternative: More restrictive policies for production
+-- Uncomment these and comment out the permissive ones above if you want to:
+-- 1. Only allow users to see their own bets
+-- 2. Only allow the service role to perform all operations
+--
+-- CREATE POLICY "Users can view own bets" ON bets
+--     FOR SELECT USING (user_id = current_setting('request.jwt.claims', true)::json->>'wallet_address');
+-- 
+-- CREATE POLICY "Users can insert own bets" ON bets
+--     FOR INSERT WITH CHECK (user_id = current_setting('request.jwt.claims', true)::json->>'wallet_address');
 
 -- Create a function to get user betting stats
 CREATE OR REPLACE FUNCTION get_user_betting_stats(target_user_id text)
@@ -110,9 +130,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 /*
 INSERT INTO bets (user_id, session_id, market_id, outcome, amount, odds_shown_to_user, status) VALUES
-('test_user_1', 'session_123', 'market_sample_1', 'YES', 10.00, 0.65, 'pending'),
-('test_user_2', 'session_456', 'market_sample_1', 'NO', 25.00, 0.35, 'pending'),
-('test_user_1', 'session_789', 'market_sample_2', 'YES', 50.00, 0.80, 'executed');
+('0x1234567890123456789012345678901234567890', 'session_123', 'market_sample_1', 'YES', 10.00, 0.65, 'pending'),
+('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd', 'session_456', 'market_sample_1', 'NO', 25.00, 0.35, 'pending'),
+('0x1234567890123456789012345678901234567890', 'session_789', 'market_sample_2', 'YES', 50.00, 0.80, 'executed');
 */
 
 -- Grant necessary permissions

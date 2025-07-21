@@ -4,6 +4,8 @@
 
 Your betting system now writes all bets to Supabase! When users place bets, they are stored in a `bets` table with comprehensive tracking and real-time updates.
 
+**🔄 Recent Update**: The system now uses **wallet addresses** as user identifiers instead of mock user IDs. This provides better tracking and links bets directly to the user's wallet.
+
 ## 🔄 Data Flow
 
 ```
@@ -34,7 +36,7 @@ User places bet → Frontend validates → Supabase stores → Backend hedger pr
 The `bets` table includes:
 
 ### Frontend Fields (written when bet is placed)
-- `user_id` - User identifier
+- `user_id` - Wallet address (e.g., 0x1234...)
 - `market_id` - Market/prediction ID  
 - `outcome` - 'YES' or 'NO'
 - `amount` - Bet amount in dollars

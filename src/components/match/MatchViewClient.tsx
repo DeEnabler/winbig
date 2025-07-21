@@ -261,7 +261,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       
       // Create bet record for server-side API
       const betData = {
-        user_id: mockCurrentUser.id,
+        user_id: address || mockCurrentUser.id, // Use wallet address as user_id, fallback to mock for dev
         market_id: match.predictionId,
         outcome: selectedChoice,
         amount: betAmountState,
