@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   useAccount,
   useEstimateGas,
-  usePrepareSendTransaction,
   useSendTransaction,
   useWaitForTransactionReceipt,
   useSwitchChain,
@@ -82,20 +81,16 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     });
   }, [betAmountState, selectedChoice]);
 
-  const { data: gasEstimate } = useEstimateGas({
-    to: USDT_CONTRACT_ADDRESS,
-    data: transferData,
-    enabled: !!transferData,
-  });
+  const { data: gasEstimate } = useEstimateGas(
+    transferData
+      ? {
+          to: USDT_CONTRACT_ADDRESS,
+          data: transferData,
+        }
+      : undefined
+  );
 
-  const { config, error: prepareError } = usePrepareSendTransaction({
-    to: USDT_CONTRACT_ADDRESS,
-    data: transferData,
-    gas: gasEstimate,
-    enabled: !!transferData && !!gasEstimate,
-  });
-
-  const { data: txHash, sendTransaction, error: sendError, isPending: isSubmitting } = useSendTransaction(config);
+  const { data: txHash, sendTransaction, error: sendError, isPending: isSubmitting } = useSendTransaction();
 
   const { isSuccess: isConfirmed, isLoading: isConfirming } = useWaitForTransactionReceipt({
     hash: txHash,
@@ -216,15 +211,19 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
       }
     }
 
-    if (prepareError) {
-      toast({ variant: 'destructive', title: 'Transaction Error', description: `Could not prepare transaction. ${(prepareError as any)?.shortMessage || 'Unknown error.'}` });
+    if (!transferData || !gasEstimate) {
+      toast({ variant: 'destructive', title: 'Transaction Error', description: 'Could not prepare transaction data or estimate gas.' });
       return;
     }
 
     if (sendTransaction) {
       setIsBetting(true);
       toast({ title: 'Confirming...', description: 'Please confirm the transaction in your wallet.' });
-      sendTransaction();
+      sendTransaction({
+        to: USDT_CONTRACT_ADDRESS,
+        data: transferData,
+        gas: gasEstimate,
+      });
     }
   };
 
