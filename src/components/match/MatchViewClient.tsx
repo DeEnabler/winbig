@@ -111,7 +111,11 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     }
   }, [gasEstimate]);
 
-  const { isSuccess: isConfirmed, isLoading: isConfirming } = useWaitForTransactionReceipt({
+  const {
+    isSuccess: isConfirmed,
+    isLoading: isConfirming,
+    data: receipt,
+  } = useWaitForTransactionReceipt({
     hash: txHash,
     confirmations: 1,
   });
@@ -255,13 +259,13 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     }
   };
 
-  const proceedWithBetPlacement = useCallback(async () => {
+  const proceedWithBetPlacement = useCallback(async (senderAddress: `0x${string}`) => {
     try {
       if (!selectedChoice) return;
       
       // Create bet record for server-side API
       const betData = {
-        user_id: address || mockCurrentUser.id, // Use wallet address as user_id, fallback to mock for dev
+        user_id: senderAddress || mockCurrentUser.id, // Use wallet address from receipt, fallback to mock for dev
         market_id: match.predictionId,
         outcome: selectedChoice,
         amount: betAmountState,
@@ -323,14 +327,15 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
 
   useEffect(() => {
     // Only process each transaction hash once to prevent multiple charges
-    if (isConfirmed && txHash && !processedTxHashes.has(txHash)) {
+    if (isConfirmed && txHash && receipt && !processedTxHashes.has(txHash)) {
       console.log('🔒 Processing transaction confirmation for:', txHash);
       setProcessedTxHashes(prev => new Set([...prev, txHash]));
       setIsBetting(false);
       toast({ title: "Transaction Confirmed!", description: "Your payment is confirmed. Placing bet..." });
-      proceedWithBetPlacement();
+      // The receipt object from wagmi contains the sender's address in `receipt.from`
+      proceedWithBetPlacement(receipt.from);
     }
-  }, [isConfirmed, txHash, processedTxHashes, proceedWithBetPlacement, toast]);
+  }, [isConfirmed, txHash, receipt, processedTxHashes, proceedWithBetPlacement, toast]);
 
   const totalPot = useMemo(() => {
     const yesBets = 1000;
