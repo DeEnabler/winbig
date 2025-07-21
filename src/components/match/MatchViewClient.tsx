@@ -265,7 +265,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
         market_id: match.predictionId,
         outcome: selectedChoice,
         amount: betAmountState,
-        odds_shown_to_user: selectedChoice === 'YES' ? match.yesOdds : match.noOdds,
+        odds_shown_to_user: selectedChoice === 'YES' ? match.yesPrice : match.noPrice,
         status: 'pending' as const,
         session_id: match.id, // Store match ID for reference
       };
