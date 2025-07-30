@@ -1,6 +1,8 @@
 import { useCallback } from 'react';
 import { useWalletClient } from 'wagmi';
 
+// Trigger deployment - random comment
+
 export function useCurrentChainId() {
   const { data: walletClient } = useWalletClient();
 
