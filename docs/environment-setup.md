@@ -2,20 +2,34 @@
 
 ## Required Environment Variables
 
+For **Vercel deployment** (production):
 ```
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your_anon_key_here
+SUPABASE_KEY=your_service_role_key_here
+```
+
+For **client-side usage** (if needed in the future):
+```
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_KEY=your_anon_key_here
 ```
 
 ## Variable Descriptions
 
-- **Project URL** → Use for `SUPABASE_URL`
-- **anon public** key → Use for `SUPABASE_KEY`
+- **SUPABASE_URL** - Your Supabase project URL
+- **SUPABASE_KEY** - Your Supabase service role key (for server-side operations)
+- **NEXT_PUBLIC_SUPABASE_URL** - Client-side accessible project URL (optional)
+- **NEXT_PUBLIC_SUPABASE_KEY** - Client-side accessible anon key (optional)
+
+## Current Architecture
+
+✅ **Server-side only**: The application currently uses server-side Supabase client only through API routes (`/api/bets`). This is more secure and requires only `SUPABASE_URL` and `SUPABASE_KEY`.
 
 ## Security Notes
 
-- ✅ **SUPABASE_URL** - Safe to expose to client-side
-- ✅ **SUPABASE_KEY** - Safe to expose to client-side (has limited permissions)
+- ✅ **SUPABASE_URL** - Safe to expose to client-side if needed
+- ⚠️ **SUPABASE_KEY** - Keep private! Service role key has elevated permissions
+- ✅ **NEXT_PUBLIC_SUPABASE_KEY** - Safe to expose (anon key with limited permissions)
 
 ## Database Setup
 
@@ -48,7 +62,7 @@ Once you've added the environment variables and run the schema:
 
 ### Connection Errors
 - Verify your Supabase project URL is correct
-- Check that your anon key is valid and copied correctly
+- Check that your service role key is valid and copied correctly
 - Ensure your Supabase project is not paused
 
 ### RLS Permission Errors

@@ -2,35 +2,27 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 console.log('🔧 Initializing Supabase client...');
 
-// Check both server-side and client-side environment variables
-const serverSideUrl = process.env.SUPABASE_URL;
-const serverSideKey = process.env.SUPABASE_KEY;
-const clientSideUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const clientSideKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// Use consistent environment variable naming (works in Vercel)
+// For client-side usage, these should be prefixed with NEXT_PUBLIC_
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY || process.env.SUPABASE_KEY;
 
-console.log('🌐 Server SUPABASE_URL exists:', !!serverSideUrl);
-console.log('🔑 Server SUPABASE_KEY exists:', !!serverSideKey);
-console.log('🌐 Client NEXT_PUBLIC_SUPABASE_URL exists:', !!clientSideUrl);
-console.log('🔑 Client NEXT_PUBLIC_SUPABASE_ANON_KEY exists:', !!clientSideKey);
-
-// Use server-side vars if available (API routes), otherwise client-side vars (browser)
-const supabaseUrl = serverSideUrl || clientSideUrl;
-const supabaseAnonKey = serverSideKey || clientSideKey;
+console.log('🌐 SUPABASE_URL exists:', !!supabaseUrl);
+console.log('🔑 SUPABASE_KEY exists:', !!supabaseKey);
 
 let supabase: SupabaseClient | null = null;
 
-if (!supabaseUrl || !supabaseAnonKey) {
+if (!supabaseUrl || !supabaseKey) {
   console.error('❌ Missing Supabase environment variables!');
   console.error('SUPABASE_URL:', supabaseUrl || 'MISSING');
-  console.error('SUPABASE_KEY:', supabaseAnonKey || 'MISSING');
+  console.error('SUPABASE_KEY:', supabaseKey || 'MISSING');
   console.error('⚠️ Supabase client not initialized - betting will not work');
-  console.error('💡 Add both server-side and client-side environment variables:');
-  console.error('   Server: SUPABASE_URL and SUPABASE_KEY');
-  console.error('   Client: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  console.error('💡 For Vercel deployment, use: SUPABASE_URL and SUPABASE_KEY');
+  console.error('💡 For client-side usage, use: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_KEY');
 } else {
   console.log('✅ Supabase environment variables found, creating client...');
   console.log('🔧 Using URL:', supabaseUrl);
-  supabase = createClient(supabaseUrl, supabaseAnonKey);
+  supabase = createClient(supabaseUrl, supabaseKey);
   console.log('✅ Supabase client created successfully');
 }
 

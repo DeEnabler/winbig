@@ -2,7 +2,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 console.log('🔧 Initializing server-side Supabase client...');
 
-// Server-side only environment variables
+// Server-side environment variables (consistent with Vercel naming)
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 
