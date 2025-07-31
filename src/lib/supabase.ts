@@ -79,8 +79,8 @@ export async function insertBet(bet: Omit<BetRecord, 'id' | 'created_at'>): Prom
       odds_shown_to_user: bet.odds_shown_to_user,
       execution_price: bet.execution_price || null,
       status: bet.status || 'pending',
-      tx_hash: bet.tx_hash, // REQUIRED: Include transaction hash for idempotency
-      session_id: bet.session_id || null // Include session_id if provided
+      tx_hash: bet.tx_hash // REQUIRED: Include transaction hash for idempotency
+      // session_id removed - column doesn't exist in production table
     };
     
     console.log('🚀 Executing Supabase insert query with simplified bet:', simplifiedBet);
