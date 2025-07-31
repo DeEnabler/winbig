@@ -43,6 +43,7 @@ export interface BetRecord {
   odds_shown_to_user: number
   timestamp?: string
   status: 'pending' | 'executed' | 'failed' | 'cancelled'
+  tx_hash: string // REQUIRED: Transaction hash for idempotency and tracking
   
   // Backend fields (filled by hedger)
   execution_price?: number | null
@@ -50,7 +51,6 @@ export interface BetRecord {
   shares_received?: number | null
   gas_fee_pol?: number | null
   gas_fee_usd?: number | null
-  tx_hash?: string | null
   order_id?: string | null
   wallet_address?: string | null
   success?: boolean | null
@@ -78,7 +78,9 @@ export async function insertBet(bet: Omit<BetRecord, 'id' | 'created_at'>): Prom
       amount: bet.amount,
       odds_shown_to_user: bet.odds_shown_to_user,
       execution_price: bet.execution_price || null,
-      status: bet.status || 'pending'
+      status: bet.status || 'pending',
+      tx_hash: bet.tx_hash, // REQUIRED: Include transaction hash for idempotency
+      session_id: bet.session_id || null // Include session_id if provided
     };
     
     console.log('🚀 Executing Supabase insert query with simplified bet:', simplifiedBet);

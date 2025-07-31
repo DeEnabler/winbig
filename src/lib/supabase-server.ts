@@ -40,6 +40,7 @@ export interface BetRecord {
   odds_shown_to_user: number
   timestamp?: string
   status: 'pending' | 'executed' | 'failed' | 'cancelled'
+  tx_hash: string // REQUIRED: Transaction hash for idempotency and tracking
   
   // Backend fields (filled by hedger)
   execution_price?: number | null
@@ -47,7 +48,6 @@ export interface BetRecord {
   shares_received?: number | null
   gas_fee_pol?: number | null
   gas_fee_usd?: number | null
-  tx_hash?: string | null
   order_id?: string | null
   wallet_address?: string | null
   success?: boolean | null
@@ -67,6 +67,25 @@ export async function insertBet(bet: Omit<BetRecord, 'id' | 'created_at'>): Prom
     
     console.log('🔧 Server-side Supabase client configured and ready');
     
+    // CRITICAL FIX: Check for existing bet with same tx_hash first
+    console.log('🔍 Checking for existing bet with tx_hash:', bet.tx_hash);
+    const { data: existingBet, error: checkError } = await supabase
+      .from('bets')
+      .select('*')
+      .eq('tx_hash', bet.tx_hash)
+      .single();
+    
+    if (checkError && checkError.code !== 'PGRST116') {
+      // PGRST116 is "not found" which is what we want
+      console.error('❌ Error checking for existing bet:', checkError);
+      return { success: false, error: `Database check failed: ${checkError.message}` };
+    }
+    
+    if (existingBet) {
+      console.log('🔄 Bet with this tx_hash already exists, returning existing:', existingBet);
+      return { success: true, data: existingBet };
+    }
+    
     // Create a bet record that matches the current table structure
     const simplifiedBet = {
       user_id: bet.user_id,
@@ -75,7 +94,9 @@ export async function insertBet(bet: Omit<BetRecord, 'id' | 'created_at'>): Prom
       amount: bet.amount,
       odds_shown_to_user: bet.odds_shown_to_user,
       execution_price: bet.execution_price || null,
-      status: bet.status || 'pending'
+      status: bet.status || 'pending',
+      tx_hash: bet.tx_hash, // CRITICAL: Include transaction hash for idempotency
+      session_id: bet.session_id || null // Include session_id if provided
     };
     
     console.log('🚀 Executing Supabase insert query with simplified bet:', simplifiedBet);

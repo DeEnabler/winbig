@@ -1,7 +1,7 @@
 // src/components/match/MatchViewClient.tsx
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -70,14 +70,24 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   const [match, setMatch] = useState(initialMatch);
   const [betAmountState, setBetAmountState] = useState(match.betAmount || 10);
   const [isBetting, setIsBetting] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false); // NEW: Lock UI during processing
   const [selectedChoice, setSelectedChoice] = useState<'YES' | 'NO' | null>(match.userChoice || null);
   const [betPlaced, setBetPlaced] = useState(!!match.userBet);
-  const [processedTxHashes, setProcessedTxHashes] = useState<Set<string>>(new Set());
+  
+  // NEW: Use ref for synchronous guard against duplicate processing
+  const processedTxHashesRef = useRef<Set<string>>(new Set());
+  
+  // NEW: Store bet snapshots keyed by transaction hash
+  const [pendingBets, setPendingBets] = useState<Map<string, {amount: number, outcome: 'YES' | 'NO', odds: number}>>(new Map());
+  
+  // NEW: Temporary storage for bet snapshot until txHash is available
+  const pendingBetSnapshotRef = useRef<{amount: number, outcome: 'YES' | 'NO', odds: number} | null>(null);
 
-  // Reset processed transactions when bet parameters change
+  // Reset processed transactions and pending bets when bet parameters change
   useEffect(() => {
-    setProcessedTxHashes(new Set());
-  }, [betAmountState, selectedChoice]);
+    processedTxHashesRef.current = new Set();
+    setPendingBets(new Map());
+  }, [selectedChoice]); // FIXED: Only reset on choice change, not amount
 
   const transferData = useMemo(() => {
     if (!betAmountState || !selectedChoice) return undefined;
@@ -240,41 +250,66 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     }
 
     // Prevent multiple simultaneous transactions
-    if (isBetting || isSubmitting || isConfirming) {
+    if (isBetting || isSubmitting || isConfirming || isProcessing) {
       console.warn('⚠️ Transaction already in progress, ignoring duplicate request');
       return;
     }
 
+    // CRITICAL FIX: Capture bet data snapshot BEFORE sending transaction
+    const betSnapshot = {
+      amount: betAmountState,
+      outcome: selectedChoice,
+      odds: selectedChoice === 'YES' ? match.yesPrice : match.noPrice
+    };
+
     // Log final transaction parameters
-    console.log('💰 Sending USDT transfer:', betAmountState, 'USDT, Gas:', gasEstimate?.toString() || 'wallet-managed');
+    console.log('💰 Sending USDT transfer:', betSnapshot.amount, 'USDT, Gas:', gasEstimate?.toString() || 'wallet-managed');
+    console.log('📸 Bet snapshot captured:', betSnapshot);
 
     if (sendTransaction) {
       setIsBetting(true);
+      setIsProcessing(true); // Lock UI to prevent amount changes
       toast({ title: 'Confirming...', description: 'Please confirm the transaction in your wallet.' });
-      sendTransaction({
-        to: USDT_CONTRACT_ADDRESS,
-        data: transferData,
-        gas: gasEstimate || null, // Use estimated gas or let wallet handle
-      });
+      
+      try {
+        sendTransaction({
+          to: USDT_CONTRACT_ADDRESS,
+          data: transferData,
+          gas: gasEstimate || null, // Use estimated gas or let wallet handle
+        });
+        
+        // Store bet snapshot temporarily until txHash is available
+        pendingBetSnapshotRef.current = betSnapshot;
+        console.log('🔄 Transaction sent, snapshot stored temporarily:', betSnapshot);
+      } catch (error) {
+        console.error('❌ Transaction send failed:', error);
+        setIsBetting(false);
+        setIsProcessing(false);
+        throw error;
+      }
     }
   };
 
-  const proceedWithBetPlacement = useCallback(async (senderAddress: `0x${string}`) => {
+  const proceedWithBetPlacement = useCallback(async (
+    senderAddress: `0x${string}`, 
+    betSnapshot: {amount: number, outcome: 'YES' | 'NO', odds: number}, 
+    txHash: string
+  ) => {
     try {
-      if (!selectedChoice) return;
-      
-      // Create bet record for server-side API
+      // CRITICAL FIX: Use snapshot data instead of live state
       const betData = {
         user_id: senderAddress || mockCurrentUser.id, // Use wallet address from receipt, fallback to mock for dev
         market_id: match.predictionId,
-        outcome: selectedChoice,
-        amount: betAmountState,
-        odds_shown_to_user: selectedChoice === 'YES' ? match.yesPrice : match.noPrice,
+        outcome: betSnapshot.outcome,
+        amount: betSnapshot.amount,
+        odds_shown_to_user: betSnapshot.odds,
         status: 'pending' as const,
         session_id: match.id, // Store match ID for reference
+        tx_hash: txHash, // NEW: Include transaction hash for idempotency
       };
       
-      console.log('🎯 Placing bet via API with data:', betData);
+      console.log('🎯 Placing bet via API with SNAPSHOT data:', betData);
+      console.log('📸 Using bet snapshot:', betSnapshot, 'for tx:', txHash);
       
       const response = await fetch('/api/bets', {
         method: 'POST',
@@ -289,17 +324,24 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
         throw new Error(result.error || 'Failed to place bet via API.');
       }
       
-      toast({ title: "Bet Confirmed!", description: `Your ${selectedChoice} bet is in!` });
+      toast({ title: "Bet Confirmed!", description: `Your ${betSnapshot.outcome} bet is in!` });
       setMatch(prev => ({ 
         ...prev, 
         userBet: { 
-          side: selectedChoice, 
-          amount: betAmountState, 
+          side: betSnapshot.outcome, 
+          amount: betSnapshot.amount, 
           status: 'PENDING',
           betId: result.data?.id
         } 
       }));
       setBetPlaced(true);
+      
+      // Clean up: remove from pending bets
+      setPendingBets(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(txHash);
+        return newMap;
+      });
       
       console.log('✅ Bet placed successfully:', result.data);
     } catch (error: any) {
@@ -310,32 +352,52 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
         description: error.message || 'An unexpected error occurred.'
       });
     } finally {
-      setIsBetting(false);
+      setIsProcessing(false); // FIXED: Unlock UI after API call completes
     }
-  }, [selectedChoice, betAmountState, match, toast]);
+  }, [match, toast]); // FIXED: Removed betAmountState and selectedChoice dependencies
 
   useEffect(() => {
     if (sendError) {
       setIsBetting(false);
-      // NOTE: We access `shortMessage` for a user-friendly error, as per wagmi's BaseError type.
+      setIsProcessing(false); // Unlock UI on error
+      pendingBetSnapshotRef.current = null; // Clear snapshot on error
       toast({ variant: 'destructive', title: 'Transaction Failed', description: (sendError as any).shortMessage || 'An unknown error occurred.' });
     }
-    if (txHash) {
+    if (txHash && pendingBetSnapshotRef.current) {
+      // Move bet snapshot from ref to pendingBets Map
+      const snapshot = pendingBetSnapshotRef.current;
+      setPendingBets(prev => new Map(prev).set(txHash, snapshot));
+      pendingBetSnapshotRef.current = null; // Clear the ref
+      console.log('📝 Bet snapshot stored with txHash:', txHash, snapshot);
       toast({ title: 'Transaction Sent!', description: `Waiting for confirmation... Tx: ${txHash.slice(0, 10)}...` });
     }
   }, [sendError, txHash, toast]);
 
   useEffect(() => {
-    // Only process each transaction hash once to prevent multiple charges
-    if (isConfirmed && txHash && receipt && !processedTxHashes.has(txHash)) {
+    // CRITICAL FIX: Use ref for synchronous guard and get bet snapshot from pendingBets
+    if (isConfirmed && txHash && receipt && !processedTxHashesRef.current.has(txHash)) {
       console.log('🔒 Processing transaction confirmation for:', txHash);
-      setProcessedTxHashes(prev => new Set([...prev, txHash]));
+      
+      // Synchronous update to prevent race conditions
+      processedTxHashesRef.current.add(txHash);
+      
+      // Get the bet snapshot for this transaction
+      const betSnapshot = pendingBets.get(txHash);
+      if (!betSnapshot) {
+        console.error('❌ No bet snapshot found for txHash:', txHash);
+        setIsBetting(false);
+        setIsProcessing(false);
+        toast({ variant: 'destructive', title: 'Error', description: 'Bet data not found for this transaction.' });
+        return;
+      }
+      
       setIsBetting(false);
       toast({ title: "Transaction Confirmed!", description: "Your payment is confirmed. Placing bet..." });
-      // The receipt object from wagmi contains the sender's address in `receipt.from`
-      proceedWithBetPlacement(receipt.from);
+      
+      // Use snapshot data instead of live state
+      proceedWithBetPlacement(receipt.from, betSnapshot, txHash);
     }
-  }, [isConfirmed, txHash, receipt, processedTxHashes, proceedWithBetPlacement, toast]);
+  }, [isConfirmed, txHash, receipt, pendingBets, proceedWithBetPlacement, toast]);
 
   const totalPot = useMemo(() => {
     const yesBets = 1000;
@@ -388,7 +450,12 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                   <button
                     key={key}
                     onClick={() => setSelectedChoice(key as 'YES' | 'NO')}
-                    className={`relative p-3 rounded-lg border-2 text-center transition-all duration-200 ${selectedChoice === key ? 'border-primary shadow-lg' : 'border-border'}`}
+                    disabled={isBetting || isConfirming || isProcessing}
+                    className={`relative p-3 rounded-lg border-2 text-center transition-all duration-200 ${
+                      selectedChoice === key ? 'border-primary shadow-lg' : 'border-border'
+                    } ${
+                      isBetting || isConfirming || isProcessing ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
                   >
                     <p className="text-2xl font-bold">{data.label}</p>
                     <p className={`text-xl font-semibold ${data.color}`}>{data.price.toFixed(1)}%</p>
@@ -410,7 +477,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                       placeholder="10"
                       min={1}
                       className="w-full h-10 text-xl font-bold text-right bg-transparent border-0 shadow-none focus-visible:ring-0 p-0"
-                      disabled={isBetting || isConfirming}
+                      disabled={isBetting || isConfirming || isProcessing}
                     />
                   </div>
                 </div>
@@ -420,7 +487,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                   step={1}
                   value={[betAmountState]}
                   onValueChange={(value) => setBetAmountState(value[0])}
-                  disabled={isBetting || isConfirming}
+                  disabled={isBetting || isConfirming || isProcessing}
                 />
               </div>
 
@@ -435,14 +502,14 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                 onClick={handlePlaceBet}
                 size="lg"
                 className="w-full font-bold text-lg"
-                disabled={isBetting || isConfirming || isSubmitting || !sendTransaction}
+                disabled={isBetting || isConfirming || isSubmitting || isProcessing || !sendTransaction}
               >
-                {isBetting || isConfirming || isSubmitting ? (
+                {isBetting || isConfirming || isSubmitting || isProcessing ? (
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 ) : (
                   <Zap className="mr-2 h-5 w-5" />
                 )}
-                {isConfirming ? 'Confirming...' : isSubmitting ? 'Check Wallet...' : isBetting ? 'Processing...' : `Place Bet on ${selectedChoice || ''}`}
+                {isProcessing ? 'Placing Bet...' : isConfirming ? 'Confirming...' : isSubmitting ? 'Check Wallet...' : isBetting ? 'Processing...' : `Place Bet on ${selectedChoice || ''}`}
               </Button>
               <Button
                 onClick={openShareDialog}

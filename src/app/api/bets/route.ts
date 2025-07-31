@@ -10,11 +10,27 @@ export async function POST(request: NextRequest) {
     const betData = await request.json() as Omit<BetRecord, 'id' | 'created_at'>;
     console.log('🎯 API: Bet data received:', betData);
     
-    // Validate required fields
-    if (!betData.user_id || !betData.market_id || !betData.outcome || !betData.amount || !betData.odds_shown_to_user) {
-      console.error('❌ API: Missing required bet fields');
+    // Validate required fields including tx_hash for idempotency
+    if (!betData.user_id || !betData.market_id || !betData.outcome || !betData.amount || !betData.odds_shown_to_user || !betData.tx_hash) {
+      console.error('❌ API: Missing required bet fields', { 
+        user_id: !!betData.user_id, 
+        market_id: !!betData.market_id, 
+        outcome: !!betData.outcome, 
+        amount: !!betData.amount, 
+        odds_shown_to_user: !!betData.odds_shown_to_user,
+        tx_hash: !!betData.tx_hash 
+      });
       return NextResponse.json(
-        { success: false, error: 'Missing required bet fields' },
+        { success: false, error: 'Missing required bet fields (including tx_hash for duplicate prevention)' },
+        { status: 400 }
+      );
+    }
+    
+    // Basic tx_hash format validation (should be 66 characters: '0x' + 64 hex chars)
+    if (typeof betData.tx_hash !== 'string' || !/^0x[a-fA-F0-9]{64}$/.test(betData.tx_hash)) {
+      console.error('❌ API: Invalid tx_hash format:', betData.tx_hash);
+      return NextResponse.json(
+        { success: false, error: 'Invalid transaction hash format' },
         { status: 400 }
       );
     }

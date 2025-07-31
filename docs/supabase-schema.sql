@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS bets (
     odds_shown_to_user numeric NOT NULL CHECK (odds_shown_to_user > 0),
     timestamp timestamptz DEFAULT now(),
     status text DEFAULT 'pending' CHECK (status IN ('pending', 'executed', 'failed', 'cancelled')),
+    tx_hash text NOT NULL, -- REQUIRED: Transaction hash for idempotency and tracking
     
     -- Backend fields (filled by hedger)
     execution_price numeric,
@@ -22,7 +23,6 @@ CREATE TABLE IF NOT EXISTS bets (
     shares_received numeric,
     gas_fee_pol numeric,
     gas_fee_usd numeric,
-    tx_hash text,
     order_id text,
     wallet_address text,
     success boolean,
@@ -30,12 +30,16 @@ CREATE TABLE IF NOT EXISTS bets (
     notes text
 );
 
+-- Add unique constraint for duplicate prevention
+ALTER TABLE bets ADD CONSTRAINT unique_bet_tx_hash UNIQUE (tx_hash);
+
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_bets_status ON bets(status);
 CREATE INDEX IF NOT EXISTS idx_bets_user_id ON bets(user_id);
 CREATE INDEX IF NOT EXISTS idx_bets_market_id ON bets(market_id);
 CREATE INDEX IF NOT EXISTS idx_bets_created_at ON bets(created_at);
 CREATE INDEX IF NOT EXISTS idx_bets_outcome ON bets(outcome);
+CREATE INDEX IF NOT EXISTS idx_bets_tx_hash ON bets(tx_hash);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE bets ENABLE ROW LEVEL SECURITY;
