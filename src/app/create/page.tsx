@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Upload, Image as ImageIcon, Loader2 } from 'lucide-react';
 import ResolutionDatePicker from '@/components/create/ResolutionDatePicker';
@@ -200,16 +200,28 @@ const CreateMarketPage = () => {
 
                             <div className="space-y-2">
                                 <Label>Choose Side</Label>
-                                <RadioGroup value={betSide} onValueChange={(value) => setBetSide(value as 'yes' | 'no')} className="flex gap-4">
-                                    <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="yes" id="yes" />
-                                        <Label htmlFor="yes">Yes</Label>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="no" id="no" />
-                                        <Label htmlFor="no">No</Label>
-                                    </div>
-                                </RadioGroup>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setBetSide('yes')}
+                                        className={`relative p-3 rounded-lg border-2 text-center transition-all duration-200 ${
+                                            betSide === 'yes' ? 'border-primary shadow-lg' : 'border-border'
+                                        }`}
+                                    >
+                                        <p className="text-2xl font-bold">YES</p>
+                                        <p className="text-xl font-semibold text-green-500">+</p>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setBetSide('no')}
+                                        className={`relative p-3 rounded-lg border-2 text-center transition-all duration-200 ${
+                                            betSide === 'no' ? 'border-primary shadow-lg' : 'border-border'
+                                        }`}
+                                    >
+                                        <p className="text-2xl font-bold">NO</p>
+                                        <p className="text-xl font-semibold text-red-500">-</p>
+                                    </button>
+                                </div>
                             </div>
                         </CardContent>
                         <CardFooter className="flex justify-end gap-2">
@@ -245,12 +257,20 @@ const CreateMarketPage = () => {
                                 <p className="text-sm text-gray-500 mt-2">
                                     Resolves on: {resolutionDate ? resolutionDate.toLocaleDateString() : 'select a date'}
                                 </p>
-                                <div className="flex justify-between items-center mt-4">
-                                    <div className={cn("px-4 py-2 rounded-md", betSide === 'yes' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800')}>
-                                        Yes
+                                <div className="grid grid-cols-2 gap-3 mt-4">
+                                    <div className={cn(
+                                        "relative p-3 rounded-lg border-2 text-center transition-all duration-200",
+                                        betSide === 'yes' ? 'border-primary shadow-lg bg-green-50' : 'border-border bg-gray-50'
+                                    )}>
+                                        <p className="text-lg font-bold">YES</p>
+                                        <p className="text-sm font-semibold text-green-500">Your choice</p>
                                     </div>
-                                    <div className={cn("px-4 py-2 rounded-md", betSide === 'no' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800')}>
-                                        No
+                                    <div className={cn(
+                                        "relative p-3 rounded-lg border-2 text-center transition-all duration-200",
+                                        betSide === 'no' ? 'border-primary shadow-lg bg-red-50' : 'border-border bg-gray-50'
+                                    )}>
+                                        <p className="text-lg font-bold">NO</p>
+                                        <p className="text-sm font-semibold text-red-500">Your choice</p>
                                     </div>
                                 </div>
                             </CardContent>
