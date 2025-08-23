@@ -61,7 +61,7 @@ export function InitialPopups() {
     <>
       <Dialog open={showWarningPopup}>
         <DialogPortal>
-          <DialogOverlay className="backdrop-blur-sm" />
+          <DialogOverlay className="bg-black/20 backdrop-blur-sm" />
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Early Access Warning</DialogTitle>
@@ -116,7 +116,7 @@ export function InitialPopups() {
         onOpenChange={(open) => !open && handleAffiliateClose()}
       >
         <DialogPortal>
-          <DialogOverlay className="backdrop-blur-sm" />
+          <DialogOverlay className="bg-black/20 backdrop-blur-sm" />
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle className="text-2xl">
