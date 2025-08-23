@@ -241,39 +241,77 @@ const CreateMarketPage = () => {
 
                     {/* Market Preview */}
                     <div className="sticky top-24">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Market Preview</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="w-full h-40 bg-gray-200 rounded-md flex items-center justify-center mb-4">
-                                    {imagePreview ? (
-                                        <img src={imagePreview} alt="Market preview" className="object-cover w-full h-full rounded-md" />
-                                    ) : (
-                                        <ImageIcon className="h-12 w-12 text-gray-400" />
-                                    )}
-                                </div>
-                                <h3 className="text-lg font-semibold">{marketQuestion || 'Your market question will appear here.'}</h3>
-                                <p className="text-sm text-gray-500 mt-2">
-                                    Resolves on: {resolutionDate ? resolutionDate.toLocaleDateString() : 'select a date'}
+                        <Card className="w-full max-w-md mx-auto shadow-xl rounded-lg text-center overflow-hidden">
+                            <CardHeader className="bg-muted/30 p-3 md:p-4 space-y-1">
+                                <CardTitle className="text-left text-base md:text-lg font-semibold">
+                                    Market Preview
+                                </CardTitle>
+                                <p className="text-xs text-muted-foreground text-left">
+                                    How your market will appear to bettors
                                 </p>
-                                <div className="grid grid-cols-2 gap-3 mt-4">
-                                    <div className={cn(
-                                        "relative p-3 rounded-lg border-2 text-center transition-all duration-200",
-                                        betSide === 'yes' ? 'border-primary shadow-lg bg-green-50' : 'border-border bg-gray-50'
-                                    )}>
-                                        <p className="text-lg font-bold">YES</p>
-                                        <p className="text-sm font-semibold text-green-500">Your choice</p>
+                            </CardHeader>
+                            <CardContent className="space-y-4 p-4 md:p-6">
+                                {imagePreview && (
+                                    <div className="w-full h-32 bg-gray-200 rounded-md overflow-hidden mb-4">
+                                        <img src={imagePreview} alt="Market preview" className="object-cover w-full h-full" />
                                     </div>
-                                    <div className={cn(
-                                        "relative p-3 rounded-lg border-2 text-center transition-all duration-200",
-                                        betSide === 'no' ? 'border-primary shadow-lg bg-red-50' : 'border-border bg-gray-50'
-                                    )}>
-                                        <p className="text-lg font-bold">NO</p>
-                                        <p className="text-sm font-semibold text-red-500">Your choice</p>
+                                )}
+                                
+                                <p className="italic text-lg md:text-xl font-semibold text-foreground leading-tight">
+                                    "{marketQuestion || 'Your market question will appear here'}"
+                                </p>
+
+                                <div className="my-3 space-y-2 py-2 border-y border-border/30">
+                                    <div className="text-center">
+                                        <p className="text-xs font-medium text-muted-foreground mb-1.5">Preview Odds</p>
+                                        <div className="flex justify-around items-start">
+                                            <div className="text-center relative px-1">
+                                                <span className="text-2xl md:text-3xl font-bold text-green-500">--</span>
+                                                <p className="text-xs text-muted-foreground mt-0.5">Betting YES</p>
+                                            </div>
+                                            <div className="text-center relative px-1">
+                                                <span className="text-2xl md:text-3xl font-bold text-red-500">--</span>
+                                                <p className="text-xs text-muted-foreground mt-0.5">Betting NO</p>
+                                            </div>
+                                        </div>
                                     </div>
+                                    <div className="text-center p-1.5 rounded-md bg-muted/30">
+                                        <p className="text-xs text-muted-foreground">Initial Odds:</p>
+                                        <p className="text-base md:text-lg font-semibold">
+                                            <span className={cn("font-bold", betSide === 'yes' ? 'text-green-500' : 'text-gray-500')}>
+                                                YES {betSide === 'yes' ? '(Your bet)' : '50%'}
+                                            </span>
+                                            {' / '}
+                                            <span className={cn("font-bold", betSide === 'no' ? 'text-red-500' : 'text-gray-500')}>
+                                                NO {betSide === 'no' ? '(Your bet)' : '50%'}
+                                            </span>
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 mt-4">
+                                    <div className="flex-1 h-12 px-3 bg-gray-300 text-gray-600 font-bold rounded-lg flex items-center justify-center space-x-1.5 text-base opacity-75">
+                                        <span>Betting Options</span>
+                                    </div>
+                                </div>
+                                
+                                <div className="text-xs text-muted-foreground mt-3 space-y-1">
+                                    <p className="text-sm text-gray-500">
+                                        Resolves: {resolutionDate ? resolutionDate.toLocaleDateString() : 'Select date'}
+                                    </p>
+                                    <p>🛡️ Secure betting powered by smart contracts</p>
                                 </div>
                             </CardContent>
+                            <CardFooter className="flex items-center justify-between p-3 bg-muted/20 border-t text-xs text-muted-foreground">
+                                <div className="flex items-center space-x-3">
+                                    <div className="flex items-center">
+                                        <span className="w-3.5 h-3.5 mr-1">👥</span> Live betting
+                                    </div>
+                                    <div className="flex items-center">
+                                        <span className="w-3.5 h-3.5 mr-1">📊</span> Real odds
+                                    </div>
+                                </div>
+                            </CardFooter>
                         </Card>
                     </div>
                 </div>
