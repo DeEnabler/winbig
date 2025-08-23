@@ -4,11 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar } from '@/components/ui/calendar';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Info, Upload, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Upload, Image as ImageIcon, Loader2 } from 'lucide-react';
+import ResolutionDatePicker from '@/components/create/ResolutionDatePicker';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -150,25 +149,17 @@ const CreateMarketPage = () => {
 
                             <div className="space-y-2">
                                 <Label htmlFor="resolution-date">Resolution Date</Label>
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger className="w-full flex items-center gap-2">
-                                            <Calendar
-                                                mode="single"
-                                                selected={resolutionDate}
-                                                onSelect={setResolutionDate}
-                                                className="rounded-md border w-full"
-                                                disabled={(date) =>
-                                                    date < new Date(new Date().setHours(0, 0, 0, 0))
-                                                  }
-                                            />
-                                            <Info className="h-4 w-4 text-gray-500" />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Grok will evaluate based on real-time data at this time.</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
+                                <ResolutionDatePicker
+                                    selected={resolutionDate}
+                                    onSelect={setResolutionDate}
+                                    disabled={(date) =>
+                                        date < new Date(new Date().setHours(0, 0, 0, 0))
+                                    }
+                                    error={errors.resolutionDate}
+                                />
+                                <p className="text-xs text-gray-500">
+                                    Grok will evaluate based on real-time data at this time.
+                                </p>
                             </div>
 
                             <div className="space-y-2">
