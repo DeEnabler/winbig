@@ -13,6 +13,7 @@ import './globals.css';
 import { cookieToInitialState } from 'wagmi';
 import { headers } from 'next/headers';
 import { wagmiConfig } from '@/components/providers/wagmi-config';
+import { InitialPopups } from '@/components/popups/InitialPopups';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +50,7 @@ export default function RootLayout({
                 <PageTransitionWrapper>{children}</PageTransitionWrapper>
               </AppLayout>
               <Toaster />
+              <InitialPopups />
             </WalletKitProvider>
           </EntryContextProvider>
         </ThemeProvider>
