@@ -12,6 +12,7 @@ import { Info, Upload, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import EarningDetails from '@/components/create/EarningDetails';
 
 
 type FormErrors = {
@@ -120,6 +121,11 @@ const CreateMarketPage = () => {
             <div className="text-center mb-10">
                 <h1 className="text-4xl font-bold mb-2">Create a New Prediction Market</h1>
                 <p className="text-lg text-gray-500">Powered by Grok for automatic resolution.</p>
+            </div>
+            
+            {/* Earning Details Section */}
+            <div className="max-w-3xl mx-auto mb-10">
+                <EarningDetails />
             </div>
             <form onSubmit={handleSubmit}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
