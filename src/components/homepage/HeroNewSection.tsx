@@ -3,8 +3,6 @@
 
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import HeroBetDisplay from './HeroBetDisplay'; // Re-using the component for the featured market
-import { Suspense } from 'react';
 
 export default function HeroNewSection() {
   return (
@@ -16,13 +14,6 @@ export default function HeroNewSection() {
         Join thousands placing bets on today’s hottest events.
       </p>
       
-      {/* Featured Market Display - Reusing HeroBetDisplay */}
-      <div className="my-6 md:my-8 max-w-2xl mx-auto">
-        <Suspense fallback={<div className="min-h-[300px] flex items-center justify-center"><p>Loading featured market...</p></div>}>
-          <HeroBetDisplay />
-        </Suspense>
-      </div>
-
       <div className="flex justify-center">
         <Button asChild size="lg" className="text-lg h-14 px-10 rounded-xl bg-accent hover:bg-accent/90 text-accent-foreground animate-pulse-glow">
           <Link href="/challenge">Start Betting Now</Link>
