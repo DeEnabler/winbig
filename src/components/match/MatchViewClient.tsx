@@ -259,7 +259,8 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     const betSnapshot = {
       amount: betAmountState,
       outcome: selectedChoice,
-      odds: selectedChoice === 'YES' ? match.yesPrice : match.noPrice
+      odds: selectedChoice === 'YES' ? match.yesPrice : match.noPrice,
+      potentialPayout: executionPreview?.potentialPayout ?? 0,
     };
 
     // Log final transaction parameters
@@ -292,7 +293,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
 
   const proceedWithBetPlacement = useCallback(async (
     senderAddress: `0x${string}`, 
-    betSnapshot: {amount: number, outcome: 'YES' | 'NO', odds: number}, 
+    betSnapshot: {amount: number, outcome: 'YES' | 'NO', odds: number, potentialPayout: number}, 
     txHash: string
   ) => {
     try {
@@ -303,6 +304,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
         outcome: betSnapshot.outcome,
         amount: betSnapshot.amount,
         odds_shown_to_user: betSnapshot.odds,
+        potential_payout: betSnapshot.potentialPayout,
         status: 'pending' as const,
         session_id: match.id, // Store match ID for reference
         tx_hash: txHash, // NEW: Include transaction hash for idempotency

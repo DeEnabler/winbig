@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS bets (
     outcome text NOT NULL CHECK (outcome IN ('YES', 'NO')),
     amount numeric NOT NULL CHECK (amount > 0),
     odds_shown_to_user numeric NOT NULL CHECK (odds_shown_to_user > 0),
+    potential_payout numeric, -- ADDED: The potential payout if the bet wins
     timestamp timestamptz DEFAULT now(),
     status text DEFAULT 'pending' CHECK (status IN ('pending', 'executed', 'failed', 'cancelled')),
     tx_hash text NOT NULL, -- REQUIRED: Transaction hash for idempotency and tracking

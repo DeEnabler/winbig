@@ -38,6 +38,7 @@ export interface BetRecord {
   outcome: 'YES' | 'NO'
   amount: number
   odds_shown_to_user: number
+  potential_payout?: number | null // ADDED
   timestamp?: string
   status: 'pending' | 'executed' | 'failed' | 'cancelled'
   tx_hash: string // REQUIRED: Transaction hash for idempotency and tracking
@@ -93,6 +94,7 @@ export async function insertBet(bet: Omit<BetRecord, 'id' | 'created_at'>): Prom
       outcome: bet.outcome,
       amount: bet.amount,
       odds_shown_to_user: bet.odds_shown_to_user,
+      potential_payout: bet.potential_payout || null, // ADDED
       execution_price: bet.execution_price || null,
       status: bet.status || 'pending',
       tx_hash: bet.tx_hash // CRITICAL: Include transaction hash for idempotency

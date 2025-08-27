@@ -4,6 +4,9 @@
 import { Suspense } from 'react';
 import { EntryContextProvider } from '@/contexts/EntryContext';
 import AppLayout from '@/components/layout/AppLayout';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient();
 
 export function EntryClientProvider({
   children,
@@ -13,7 +16,9 @@ export function EntryClientProvider({
   return (
     <Suspense fallback={<div>Loading Page...</div>}>
       <EntryContextProvider>
-        <AppLayout>{children}</AppLayout>
+        <QueryClientProvider client={queryClient}>
+          <AppLayout>{children}</AppLayout>
+        </QueryClientProvider>
       </EntryContextProvider>
     </Suspense>
   );

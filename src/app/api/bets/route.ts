@@ -18,7 +18,8 @@ export async function POST(request: NextRequest) {
         outcome: !!betData.outcome, 
         amount: !!betData.amount, 
         odds_shown_to_user: !!betData.odds_shown_to_user,
-        tx_hash: !!betData.tx_hash 
+        tx_hash: !!betData.tx_hash,
+        potential_payout: !!betData.potential_payout,
       });
       return NextResponse.json(
         { success: false, error: 'Missing required bet fields (including tx_hash for duplicate prevention)' },
