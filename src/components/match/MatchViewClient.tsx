@@ -78,10 +78,10 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   const processedTxHashesRef = useRef<Set<string>>(new Set());
   
   // NEW: Store bet snapshots keyed by transaction hash
-  const [pendingBets, setPendingBets] = useState<Map<string, {amount: number, outcome: 'YES' | 'NO', odds: number}>>(new Map());
+  const [pendingBets, setPendingBets] = useState<Map<string, {amount: number, outcome: 'YES' | 'NO', odds: number, potentialPayout: number}>>(new Map());
   
   // NEW: Temporary storage for bet snapshot until txHash is available
-  const pendingBetSnapshotRef = useRef<{amount: number, outcome: 'YES' | 'NO', odds: number} | null>(null);
+  const pendingBetSnapshotRef = useRef<{amount: number, outcome: 'YES' | 'NO', odds: number, potentialPayout: number} | null>(null);
 
   // Reset processed transactions and pending bets when bet parameters change
   useEffect(() => {
