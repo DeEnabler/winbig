@@ -76,6 +76,8 @@ export default function ChallengeInvite({
     bonusApplied: boolean;
   } | null>(null);
 
+  const [lastUserAction, setLastUserAction] = useState<'with' | 'against' | null>(null);
+
   const [hasSufficientBalance, setHasSufficientBalance] = useState(true); // Assume true initially
   const [isConfirming, setIsConfirming] = useState(false);
   const [betAmount, setBetAmount] = useState(10); // Example bet amount in USDT
@@ -225,7 +227,7 @@ export default function ChallengeInvite({
   }, [isConnected, pendingActionData, address, toast, proceedWithNavigation]);
 
 
-  const handleBetAction = async (userAction: 'with' | 'against') => {
+    const handleBetAction = async (userAction: 'with' | 'against') => {
     if (!isConnected || !address) {
       // Logic for non-connected users (toast, etc.) remains the same
       toast({
@@ -245,7 +247,10 @@ export default function ChallengeInvite({
       // Optionally, you can trigger a network switch request here
       return;
     }
-    
+
+    // Store the userAction for use after transaction success
+    setLastUserAction(userAction);
+
     setIsConfirming(true);
     toast({
       title: 'Confirming Transaction...',
@@ -255,13 +260,14 @@ export default function ChallengeInvite({
 
     try {
              writeContract({
-         address: USDT_CONTRACT_ADDRESS,
-         abi: USDT_ABI,
-         functionName: 'transfer',
-         args: [BETTING_WALLET_ADDRESS, parseUnits(betAmount.toString(), 18)], // USDT has 18 decimals
-       });
+        address: USDT_CONTRACT_ADDRESS,
+        abi: USDT_ABI,
+        functionName: 'transfer',
+        args: [BETTING_WALLET_ADDRESS, parseUnits(betAmount.toString(), 18)], // USDT has 18 decimals
+      });
     } catch (error) {
       setIsConfirming(false);
+      setLastUserAction(null); // Clear on error
       toast({
         title: 'Transaction Failed',
         description: 'Something went wrong. Please try again.',
@@ -270,6 +276,59 @@ export default function ChallengeInvite({
       console.error("Transaction error:", error);
     }
   };
+
+  const recordBetInSupabase = useCallback(async (txHash: string, userAction: 'with' | 'against', actualUserChoice: 'YES' | 'NO', bonusApplied: boolean) => {
+    try {
+      console.log('🎯 Recording bet in Supabase for transaction:', txHash);
+
+      // Get market odds (simplified - you might want to fetch real odds)
+      const yesPrice = displayedApiOddsYes / 100; // Convert percentage to decimal
+      const noPrice = (100 - displayedApiOddsYes) / 100;
+
+      const betData = {
+        user_id: address || 'unknown_user', // Use wallet address
+        market_id: predictionId,
+        outcome: actualUserChoice,
+        amount: betAmount,
+        odds_shown_to_user: actualUserChoice === 'YES' ? yesPrice : noPrice,
+        potential_payout: betAmount * (actualUserChoice === 'YES' ? (1 / yesPrice) : (1 / noPrice)), // Simple calculation
+        status: 'pending' as const,
+        tx_hash: txHash, // Include transaction hash for idempotency
+      };
+
+      console.log('📝 Bet data to record:', betData);
+
+      const response = await fetch('/api/bets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(betData),
+      });
+
+      const result = await response.json();
+      console.log('📥 Supabase API response:', result);
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to record bet in database.');
+      }
+
+      console.log('✅ Bet recorded successfully in Supabase:', result.data);
+
+      toast({
+        title: 'Bet Recorded!',
+        description: 'Your bet has been saved to our database.',
+        duration: 3000,
+      });
+
+    } catch (error: any) {
+      console.error('❌ Failed to record bet in Supabase:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Database Error',
+        description: 'Bet recorded on blockchain but failed to save to database. Please contact support.',
+        duration: 10000,
+      });
+    }
+  }, [address, predictionId, betAmount, displayedApiOddsYes, toast]);
 
   useEffect(() => {
     if (hash) {
@@ -286,21 +345,26 @@ export default function ChallengeInvite({
       });
 
       let actualUserChoice: 'YES' | 'NO';
-      // This part is tricky without the original userAction. Assuming it was stored.
-      // For demonstration, let's assume 'with' was the action.
-      // In a real app, you would store this state before the transaction.
-      const userAction = 'with'; 
+      // Use the stored userAction from when the transaction was initiated
+      const userAction = lastUserAction || 'with'; // Fallback to 'with' if somehow not set
+
       if (userAction === 'with') {
         actualUserChoice = referrerOriginalChoice;
       } else {
         actualUserChoice = referrerOriginalChoice === 'YES' ? 'NO' : 'YES';
       }
-      
+
+      // CRITICAL FIX: Record the bet in Supabase
+      recordBetInSupabase(hash, userAction, actualUserChoice, bonusSuccessfullyClaimed);
+
       // Navigate after successful transaction
       proceedWithNavigation(userAction, actualUserChoice, bonusSuccessfullyClaimed);
 
+      // Clear the stored action
+      setLastUserAction(null);
+
     }
-  }, [hash, bonusSuccessfullyClaimed, proceedWithNavigation, referrerOriginalChoice]);
+  }, [hash, bonusSuccessfullyClaimed, proceedWithNavigation, referrerOriginalChoice, recordBetInSupabase, lastUserAction]);
 
 
   const handleWalletConnectAndEarn = () => {

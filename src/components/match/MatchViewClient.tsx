@@ -306,8 +306,7 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
         odds_shown_to_user: betSnapshot.odds,
         potential_payout: betSnapshot.potentialPayout,
         status: 'pending' as const,
-        session_id: match.id, // Store match ID for reference
-        tx_hash: txHash, // NEW: Include transaction hash for idempotency
+        tx_hash: txHash, // Include transaction hash for idempotency
       };
       
       console.log('🎯 Placing bet via API with SNAPSHOT data:', betData);
