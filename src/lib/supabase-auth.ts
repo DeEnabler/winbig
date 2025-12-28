@@ -49,10 +49,16 @@ export async function signInWithX(): Promise<{ error: Error | null }> {
     return { error: new Error('Supabase auth client not initialized') };
   }
 
+  // Use current origin for redirect - this ensures we go back to the same environment
+  // (localhost, preview, or production)
+  const redirectUrl = window.location.origin;
+  console.log('🔐 Signing in with X, redirect to:', redirectUrl);
+
   const { error } = await supabaseAuth.auth.signInWithOAuth({
     provider: 'twitter',
     options: {
-      redirectTo: `${window.location.origin}/api/auth/callback`,
+      // Redirect back to the root - Supabase client will detect tokens in URL hash
+      redirectTo: redirectUrl,
     },
   });
 
