@@ -12,6 +12,7 @@ import { mockCurrentUser } from '@/lib/mockData';
 import dynamic from 'next/dynamic';
 
 const ConnectWallet = dynamic(() => import('@/components/wallet/ConnectWallet'), { ssr: false });
+const ConnectXButton = dynamic(() => import('@/components/wallet/ConnectXButton'), { ssr: false });
 
 const navItems = [
   { href: '/', label: 'Home', icon: Home }, // Changed 'Bet' to 'Home' for clarity
@@ -61,7 +62,8 @@ export default function Navbar() {
               {mockCurrentUser.xp.toLocaleString()} XP
             </span>
           </div>
-          <div className="hidden md:block ml-2">
+          <div className="hidden md:flex items-center space-x-2 ml-2">
+            <ConnectXButton />
             <ConnectWallet />
           </div>
 
@@ -104,7 +106,8 @@ export default function Navbar() {
                   {mockCurrentUser.xp.toLocaleString()} XP
                 </span>
             </div>
-            <div className="p-2 border-t pt-3">
+            <div className="p-2 border-t pt-3 space-y-2">
+              <ConnectXButton />
               <ConnectWallet />
             </div>
           </nav>

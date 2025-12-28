@@ -3,7 +3,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import MarketFeedSection from '@/components/homepage/MarketFeedSection';
 import { getLiveMarkets } from '@/lib/marketService';
 import type { LiveMarket } from '@/types';
-import HeroNewSection from '@/components/homepage/HeroNewSection';
+import HeroSection from '@/components/homepage/HeroSection';
 import StickyCtaBanner from '@/components/homepage/StickyCtaBanner';
 // import ClientEnvTest from '@/components/ClientEnvTest'; // Removed - using server-side Supabase now
 
@@ -37,7 +37,7 @@ export default async function HomePage() {
         >
           <div className="flex flex-col space-y-10 md:space-y-16">
             {/* Diagnostic component removed - now using server-side Supabase */}
-            <HeroNewSection />
+            <HeroSection />
             <Suspense
               fallback={
                 <div className="w-full min-h-[300px] flex items-center justify-center">

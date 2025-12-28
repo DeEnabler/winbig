@@ -7,6 +7,7 @@ import PageTransitionWrapper from '@/components/layout/PageTransitionWrapper';
 import AppLayout from '@/components/layout/AppLayout';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { EntryContextProvider } from '@/contexts/EntryContext';
+import { UserProvider } from '@/contexts/UserContext';
 import { WalletKitProvider } from '@/components/providers/WalletKitProvider';
 import { cn } from '@/lib/utils';
 import './globals.css';
@@ -46,11 +47,13 @@ export default function RootLayout({
         >
           <EntryContextProvider>
             <WalletKitProvider initialState={initialState}>
-              <AppLayout>
-                <PageTransitionWrapper>{children}</PageTransitionWrapper>
-              </AppLayout>
-              <Toaster />
-              <InitialPopups />
+              <UserProvider>
+                <AppLayout>
+                  <PageTransitionWrapper>{children}</PageTransitionWrapper>
+                </AppLayout>
+                <Toaster />
+                <InitialPopups />
+              </UserProvider>
             </WalletKitProvider>
           </EntryContextProvider>
         </ThemeProvider>
