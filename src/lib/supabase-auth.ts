@@ -2,8 +2,13 @@
 import { createClient, SupabaseClient, User, Session } from '@supabase/supabase-js';
 
 // Client-side Supabase client for auth (with cookies/session support)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_KEY;
+// Use consistent environment variable naming (matches supabase.ts)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_KEY || process.env.SUPABASE_KEY;
+
+console.log('🔐 Initializing Supabase Auth client...');
+console.log('🌐 Auth SUPABASE_URL exists:', !!supabaseUrl);
+console.log('🔑 Auth SUPABASE_KEY exists:', !!supabaseAnonKey);
 
 let supabaseAuth: SupabaseClient | null = null;
 
@@ -15,6 +20,9 @@ if (supabaseUrl && supabaseAnonKey) {
       detectSessionInUrl: true,
     },
   });
+  console.log('✅ Supabase Auth client created successfully');
+} else {
+  console.error('❌ Missing Supabase environment variables for auth!');
 }
 
 export { supabaseAuth };
