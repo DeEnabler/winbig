@@ -134,16 +134,19 @@ export async function getOrCreateUserProfile(user: User): Promise<{ profile: XUs
 
   // Extract X (Twitter) user data from Supabase user metadata
   const xUserData = user.user_metadata;
+  const authId = user.id; // Supabase auth UUID - used for RLS policies
   const xUserId = xUserData?.provider_id || xUserData?.sub || user.id;
   const xUsername = xUserData?.user_name || xUserData?.preferred_username || '';
   const xAvatar = xUserData?.avatar_url || xUserData?.picture || null;
   const xName = xUserData?.full_name || xUserData?.name || null;
 
-  // Try to get existing profile
+  console.log('🔐 Getting/creating profile for:', { authId, xUserId, xUsername });
+
+  // Try to get existing profile by auth_id (Supabase user UUID)
   const { data: existingProfile, error: fetchError } = await supabaseAuth
     .from('user_profiles')
     .select('*')
-    .eq('x_user_id', xUserId)
+    .eq('auth_id', authId)
     .single();
 
   if (fetchError && fetchError.code !== 'PGRST116') {
@@ -153,6 +156,7 @@ export async function getOrCreateUserProfile(user: User): Promise<{ profile: XUs
   }
 
   if (existingProfile) {
+    console.log('✅ Found existing profile:', existingProfile);
     // Update profile with latest X data
     const { data: updatedProfile, error: updateError } = await supabaseAuth
       .from('user_profiles')
@@ -174,10 +178,12 @@ export async function getOrCreateUserProfile(user: User): Promise<{ profile: XUs
     return { profile: updatedProfile, error: null };
   }
 
-  // Create new profile
+  console.log('📝 Creating new profile...');
+  // Create new profile with auth_id for RLS
   const { data: newProfile, error: createError } = await supabaseAuth
     .from('user_profiles')
     .insert({
+      auth_id: authId, // Link to Supabase auth.users for RLS
       x_user_id: xUserId,
       x_username: xUsername,
       x_avatar: xAvatar,
@@ -191,6 +197,7 @@ export async function getOrCreateUserProfile(user: User): Promise<{ profile: XUs
     return { profile: null, error: createError };
   }
 
+  console.log('✅ Created new profile:', newProfile);
   return { profile: newProfile, error: null };
 }
 
