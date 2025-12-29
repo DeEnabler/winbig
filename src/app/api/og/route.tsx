@@ -68,11 +68,11 @@ export async function GET(req: NextRequest) {
 
   return new ImageResponse(
     (
-      <div tw="flex flex-col w-full h-full items-center justify-between bg-purple-800 text-white p-10 pb-6" style={{ fontFamily: 'sans-serif' }}>
+      <div tw="flex flex-col w-full h-full items-center justify-between text-white p-10 pb-6" style={{ fontFamily: 'sans-serif', background: 'linear-gradient(135deg, #0F1629 0%, #1A2238 50%, #0F1629 100%)' }}>
         {/* Header: App Logo + User Avatar + Username */}
         <div tw="flex w-full justify-between items-center">
           <div tw="flex items-center">
-             <div tw="text-5xl font-bold mr-3" style={{color: '#D8B4FE'}}>WinBig</div>
+             <div tw="text-5xl font-bold mr-3" style={{color: '#FF7A3D'}}>WinBig</div>
              {ogData.bonusApplied && (
                 <div tw="flex items-center bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-xl font-semibold shadow-md">
                     ✨ +20% Bonus!
@@ -81,15 +81,15 @@ export async function GET(req: NextRequest) {
           </div>
           {ogData.username && (
             <div tw="flex items-center">
-              <span tw="text-2xl mr-4" style={{color: '#E9D5FF'}}>{ogData.username}</span>
-              <img src={ogData.userAvatar} tw="w-20 h-20 rounded-full border-4" style={{borderColor: '#A78BFA'}} alt="User Avatar" />
+              <span tw="text-2xl mr-4" style={{color: '#E2E8F0'}}>{ogData.username}</span>
+              <img src={ogData.userAvatar} tw="w-20 h-20 rounded-full border-4" style={{borderColor: '#4B6BFB'}} alt="User Avatar" />
             </div>
           )}
         </div>
 
         {/* Main Content: Prediction + Stance (if applicable) */}
         <div tw="flex flex-col items-center text-center my-auto">
-          <div tw="text-lg uppercase tracking-wider mb-2" style={{color: '#C084FC'}}>
+          <div tw="text-lg uppercase tracking-wider mb-2" style={{color: '#64748B'}}>
             {ogData.userChoice ? 'predicts' : (ogData.ogType === 'position_outcome' ? 'Bet Result' : 'Featured Prediction')}
           </div>
           {ogData.userChoice && (
@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
               {ogData.userChoice}
             </div>
           )}
-          <div tw="text-4xl font-semibold leading-tight max-w-4xl px-4" style={{color: '#F3E8FF'}}>
+          <div tw="text-4xl font-semibold leading-tight max-w-4xl px-4" style={{color: '#E2E8F0'}}>
             "{ogData.predictionText}"
           </div>
         </div>
@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
         {ogData.ogType === 'match_challenge' && (
           <div tw="flex flex-wrap justify-center items-center gap-3 mb-3 text-xl">
             {ogData.streak && (
-              <div tw="flex items-center bg-orange-500 text-white px-4 py-1.5 rounded-full shadow-md">
+              <div tw="flex items-center text-white px-4 py-1.5 rounded-full shadow-md" style={{backgroundColor: '#FF7A3D'}}>
                 <span tw="mr-1.5">🔥</span> {ogData.streak}-Win Streak
               </div>
             )}
@@ -121,7 +121,7 @@ export async function GET(req: NextRequest) {
               </div>
             )}
             {ogData.rank && (
-              <div tw="flex items-center bg-teal-500 text-white px-4 py-1.5 rounded-full shadow-md">
+              <div tw="flex items-center text-white px-4 py-1.5 rounded-full shadow-md" style={{backgroundColor: '#4B6BFB'}}>
                 <span tw="mr-1.5">👑</span> Rank #{ogData.rank} <span tw="ml-1">in {ogData.rankCategory || 'Predictions'}</span>
               </div>
             )}
@@ -135,10 +135,10 @@ export async function GET(req: NextRequest) {
               {ogData.outcome}
             </div>
           </div>
-          <div tw="italic" style={{color: '#D8B4FE'}}>{ctaText}</div>
+          <div tw="italic" style={{color: '#FF7A3D'}}>{ctaText}</div>
         </div>
 
-        <div tw="w-full text-center text-lg mt-3" style={{color: '#C084FC'}}>{tagline}</div>
+        <div tw="w-full text-center text-lg mt-3" style={{color: '#64748B'}}>{tagline}</div>
 
       </div>
     ),
