@@ -10,6 +10,14 @@ export async function POST(request: NextRequest) {
     const betData = await request.json() as Omit<BetRecord, 'id' | 'created_at'>;
     console.log('🎯 API: Bet data received:', betData);
     
+    // Log referrer information if present (affiliate tracking)
+    if (betData.referrer_bet_id || betData.referrer_user_id) {
+      console.log('🔗 API: Affiliate referral detected:', {
+        referrer_bet_id: betData.referrer_bet_id,
+        referrer_user_id: betData.referrer_user_id,
+      });
+    }
+    
     // Validate required fields including tx_hash for idempotency
     if (!betData.user_id || !betData.market_id || !betData.outcome || !betData.amount || !betData.odds_shown_to_user || !betData.tx_hash) {
       console.error('❌ API: Missing required bet fields', { 

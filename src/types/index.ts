@@ -131,6 +131,9 @@ export interface ChallengeInviteProps {
   predictionId: string;
   referrerOriginalChoice: 'YES' | 'NO';
   initialYesPrice?: number; // Added to pass initial odds
+  // Affiliate tracking props
+  referrerBetId?: number; // ID of the original bet that was shared
+  referrerUserId?: string; // Wallet address of the referrer
 }
 
 // Props for MatchViewClient
@@ -159,6 +162,10 @@ export interface EntryContextType {
   challenge?: boolean;
   referrer?: string;
   marketId?: string;
+  // Affiliate tracking fields
+  referrerBetId?: number;
+  referrerUserId?: string;
+  shareCode?: string;
   appendEntryParams: (url: string) => string;
 }
 

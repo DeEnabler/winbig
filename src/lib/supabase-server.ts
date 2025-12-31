@@ -43,6 +43,11 @@ export interface BetRecord {
   status: 'pending' | 'executed' | 'failed' | 'cancelled'
   tx_hash: string // REQUIRED: Transaction hash for idempotency and tracking
   
+  // Affiliate/referral tracking fields
+  share_code?: string | null // Unique code for shareable affiliate links
+  referrer_bet_id?: number | null // ID of the bet that referred this user
+  referrer_user_id?: string | null // Wallet address of the referrer (for earnings)
+  
   // Backend fields (filled by hedger)
   execution_price?: number | null
   execution_timestamp?: string | null
@@ -88,17 +93,19 @@ export async function insertBet(bet: Omit<BetRecord, 'id' | 'created_at'>): Prom
     }
     
     // Create a bet record that matches the current table structure
-    const simplifiedBet = {
+    const simplifiedBet: Record<string, any> = {
       user_id: bet.user_id,
       market_id: bet.market_id,
       outcome: bet.outcome,
       amount: bet.amount,
       odds_shown_to_user: bet.odds_shown_to_user,
-      potential_payout: bet.potential_payout || null, // ADDED
+      potential_payout: bet.potential_payout || null,
       execution_price: bet.execution_price || null,
       status: bet.status || 'pending',
-      tx_hash: bet.tx_hash // CRITICAL: Include transaction hash for idempotency
-      // session_id removed - column doesn't exist in production table
+      tx_hash: bet.tx_hash, // CRITICAL: Include transaction hash for idempotency
+      // Affiliate tracking fields
+      referrer_bet_id: bet.referrer_bet_id || null,
+      referrer_user_id: bet.referrer_user_id || null,
     };
     
     console.log('🚀 Executing Supabase insert query with simplified bet:', simplifiedBet);
@@ -204,5 +211,138 @@ export async function getPendingBets(limit: number = 10): Promise<{ success: boo
   } catch (err) {
     console.error('Exception fetching pending bets:', err)
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
+// ============================================
+// AFFILIATE LINK TRACKING FUNCTIONS
+// ============================================
+
+// Get a bet by its ID
+export async function getBetById(betId: number): Promise<{ success: boolean; data?: BetRecord; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Server-side Supabase client not initialized' };
+    }
+    
+    const { data, error } = await supabase
+      .from('bets')
+      .select('*')
+      .eq('id', betId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching bet by ID:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data };
+  } catch (err) {
+    console.error('Exception fetching bet by ID:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
+
+// Get a bet by its share code (for affiliate link lookups)
+export async function getBetByShareCode(shareCode: string): Promise<{ success: boolean; data?: BetRecord; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Server-side Supabase client not initialized' };
+    }
+    
+    console.log('🔍 Looking up bet by share_code:', shareCode);
+    
+    const { data, error } = await supabase
+      .from('bets')
+      .select('*')
+      .eq('share_code', shareCode)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        console.log('❌ No bet found with share_code:', shareCode);
+        return { success: false, error: 'Share link not found' };
+      }
+      console.error('Error fetching bet by share_code:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log('✅ Found bet with share_code:', shareCode);
+    return { success: true, data };
+  } catch (err) {
+    console.error('Exception fetching bet by share_code:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
+
+// Update a bet with a share code (used when generating affiliate link)
+export async function updateBetShareCode(betId: number, shareCode: string): Promise<{ success: boolean; data?: BetRecord; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Server-side Supabase client not initialized' };
+    }
+    
+    console.log('🔗 Updating bet', betId, 'with share_code:', shareCode);
+    
+    const { data, error } = await supabase
+      .from('bets')
+      .update({ share_code: shareCode })
+      .eq('id', betId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating bet share_code:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log('✅ Share code updated successfully for bet:', betId);
+    return { success: true, data };
+  } catch (err) {
+    console.error('Exception updating bet share_code:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
+
+// Get referral stats for a user (wallet address)
+export async function getReferralStats(userId: string): Promise<{ 
+  success: boolean; 
+  data?: { 
+    total_referrals: number; 
+    total_referred_volume: number;
+    referrals: BetRecord[];
+  }; 
+  error?: string 
+}> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Server-side Supabase client not initialized' };
+    }
+    
+    console.log('📊 Getting referral stats for user:', userId);
+    
+    const { data, error } = await supabase
+      .from('bets')
+      .select('*')
+      .eq('referrer_user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching referral stats:', error);
+      return { success: false, error: error.message };
+    }
+
+    const referrals = data || [];
+    const total_referrals = referrals.length;
+    const total_referred_volume = referrals.reduce((sum, bet) => sum + (bet.amount || 0), 0);
+
+    console.log('✅ Referral stats:', { total_referrals, total_referred_volume });
+    return { 
+      success: true, 
+      data: { total_referrals, total_referred_volume, referrals } 
+    };
+  } catch (err) {
+    console.error('Exception fetching referral stats:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
   }
 } 

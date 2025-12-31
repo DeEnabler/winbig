@@ -138,6 +138,11 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   const [executionPreview, setExecutionPreview] = useState<ExecutionPreview | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const debouncedBetAmount = useDebounce(betAmountState, 300);
+  
+  // Affiliate link tracking state
+  const [currentBetId, setCurrentBetId] = useState<number | null>(null);
+  const [affiliateShareUrl, setAffiliateShareUrl] = useState<string | null>(null);
+  const [isGeneratingShareLink, setIsGeneratingShareLink] = useState(false);
 
   useEffect(() => {
     if (!selectedChoice || debouncedBetAmount <= 0) {
@@ -214,11 +219,40 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
     setIsLoadingShareMessage(false);
   };
 
-  const openShareDialog = () => {
+  const openShareDialog = async () => {
     if (!betPlaced) {
       toast({ title: "Action Required", description: "Please place your bet before sharing." });
       return;
     }
+    
+    // Generate affiliate share link if we have a bet ID and don't have one yet
+    if (currentBetId && !affiliateShareUrl) {
+      setIsGeneratingShareLink(true);
+      try {
+        console.log('🔗 Generating affiliate share link for bet:', currentBetId);
+        const response = await fetch('/api/share', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bet_id: currentBetId }),
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.data?.share_url) {
+          setAffiliateShareUrl(result.data.share_url);
+          console.log('✅ Affiliate share link generated:', result.data.share_url);
+        } else {
+          console.error('❌ Failed to generate share link:', result.error);
+          toast({ variant: 'destructive', title: 'Share Error', description: 'Could not generate share link.' });
+        }
+      } catch (error) {
+        console.error('❌ Error generating share link:', error);
+        toast({ variant: 'destructive', title: 'Share Error', description: 'Could not generate share link.' });
+      } finally {
+        setIsGeneratingShareLink(false);
+      }
+    }
+    
     handleGenerateShareMessage();
     setIsShareDialogOpen(true);
   };
@@ -336,6 +370,12 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
         } 
       }));
       setBetPlaced(true);
+      
+      // Store the bet ID for affiliate link generation
+      if (result.data?.id) {
+        setCurrentBetId(result.data.id);
+        console.log('📝 Stored bet ID for affiliate tracking:', result.data.id);
+      }
       
       // Clean up: remove from pending bets
       setPendingBets(prev => {
@@ -517,9 +557,14 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
                 variant="outline"
                 size="lg"
                 className="w-full"
-                disabled={!betPlaced}
+                disabled={!betPlaced || isGeneratingShareLink}
               >
-                <Share2 className="mr-2 h-5 w-5" /> Share Challenge
+                {isGeneratingShareLink ? (
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                ) : (
+                  <Share2 className="mr-2 h-5 w-5" />
+                )}
+                {isGeneratingShareLink ? 'Generating Link...' : 'Share Challenge'}
               </Button>
             </CardFooter>
           </Card>
@@ -530,9 +575,9 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
         isOpen={isShareDialogOpen}
         onOpenChange={setIsShareDialogOpen}
         shareMessage={shareMessage}
-        isLoading={isLoadingShareMessage}
+        isLoading={isLoadingShareMessage || isGeneratingShareLink}
         ogImageUrl={ogImageUrl}
-        shareUrl={`${appUrl}/match/${match.id}?predictionId=${match.predictionId}${match.bonusApplied ? '&bonusApplied=true' : ''}`}
+        shareUrl={affiliateShareUrl || `${appUrl}/match/${match.id}?predictionId=${match.predictionId}${match.bonusApplied ? '&bonusApplied=true' : ''}`}
         entityContext="match_challenge"
       />
     </div>

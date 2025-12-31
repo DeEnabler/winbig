@@ -62,7 +62,9 @@ export default function ChallengeInvite({
   predictionQuestion,
   predictionId,
   referrerOriginalChoice,
-  initialYesPrice // New prop for initial odds
+  initialYesPrice, // New prop for initial odds
+  referrerBetId, // Affiliate tracking: ID of the original bet
+  referrerUserId, // Affiliate tracking: Wallet of the referrer
 }: ChallengeInviteProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -294,9 +296,15 @@ export default function ChallengeInvite({
         potential_payout: betAmount * (actualUserChoice === 'YES' ? (1 / yesPrice) : (1 / noPrice)), // Simple calculation
         status: 'pending' as const,
         tx_hash: txHash, // Include transaction hash for idempotency
+        // Affiliate tracking: link this bet to the referrer
+        referrer_bet_id: referrerBetId || null,
+        referrer_user_id: referrerUserId || null,
       };
 
       console.log('📝 Bet data to record:', betData);
+      if (referrerBetId || referrerUserId) {
+        console.log('🔗 Affiliate referral attached:', { referrerBetId, referrerUserId });
+      }
 
       const response = await fetch('/api/bets', {
         method: 'POST',
@@ -328,7 +336,7 @@ export default function ChallengeInvite({
         duration: 10000,
       });
     }
-  }, [address, predictionId, betAmount, displayedApiOddsYes, toast]);
+  }, [address, predictionId, betAmount, displayedApiOddsYes, toast, referrerBetId, referrerUserId]);
 
   useEffect(() => {
     if (hash) {
