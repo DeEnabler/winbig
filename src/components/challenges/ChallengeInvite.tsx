@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useEntryContext } from '@/contexts/EntryContext';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, Swords, ShieldCheck, Users, Zap, BarChartHorizontalBig, Clock, AlertTriangle, Crown, Coins, Info, Flame } from 'lucide-react';
+import { CheckCircle, Swords, ShieldCheck, Users, Zap, BarChartHorizontalBig, Clock, AlertTriangle, Crown, Coins, Info, Flame, Share2, Loader2, Copy, Check } from 'lucide-react';
 import { mockOpponentUser } from '@/lib/mockData';
 import { useAccount } from 'wagmi';
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -118,6 +118,11 @@ export default function ChallengeInvite({
   const [isBonusOfferActive, setIsBonusOfferActive] = useState(true);
   const [bonusSuccessfullyClaimed, setBonusSuccessfullyClaimed] = useState(false);
   const [showBonusSection, setShowBonusSection] = useState(false);
+  
+  // Prediction share state (for sharing without betting)
+  const [isGeneratingPredictionShare, setIsGeneratingPredictionShare] = useState(false);
+  const [predictionShareUrl, setPredictionShareUrl] = useState<string | null>(null);
+  const [showCopiedTooltip, setShowCopiedTooltip] = useState(false);
 
 
   useEffect(() => {
@@ -337,6 +342,64 @@ export default function ChallengeInvite({
       });
     }
   }, [address, predictionId, betAmount, displayedApiOddsYes, toast, referrerBetId, referrerUserId]);
+
+  // Handler for generating a prediction share link (no bet required)
+  const handleSharePrediction = useCallback(async (stance: 'YES' | 'NO') => {
+    if (!address) {
+      toast({
+        title: "Connect Wallet",
+        description: "Connect your wallet to share your prediction!",
+        duration: 5000,
+      });
+      return;
+    }
+
+    setIsGeneratingPredictionShare(true);
+    
+    try {
+      console.log('🔗 Generating prediction share for:', { stance, predictionId, address });
+      
+      const response = await fetch('/api/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: address,
+          market_id: predictionId,
+          predicted_outcome: stance,
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success && result.data?.share_url) {
+        setPredictionShareUrl(result.data.share_url);
+        
+        // Copy to clipboard
+        await navigator.clipboard.writeText(result.data.share_url);
+        setShowCopiedTooltip(true);
+        setTimeout(() => setShowCopiedTooltip(false), 2000);
+        
+        toast({
+          title: "🔗 Share Link Created!",
+          description: "Link copied to clipboard. Share it to challenge your friends!",
+          duration: 5000,
+        });
+        
+        console.log('✅ Prediction share link generated:', result.data.share_url);
+      } else {
+        throw new Error(result.error || 'Failed to create share link');
+      }
+    } catch (error: any) {
+      console.error('❌ Error generating prediction share:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Share Error',
+        description: error.message || 'Could not create share link',
+      });
+    } finally {
+      setIsGeneratingPredictionShare(false);
+    }
+  }, [address, predictionId, toast]);
 
   useEffect(() => {
     if (hash) {
@@ -570,15 +633,71 @@ export default function ChallengeInvite({
             <p>Go big! Share your bet to X and earn WinPoints.</p>
           </div>
         </CardContent>
-        <CardFooter className="flex items-center justify-between p-3 bg-muted/20 border-t text-xs text-muted-foreground">
+        <CardFooter className="flex flex-col gap-3 p-3 bg-muted/20 border-t">
+          {/* Share Prediction Button */}
+          <div className="w-full">
+            <div className="flex gap-2">
+              <TooltipProvider>
+                <Tooltip open={showCopiedTooltip}>
+                  <TooltipTrigger asChild>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => handleSharePrediction(referrerOriginalChoice)}
+                      disabled={isGeneratingPredictionShare}
+                      className="flex-1 py-2 px-3 rounded-lg bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 hover:border-purple-500/50 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+                    >
+                      {isGeneratingPredictionShare ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : showCopiedTooltip ? (
+                        <Check className="w-4 h-4 text-green-500" />
+                      ) : (
+                        <Share2 className="w-4 h-4 text-purple-500" />
+                      )}
+                      {isGeneratingPredictionShare ? 'Creating...' : predictionShareUrl ? 'Copied!' : 'Share My Prediction'}
+                    </motion.button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Link copied! 🎉</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              
+              {predictionShareUrl && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(predictionShareUrl);
+                    setShowCopiedTooltip(true);
+                    setTimeout(() => setShowCopiedTooltip(false), 2000);
+                    toast({ title: "Copied!", description: "Link copied to clipboard" });
+                  }}
+                  className="py-2 px-3 rounded-lg bg-muted hover:bg-muted/80 transition-all"
+                >
+                  <Copy className="w-4 h-4" />
+                </motion.button>
+              )}
+            </div>
+            {!isConnected && (
+              <p className="text-xs text-center text-muted-foreground mt-2">
+                Connect wallet to share your prediction 👆
+              </p>
+            )}
+          </div>
           
-          <div className="flex items-center space-x-3">
+          {/* Stats row */}
+          <div className="w-full flex items-center justify-between text-xs text-muted-foreground">
+            <div className="flex items-center space-x-3">
               <div className="flex items-center">
-                  <Users className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 text-blue-500" /> 12k+ Bettors
+                <Users className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 text-blue-500" /> 12k+ Bettors
               </div>
               <div className="flex items-center">
-                  <BarChartHorizontalBig className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 text-purple-500" /> 500+ Markets
+                <BarChartHorizontalBig className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1 text-purple-500" /> 500+ Markets
               </div>
+            </div>
           </div>
         </CardFooter>
       </Card>
