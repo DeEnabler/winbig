@@ -62,7 +62,7 @@ export default function Navbar() {
               {mockCurrentUser.xp.toLocaleString()} XP
             </span>
           </div>
-          <div className="hidden md:flex items-center space-x-2 ml-2">
+          <div className="hidden md:flex items-center gap-2 ml-3">
             <ConnectXButton />
             <ConnectWallet />
           </div>
@@ -106,7 +106,7 @@ export default function Navbar() {
                   {mockCurrentUser.xp.toLocaleString()} XP
                 </span>
             </div>
-            <div className="p-2 border-t pt-3 space-y-2">
+            <div className="flex items-center gap-2 p-2 border-t pt-3">
               <ConnectXButton />
               <ConnectWallet />
             </div>
