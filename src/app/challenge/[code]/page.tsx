@@ -102,14 +102,12 @@ export async function generateMetadata(
     }
   }
 
-  // Use social username if available
+  // Use social username if available - NEVER expose wallet addresses
   const displayName = userProfile?.x_username 
     ? `@${userProfile.x_username}`
     : userProfile?.x_name 
       ? userProfile.x_name
-      : username || (userId
-        ? `${userId.slice(0, 6)}...${userId.slice(-4)}`
-        : 'Someone');
+      : username || 'A WinBig Predictor';
   
   const shortWallet = displayName;
 
@@ -206,16 +204,14 @@ export default async function ChallengePage({ params }: ChallengePageProps) {
     }
   }
   
-  // Priority: 1. X username with @, 2. X display name, 3. prediction share username, 4. shortened wallet
+  // Priority: 1. X username with @, 2. X display name, 3. prediction share username, 4. Anonymous (never expose wallet)
   const referrerName = userProfile?.x_username 
     ? `@${userProfile.x_username}`
     : userProfile?.x_name 
       ? userProfile.x_name
       : predictionShare?.username 
         ? predictionShare.username
-        : userId 
-          ? `${userId.slice(0, 6)}...${userId.slice(-4)}`
-          : 'Anonymous';
+        : 'A WinBig Predictor';
   
   const referrerAvatar = userProfile?.x_avatar || null;
 
