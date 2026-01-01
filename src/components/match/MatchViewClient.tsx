@@ -61,7 +61,7 @@ function useDebounce<T>(value: T, delay: number): T {
     return debouncedValue;
 }
 
-export default function MatchViewClient({ match: initialMatch }: MatchViewProps) {
+export default function MatchViewClient({ match: initialMatch, initialChoice, initialAmount }: MatchViewProps) {
   const router = useRouter();
   const { appendEntryParams } = useEntryContext();
   const { toast } = useToast();
@@ -69,10 +69,14 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   const { switchChain } = useSwitchChain();
 
   const [match, setMatch] = useState(initialMatch);
-  const [betAmountState, setBetAmountState] = useState(match.betAmount || 10);
+  // Use URL params if provided, otherwise defaults
+  const [betAmountState, setBetAmountState] = useState(initialAmount || match.betAmount || 10);
   const [isBetting, setIsBetting] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false); // NEW: Lock UI during processing
-  const [selectedChoice, setSelectedChoice] = useState<'YES' | 'NO' | null>(match.userChoice || null);
+  // Use URL param choice if provided
+  const [selectedChoice, setSelectedChoice] = useState<'YES' | 'NO' | null>(
+    initialChoice || match.userChoice || null
+  );
   const [betPlaced, setBetPlaced] = useState(!!match.userBet);
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
 
@@ -450,13 +454,16 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   }, []);
 
   const choiceData = useMemo(() => {
-    const yesPrice = executionPreview?.success ? (executionPreview.vwap || 0) * 100 : 50;
+    // Use execution preview if available, otherwise use match's actual market odds (not 50/50!)
+    const yesPrice = executionPreview?.success 
+      ? (executionPreview.vwap || 0) * 100 
+      : (match.yesImpliedProbability * 100) || (match.yesPrice * 100) || 50;
     const noPrice = 100 - yesPrice;
     return {
       YES: { label: 'YES', price: yesPrice, color: 'text-green-500', gradient: 'from-green-500/10 to-transparent' },
       NO: { label: 'NO', price: noPrice, color: 'text-red-500', gradient: 'from-red-500/10 to-transparent' },
     };
-  }, [executionPreview]);
+  }, [executionPreview, match.yesImpliedProbability, match.yesPrice]);
 
   return (
     <div className="max-w-2xl mx-auto">

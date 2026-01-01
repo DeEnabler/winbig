@@ -139,6 +139,8 @@ export interface ChallengeInviteProps {
 // Props for MatchViewClient
 export interface MatchViewProps {
   match: Match;
+  initialChoice?: 'YES' | 'NO';  // Pre-selected choice from URL
+  initialAmount?: number;        // Pre-filled bet amount from URL
 }
 
 // Props for ShareDialog

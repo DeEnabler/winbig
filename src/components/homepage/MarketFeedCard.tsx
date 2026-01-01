@@ -7,11 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Users, TrendingUp, Share2, Copy, Check, Loader2, Zap, ArrowRight, Flame } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState, useCallback } from 'react';
 import { useAccount } from 'wagmi';
 import { useAppKit } from '@reown/appkit/react';
 import { useToast } from '@/hooks/use-toast';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface MarketFeedCardProps {
@@ -25,6 +26,7 @@ function calculatePayout(betAmount: number, odds: number): number {
 }
 
 export default function MarketFeedCard({ market }: MarketFeedCardProps) {
+  const router = useRouter();
   const { address, isConnected } = useAccount();
   const { open } = useAppKit();
   const { toast } = useToast();
@@ -157,25 +159,35 @@ export default function MarketFeedCard({ market }: MarketFeedCardProps) {
           </div>
         </div>
 
-        {/* Potential earnings - THE KEY FEATURE */}
+        {/* Potential earnings - CLICKABLE! */}
         <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-xl p-3 border border-primary/10">
           <p className="text-xs text-muted-foreground text-center mb-2">
             <TrendingUp className="w-3 h-3 inline mr-1" />
-            Win with ${betAmount} bet
+            Click to bet ${betAmount} and win
           </p>
           <div className="grid grid-cols-2 gap-2">
-            {/* YES payout */}
-            <div className="text-center p-2 rounded-lg bg-green-500/10 border border-green-500/20">
-              <p className="text-xs text-green-600 font-medium">YES</p>
-              <p className="text-lg font-bold text-green-500">${yesPayout.toFixed(2)}</p>
+            {/* YES payout - CLICKABLE */}
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => router.push(`${detailUrl}&choice=YES&amount=${betAmount}`)}
+              className="text-center p-3 rounded-lg bg-green-500/10 border-2 border-green-500/30 hover:border-green-500 hover:bg-green-500/20 transition-all cursor-pointer group/yes"
+            >
+              <p className="text-xs text-green-600 font-medium group-hover/yes:text-green-500">BET YES</p>
+              <p className="text-xl font-bold text-green-500">${yesPayout.toFixed(2)}</p>
               <p className="text-[10px] text-muted-foreground">{yesMultiplier}x return</p>
-            </div>
-            {/* NO payout */}
-            <div className="text-center p-2 rounded-lg bg-red-500/10 border border-red-500/20">
-              <p className="text-xs text-red-600 font-medium">NO</p>
-              <p className="text-lg font-bold text-red-500">${noPayout.toFixed(2)}</p>
+            </motion.button>
+            {/* NO payout - CLICKABLE */}
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => router.push(`${detailUrl}&choice=NO&amount=${betAmount}`)}
+              className="text-center p-3 rounded-lg bg-red-500/10 border-2 border-red-500/30 hover:border-red-500 hover:bg-red-500/20 transition-all cursor-pointer group/no"
+            >
+              <p className="text-xs text-red-600 font-medium group-hover/no:text-red-500">BET NO</p>
+              <p className="text-xl font-bold text-red-500">${noPayout.toFixed(2)}</p>
               <p className="text-[10px] text-muted-foreground">{noMultiplier}x return</p>
-            </div>
+            </motion.button>
           </div>
         </div>
       </CardContent>

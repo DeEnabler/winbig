@@ -82,9 +82,17 @@ export default async function MatchPage({ params, searchParams }: MatchPageProps
       // The complex logic for challenges is removed to simplify and fix the core flow.
       const matchDisplayData = await getMatchDisplayData(resolvedParams.matchId, resolvedSearchParams);
       
+      // Get pre-selected choice and amount from URL params (from MarketFeedCard clicks)
+      const initialChoice = (resolvedSearchParams.choice as string)?.toUpperCase() as 'YES' | 'NO' | undefined;
+      const initialAmount = resolvedSearchParams.amount ? parseInt(resolvedSearchParams.amount as string, 10) : undefined;
+      
       return (
         <Suspense fallback={<div className="text-center p-10">Loading match details...</div>}>
-          <MatchViewClient match={matchDisplayData} />
+          <MatchViewClient 
+            match={matchDisplayData} 
+            initialChoice={initialChoice}
+            initialAmount={initialAmount}
+          />
         </Suspense>
       );
     } catch (error) {
