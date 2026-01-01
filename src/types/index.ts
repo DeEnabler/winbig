@@ -191,6 +191,7 @@ export type OpenPositionStatus = 'LIVE' | 'ENDING_SOON' | 'SETTLED_WON' | 'SETTL
 
 export interface OpenPosition {
   id: string; // Unique ID for this specific bet/position
+  betId?: number; // Supabase bet record ID for affiliate linking
   predictionId: string;
   predictionText: string;
   category: string;

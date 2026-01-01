@@ -90,20 +90,77 @@ export default function PositionsPage() {
   };
 
   const handleSharePosition = async (position: OpenPosition) => {
-    // This function can remain as-is, but will now use real data
+    // Generate affiliate share link for this bet position
     setIsLoadingShareMessage(true);
     setIsShareDialogOpen(true);
 
-    const appUrl = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002');
+    const appUrl = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || 'https://www.winbig.fun');
     
-    const matchShareParams = new URLSearchParams();
-    matchShareParams.set('predictionId', position.predictionId);
-    matchShareParams.set('userChoice', position.userChoice);
-    // ... rest of the function is okay
-    
-    // Simplified for brevity
-    setCurrentShareMessage(`Check out my bet on "${position.predictionText}"!`);
-    setIsLoadingShareMessage(false);
+    try {
+      // If the position has a bet_id, try to get/create a share link for it
+      if (position.betId) {
+        const response = await fetch('/api/share', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bet_id: position.betId }),
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.data?.share_url) {
+          setCurrentShareUrl(result.data.share_url);
+          setCurrentShareMessage(`🎯 I bet $${position.betAmount} on ${position.userChoice} for "${position.predictionText.substring(0, 60)}..." Think I'm wrong? Challenge me!`);
+          
+          // Generate OG image URL
+          const ogUrl = new URL(`${appUrl}/api/og`);
+          ogUrl.searchParams.set('predictionText', position.predictionText);
+          ogUrl.searchParams.set('userChoice', position.userChoice);
+          ogUrl.searchParams.set('betAmount', position.betAmount.toString());
+          ogUrl.searchParams.set('ogType', 'match_challenge');
+          setCurrentShareOgImageUrl(ogUrl.toString());
+          
+          setIsLoadingShareMessage(false);
+          return;
+        }
+      }
+      
+      // Fallback: Create a prediction share if no bet_id
+      const response = await fetch('/api/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: address,
+          market_id: position.predictionId,
+          predicted_outcome: position.userChoice,
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success && result.data?.share_url) {
+        setCurrentShareUrl(result.data.share_url);
+      } else {
+        // Ultimate fallback to match page
+        setCurrentShareUrl(`${appUrl}/match/${position.predictionId}?predictionId=${position.predictionId}`);
+      }
+      
+      setCurrentShareMessage(`🎯 I'm betting ${position.userChoice} on "${position.predictionText.substring(0, 60)}..." Think I'm wrong?`);
+      
+      // Generate OG image URL
+      const ogUrl = new URL(`${appUrl}/api/og`);
+      ogUrl.searchParams.set('predictionText', position.predictionText);
+      ogUrl.searchParams.set('userChoice', position.userChoice);
+      ogUrl.searchParams.set('ogType', 'match_challenge');
+      setCurrentShareOgImageUrl(ogUrl.toString());
+      
+    } catch (error) {
+      console.error('Error generating share link:', error);
+      // Fallback
+      setCurrentShareUrl(`${appUrl}/match/${position.predictionId}?predictionId=${position.predictionId}`);
+      setCurrentShareMessage(`Check out my bet on "${position.predictionText}"!`);
+    } finally {
+      setIsLoadingShareMessage(false);
+    }
   };
 
   return (

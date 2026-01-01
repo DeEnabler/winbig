@@ -33,6 +33,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import ShareDialog from '@/components/sharing/ShareDialog'; 
 import { ExecutionPreviewDisplay } from '@/components/match/ExecutionPreviewDisplay';
+import BetSuccessScreen from '@/components/match/BetSuccessScreen';
 
 import { Loader2, Share2, Zap } from 'lucide-react';
 
@@ -73,7 +74,8 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
   const [isProcessing, setIsProcessing] = useState(false); // NEW: Lock UI during processing
   const [selectedChoice, setSelectedChoice] = useState<'YES' | 'NO' | null>(match.userChoice || null);
   const [betPlaced, setBetPlaced] = useState(!!match.userBet);
-  
+  const [showSuccessScreen, setShowSuccessScreen] = useState(false);
+
   // NEW: Use ref for synchronous guard against duplicate processing
   const processedTxHashesRef = useRef<Set<string>>(new Set());
   
@@ -370,7 +372,8 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
         } 
       }));
       setBetPlaced(true);
-      
+      setShowSuccessScreen(true); // Show the success/share screen
+
       // Store the bet ID for affiliate link generation
       if (result.data?.id) {
         setCurrentBetId(result.data.id);
@@ -580,6 +583,44 @@ export default function MatchViewClient({ match: initialMatch }: MatchViewProps)
         shareUrl={affiliateShareUrl || `${appUrl}/match/${match.id}?predictionId=${match.predictionId}${match.bonusApplied ? '&bonusApplied=true' : ''}`}
         entityContext="match_challenge"
       />
+      
+      {/* Success screen shown after bet placement */}
+      <AnimatePresence>
+        {showSuccessScreen && selectedChoice && (
+          <BetSuccessScreen
+            betAmount={debouncedBetAmount}
+            selectedChoice={selectedChoice}
+            potentialPayout={executionPreview?.potentialPayout || (debouncedBetAmount / (match.yesPrice || 0.5))}
+            predictionText={match.predictionText}
+            shareUrl={affiliateShareUrl}
+            onClose={() => setShowSuccessScreen(false)}
+            onGenerateShareLink={async () => {
+              if (affiliateShareUrl) return affiliateShareUrl;
+              if (!currentBetId) return null;
+              
+              try {
+                setIsGeneratingShareLink(true);
+                const response = await fetch('/api/share', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ bet_id: currentBetId }),
+                });
+                const result = await response.json();
+                if (result.success && result.data?.share_url) {
+                  setAffiliateShareUrl(result.data.share_url);
+                  return result.data.share_url;
+                }
+              } catch (error) {
+                console.error('Error generating share link:', error);
+              } finally {
+                setIsGeneratingShareLink(false);
+              }
+              return null;
+            }}
+            isGeneratingLink={isGeneratingShareLink}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
