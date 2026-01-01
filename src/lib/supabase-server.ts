@@ -162,6 +162,57 @@ export async function getUserBets(userId: string, limit: number = 10): Promise<{
   }
 }
 
+// User profile type for social info
+export interface UserProfile {
+  id: string;
+  x_user_id: string;
+  x_username: string;
+  x_avatar?: string | null;
+  x_name?: string | null;
+  wallet_address?: string | null;
+  linked_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Helper function to get user profile by wallet address
+export async function getUserProfileByWallet(walletAddress: string): Promise<{ success: boolean; data?: UserProfile; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Server-side Supabase client not initialized' };
+    }
+    
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('wallet_address', walletAddress.toLowerCase())
+      .single();
+
+    // Also try with original case if not found
+    if (!data && !error?.message?.includes('multiple')) {
+      const { data: dataOriginal, error: errorOriginal } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('wallet_address', walletAddress)
+        .single();
+      
+      if (dataOriginal) {
+        return { success: true, data: dataOriginal };
+      }
+    }
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      console.error('Error fetching user profile:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: !!data, data: data || undefined };
+  } catch (err) {
+    console.error('Exception fetching user profile:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
+
 // Helper function to update bet execution details
 export async function updateBetExecution(betId: number, executionData: Partial<BetRecord>): Promise<{ success: boolean; data?: BetRecord; error?: string }> {
   try {

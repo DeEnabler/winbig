@@ -2,7 +2,7 @@
 import type { Metadata, ResolvingMetadata } from 'next';
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import { getBetByShareCode, supabase } from '@/lib/supabase-server';
+import { getBetByShareCode, getUserProfileByWallet, supabase } from '@/lib/supabase-server';
 import { getMarketDetails } from '@/lib/marketService';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -92,10 +92,26 @@ export async function generateMetadata(
   const outcome = bet?.outcome || predictionShare?.predicted_outcome || 'YES';
   const userId = bet?.user_id || predictionShare?.user_id || '';
   const username = predictionShare?.username;
+
+  // Fetch user's social profile for OG metadata
+  let userProfile = null;
+  if (userId) {
+    const profileResult = await getUserProfileByWallet(userId);
+    if (profileResult.success && profileResult.data) {
+      userProfile = profileResult.data;
+    }
+  }
+
+  // Use social username if available
+  const displayName = userProfile?.x_username 
+    ? `@${userProfile.x_username}`
+    : userProfile?.x_name 
+      ? userProfile.x_name
+      : username || (userId
+        ? `${userId.slice(0, 6)}...${userId.slice(-4)}`
+        : 'Someone');
   
-  const shortWallet = username || (userId 
-    ? `${userId.slice(0, 6)}...${userId.slice(-4)}`
-    : 'Someone');
+  const shortWallet = displayName;
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.winbig.fun';
   const ogImageUrl = new URL(`${appUrl}/api/og`);
@@ -180,11 +196,28 @@ export default async function ChallengePage({ params }: ChallengePageProps) {
 
   const outcome = bet?.outcome || predictionShare?.predicted_outcome || 'YES';
   const userId = bet?.user_id || predictionShare?.user_id || '';
-  const username = predictionShare?.username;
   
-  const referrerName = username || (userId 
-    ? `${userId.slice(0, 6)}...${userId.slice(-4)}`
-    : 'Anonymous');
+  // Fetch user's social profile (X/Twitter username) if we have a wallet address
+  let userProfile = null;
+  if (userId) {
+    const profileResult = await getUserProfileByWallet(userId);
+    if (profileResult.success && profileResult.data) {
+      userProfile = profileResult.data;
+    }
+  }
+  
+  // Priority: 1. X username with @, 2. X display name, 3. prediction share username, 4. shortened wallet
+  const referrerName = userProfile?.x_username 
+    ? `@${userProfile.x_username}`
+    : userProfile?.x_name 
+      ? userProfile.x_name
+      : predictionShare?.username 
+        ? predictionShare.username
+        : userId 
+          ? `${userId.slice(0, 6)}...${userId.slice(-4)}`
+          : 'Anonymous';
+  
+  const referrerAvatar = userProfile?.x_avatar || null;
 
   const matchId = `share_${code}`;
   const isBetShare = !!bet;
@@ -198,13 +231,38 @@ export default async function ChallengePage({ params }: ChallengePageProps) {
             
             {/* FOMO Header - Different for bet vs prediction shares */}
             {isBetShare ? (
-              // Bet share - show money
+              // Bet share - show money with social profile
               <div className="mb-4 p-4 bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl border border-primary/20">
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className="flex items-center gap-3">
+                  {/* Avatar */}
+                  <div className="relative shrink-0">
+                    {referrerAvatar ? (
+                      <img 
+                        src={referrerAvatar} 
+                        alt={referrerName}
+                        className="w-12 h-12 rounded-full object-cover border-2 border-primary/20"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/50 to-primary flex items-center justify-center text-white font-bold">
+                        {referrerName.replace('@', '').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    {userProfile?.x_username && (
+                      <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-[#1DA1F2] rounded-full flex items-center justify-center border-2 border-background">
+                        <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Info */}
+                  <div className="flex-1">
                     <p className="text-sm text-muted-foreground">Shared bet from</p>
                     <p className="font-semibold">{referrerName}</p>
                   </div>
+                  
+                  {/* Bet amount */}
                   <div className="text-right">
                     <p className="text-sm text-muted-foreground">Their bet</p>
                     <p className="font-bold">
@@ -229,20 +287,34 @@ export default async function ChallengePage({ params }: ChallengePageProps) {
                     {/* Profile section */}
                     <div className="flex items-center gap-3 mb-3">
                       <div className="relative">
-                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white font-bold text-xl">
-                          {referrerName.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center border-2 border-background">
-                          <span className="text-xs">✓</span>
-                        </div>
+                        {referrerAvatar ? (
+                          <img 
+                            src={referrerAvatar} 
+                            alt={referrerName}
+                            className="w-14 h-14 rounded-full object-cover border-2 border-primary/20"
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white font-bold text-xl">
+                            {referrerName.replace('@', '').charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        {userProfile?.x_username && (
+                          <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#1DA1F2] rounded-full flex items-center justify-center border-2 border-background">
+                            <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                            </svg>
+                          </div>
+                        )}
                       </div>
                       <div className="flex-1">
                         <p className="font-bold text-lg">{referrerName}</p>
-                        <p className="text-sm text-muted-foreground">Active Predictor</p>
+                        <p className="text-sm text-muted-foreground">
+                          {userProfile?.x_username ? 'Verified Predictor' : 'Active Predictor'}
+                        </p>
                       </div>
                       <div className={`px-3 py-1 rounded-full font-bold text-sm ${
-                        outcome === 'YES' 
-                          ? 'bg-green-500/20 text-green-500' 
+                        outcome === 'YES'
+                          ? 'bg-green-500/20 text-green-500'
                           : 'bg-red-500/20 text-red-500'
                       }`}>
                         Predicts {outcome}
