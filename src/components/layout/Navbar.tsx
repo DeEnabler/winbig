@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Home, Menu, X, Coins, DollarSign, ListChecks, ShieldQuestion, BarChart3, Info, PlusCircle } from 'lucide-react'; 
+import { Home, Menu, X, Coins, DollarSign, ListChecks, BarChart3, PlusCircle } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/common/Logo';
 import { useState, useEffect } from 'react';
@@ -15,13 +15,11 @@ const ConnectWallet = dynamic(() => import('@/components/wallet/ConnectWallet'),
 const ConnectXButton = dynamic(() => import('@/components/wallet/ConnectXButton'), { ssr: false });
 
 const navItems = [
-  { href: '/', label: 'Home', icon: Home }, // Changed 'Bet' to 'Home' for clarity
-  { href: '/challenge', label: 'Featured', icon: ShieldQuestion }, // Changed 'Challenge' to 'Featured'
-  { href: '/positions', label: 'My Bets', icon: ListChecks }, // Changed 'Positions' to 'My Bets'
+  { href: '/', label: 'Home', icon: Home },
+  { href: '/positions', label: 'My Bets', icon: ListChecks },
   { href: '/earn', label: 'Earn', icon: DollarSign },
-  { href: '/leaderboard', label: 'Leaders', icon: BarChart3 }, // Added Leaderboard
+  { href: '/leaderboard', label: 'Leaders', icon: BarChart3 },
   { href: '/create', label: 'Create', icon: PlusCircle },
-  // { href: '/faq', label: 'FAQ', icon: Info }, // Optional: if FAQ page is desired
 ];
 
 export default function Navbar() {
