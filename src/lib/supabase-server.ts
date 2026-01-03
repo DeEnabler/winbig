@@ -182,12 +182,16 @@ export async function getUserProfileByWallet(walletAddress: string): Promise<{ s
       return { success: false, error: 'Server-side Supabase client not initialized' };
     }
     
+    console.log('🔍 getUserProfileByWallet: Looking for wallet:', walletAddress);
+    
     // Try case-insensitive match using ilike
     const { data, error } = await supabase
       .from('user_profiles')
       .select('*')
       .ilike('wallet_address', walletAddress)
       .maybeSingle();
+
+    console.log('🔍 getUserProfileByWallet: Result:', { found: !!data, username: data?.x_username, error: error?.message });
 
     if (error) {
       console.error('Error fetching user profile:', error);

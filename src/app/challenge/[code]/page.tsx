@@ -95,8 +95,11 @@ export async function generateMetadata(
 
   // Fetch user's social profile for OG metadata
   let userProfile = null;
+  console.log('🔍 Challenge OG: Looking up profile for userId:', userId, 'username:', username);
+  
   if (userId) {
     const profileResult = await getUserProfileByWallet(userId);
+    console.log('🔍 Challenge OG: Wallet lookup result:', profileResult.success, profileResult.data?.x_username);
     if (profileResult.success && profileResult.data) {
       userProfile = profileResult.data;
     }
@@ -105,10 +108,13 @@ export async function generateMetadata(
   // If still no profile, try by username from prediction share
   if (!userProfile && username) {
     const profileResult = await getUserProfileByUsername(username);
+    console.log('🔍 Challenge OG: Username lookup result:', profileResult.success, profileResult.data?.x_username);
     if (profileResult.success && profileResult.data) {
       userProfile = profileResult.data;
     }
   }
+  
+  console.log('🔍 Challenge OG: Final userProfile:', userProfile?.x_username, userProfile?.x_avatar);
 
   // Use social username if available - NEVER expose wallet addresses
   const displayName = userProfile?.x_username 
@@ -205,8 +211,11 @@ export default async function ChallengePage({ params }: ChallengePageProps) {
   
   // Fetch user's social profile (X/Twitter username) if we have a wallet address
   let userProfile = null;
+  console.log('🔍 Challenge Page: Looking up profile for userId:', userId);
+  
   if (userId) {
     const profileResult = await getUserProfileByWallet(userId);
+    console.log('🔍 Challenge Page: Wallet lookup result:', profileResult.success, profileResult.data?.x_username, profileResult.error);
     if (profileResult.success && profileResult.data) {
       userProfile = profileResult.data;
     }
@@ -214,12 +223,17 @@ export default async function ChallengePage({ params }: ChallengePageProps) {
 
   // If still no profile, try by username from prediction share
   const shareUsername = predictionShare?.username;
+  console.log('🔍 Challenge Page: shareUsername from prediction_share:', shareUsername);
+  
   if (!userProfile && shareUsername) {
     const profileResult = await getUserProfileByUsername(shareUsername);
+    console.log('🔍 Challenge Page: Username lookup result:', profileResult.success, profileResult.data?.x_username);
     if (profileResult.success && profileResult.data) {
       userProfile = profileResult.data;
     }
   }
+  
+  console.log('🔍 Challenge Page: Final userProfile:', userProfile?.x_username, userProfile?.x_avatar);
   
   // Priority: 1. X username with @, 2. X display name, 3. prediction share username, 4. Anonymous (never expose wallet)
   const referrerName = userProfile?.x_username 
