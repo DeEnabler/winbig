@@ -165,13 +165,32 @@ export default async function ChallengePage({ params }: ChallengePageProps) {
 
   // Try bet share first
   const betResult = await getBetByShareCode(code);
-  const bet = betResult.success ? betResult.data : null;
+  let bet = betResult.success ? betResult.data : null;
   
   // Try prediction share if no bet
   const predictionShare = bet ? null : await getPredictionShare(code);
   
   if (!bet && !predictionShare) {
     notFound();
+  }
+
+  // SMART LOOKUP: If we only found a prediction share, check if this user 
+  // has actually placed a bet on this market so we can show the real amount.
+  if (!bet && predictionShare && supabase) {
+    console.log('🔍 Smart Lookup: Link is prediction-only, checking for associated bet...');
+    const { data: latestBet } = await supabase
+      .from('bets')
+      .select('*')
+      .eq('user_id', predictionShare.user_id)
+      .eq('market_id', predictionShare.market_id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (latestBet) {
+      console.log('✅ Smart Lookup: Found real bet to display:', latestBet.amount);
+      bet = latestBet;
+    }
   }
 
   const marketId = bet?.market_id || predictionShare?.market_id || '';
@@ -222,7 +241,9 @@ export default async function ChallengePage({ params }: ChallengePageProps) {
       ? userProfile.x_name
       : shareUsername 
         ? shareUsername
-        : 'A WinBig Predictor';
+        : userId 
+          ? `User ${userId.substring(0, 6)}...` // Show start of wallet if no name
+          : 'A WinBig Predictor';
   
   const referrerAvatar = userProfile?.x_avatar || null;
   const matchId = `share_${code}`;

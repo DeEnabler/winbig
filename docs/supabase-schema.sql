@@ -18,6 +18,11 @@ CREATE TABLE IF NOT EXISTS bets (
     status text DEFAULT 'pending' CHECK (status IN ('pending', 'executed', 'failed', 'cancelled')),
     tx_hash text NOT NULL, -- REQUIRED: Transaction hash for idempotency and tracking
     
+    -- Affiliate/Share link fields
+    share_code text UNIQUE, -- Unique code for shareable affiliate links (e.g., /challenge/abc123)
+    referrer_bet_id bigint, -- ID of the bet that referred this user (for affiliate chain)
+    referrer_user_id text, -- Wallet address of the referrer (for earnings calculation)
+    
     -- Backend fields (filled by hedger)
     execution_price numeric,
     execution_timestamp timestamptz,
@@ -41,6 +46,8 @@ CREATE INDEX IF NOT EXISTS idx_bets_market_id ON bets(market_id);
 CREATE INDEX IF NOT EXISTS idx_bets_created_at ON bets(created_at);
 CREATE INDEX IF NOT EXISTS idx_bets_outcome ON bets(outcome);
 CREATE INDEX IF NOT EXISTS idx_bets_tx_hash ON bets(tx_hash);
+CREATE INDEX IF NOT EXISTS idx_bets_share_code ON bets(share_code);
+CREATE INDEX IF NOT EXISTS idx_bets_referrer_user_id ON bets(referrer_user_id);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE bets ENABLE ROW LEVEL SECURITY;
