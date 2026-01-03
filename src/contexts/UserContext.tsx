@@ -121,21 +121,33 @@ export function UserProvider({ children }: { children: ReactNode }) {
     };
   }, [fetchProfile]);
 
-  // Check if wallet is linked when wallet changes
+  // Auto-link wallet when both X and wallet are connected
   useEffect(() => {
-    const checkWalletLink = async () => {
-      if (walletAddress && !xProfile) {
+    const autoLinkWallet = async () => {
+      // If we have both X profile and wallet connected, but not linked yet
+      if (xProfile && walletAddress && !xProfile.wallet_address) {
+        console.log('🔗 Auto-linking wallet to X profile:', walletAddress);
+        try {
+          const { profile, error } = await linkWalletToProfile(xProfile.id, walletAddress);
+          if (error) {
+            console.error('Failed to auto-link wallet:', error);
+            return;
+          }
+          setXProfile(profile);
+          toast.success('Wallet automatically linked to your X account!');
+        } catch (err) {
+          console.error('Error auto-linking wallet:', err);
+        }
+      } else if (walletAddress && !xProfile) {
         // Check if this wallet has a linked profile
         const { profile } = await getProfileByWallet(walletAddress);
         if (profile) {
-          // If we find a profile but user isn't logged in with X,
-          // we don't set it - they need to log in with X to access it
           console.log('Found profile linked to wallet:', profile.x_username);
         }
       }
     };
 
-    checkWalletLink();
+    autoLinkWallet();
   }, [walletAddress, xProfile]);
 
   // Sign in with X
