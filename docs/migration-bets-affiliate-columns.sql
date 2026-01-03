@@ -14,6 +14,9 @@ ALTER TABLE bets ADD COLUMN IF NOT EXISTS share_code text UNIQUE;
 ALTER TABLE bets ADD COLUMN IF NOT EXISTS referrer_bet_id bigint REFERENCES bets(id);
 ALTER TABLE bets ADD COLUMN IF NOT EXISTS referrer_user_id text;
 
+-- Add username column for social profile display (like prediction_shares has)
+ALTER TABLE bets ADD COLUMN IF NOT EXISTS username text;
+
 -- Create index for fast share_code lookups
 CREATE INDEX IF NOT EXISTS idx_bets_share_code ON bets(share_code);
 

@@ -311,6 +311,7 @@ export default function ChallengeInvite({
         // Affiliate tracking: link this bet to the referrer
         referrer_bet_id: referrerBetId || null,
         referrer_user_id: referrerUserId || null,
+        username: xProfile?.x_username || null, // Include X username for social profile display
       };
 
       console.log('📝 Bet data to record:', betData);
@@ -529,8 +530,14 @@ export default function ChallengeInvite({
               </p>
             </div>
             
-            {/* Their stance */}
+            {/* Their stance + bet amount */}
             <div className="text-right">
+              {referrerBetAmount && (
+                <div className="mb-1">
+                  <span className="text-2xl font-bold text-primary">${referrerBetAmount}</span>
+                  <span className="text-xs text-muted-foreground ml-1">bet</span>
+                </div>
+              )}
               <div className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full font-bold text-sm ${
                 referrerOriginalChoice === 'YES'
                   ? 'bg-green-500/15 text-green-500 border border-green-500/30'
@@ -538,11 +545,6 @@ export default function ChallengeInvite({
               }`}>
                 {referrerOriginalChoice === 'YES' ? '👍' : '👎'} {referrerOriginalChoice}
               </div>
-              {referrerBetAmount && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  ${referrerBetAmount} bet
-                </p>
-              )}
             </div>
           </div>
           

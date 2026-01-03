@@ -8,20 +8,29 @@ async function getPositions(userId: string): Promise<{ activePositions: OpenPosi
     if (!supabase) {
         throw new Error("Supabase client is not initialized.");
     }
+    
+    // Normalize wallet address to lowercase for consistent comparison
+    const normalizedUserId = userId.toLowerCase();
+    console.log('📊 [Positions] Fetching bets for user:', normalizedUserId);
+    
+    // Use ilike for case-insensitive matching of wallet addresses
     const { data: bets, error } = await supabase
         .from('bets')
         .select('*')
-        .eq('user_id', userId)
+        .ilike('user_id', normalizedUserId)
         .order('created_at', { ascending: false });
 
     if (error) {
-        console.error('Error fetching user bets:', error);
+        console.error('❌ [Positions] Error fetching user bets:', error);
         throw new Error(error.message);
     }
 
-    if (!bets) {
+    if (!bets || bets.length === 0) {
+        console.log('📭 [Positions] No bets found for user:', normalizedUserId);
         return { activePositions: [], pastPositions: [] };
     }
+    
+    console.log(`✅ [Positions] Found ${bets.length} bets for user:`, normalizedUserId);
 
     const positions = await Promise.all(bets.map(async (bet) => {
         const marketDetails = await getMarketDetails(bet.market_id);
@@ -53,6 +62,7 @@ async function getPositions(userId: string): Promise<{ activePositions: OpenPosi
 
         return {
             id: String(bet.id),
+            betId: bet.id, // Include betId for affiliate linking
             predictionId: bet.market_id,
             predictionText: marketDetails?.question || 'Unknown Market',
             category: marketDetails?.category || 'General',

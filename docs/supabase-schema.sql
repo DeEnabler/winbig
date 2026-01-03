@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS bets (
     share_code text UNIQUE, -- Unique code for shareable affiliate links (e.g., /challenge/abc123)
     referrer_bet_id bigint, -- ID of the bet that referred this user (for affiliate chain)
     referrer_user_id text, -- Wallet address of the referrer (for earnings calculation)
+    username text, -- X/Twitter username for social profile display
     
     -- Backend fields (filled by hedger)
     execution_price numeric,

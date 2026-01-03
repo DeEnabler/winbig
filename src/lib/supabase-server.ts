@@ -47,6 +47,7 @@ export interface BetRecord {
   share_code?: string | null // Unique code for shareable affiliate links
   referrer_bet_id?: number | null // ID of the bet that referred this user
   referrer_user_id?: string | null // Wallet address of the referrer (for earnings)
+  username?: string | null // X/Twitter username for social profile display
   
   // Backend fields (filled by hedger)
   execution_price?: number | null
@@ -72,6 +73,7 @@ export async function insertBet(bet: Omit<BetRecord, 'id' | 'created_at'>): Prom
     }
     
     console.log('🔧 Server-side Supabase client configured and ready');
+    console.log('👤 User ID (original):', bet.user_id, '-> (normalized):', bet.user_id.toLowerCase());
     
     // CRITICAL FIX: Check for existing bet with same tx_hash first
     console.log('🔍 Checking for existing bet with tx_hash:', bet.tx_hash);
@@ -93,8 +95,9 @@ export async function insertBet(bet: Omit<BetRecord, 'id' | 'created_at'>): Prom
     }
     
     // Create a bet record that matches the current table structure
+    // IMPORTANT: Normalize wallet addresses to lowercase for consistent storage and lookup
     const simplifiedBet: Record<string, any> = {
-      user_id: bet.user_id,
+      user_id: bet.user_id.toLowerCase(), // Normalize to lowercase
       market_id: bet.market_id,
       outcome: bet.outcome,
       amount: bet.amount,
@@ -105,7 +108,8 @@ export async function insertBet(bet: Omit<BetRecord, 'id' | 'created_at'>): Prom
       tx_hash: bet.tx_hash, // CRITICAL: Include transaction hash for idempotency
       // Affiliate tracking fields
       referrer_bet_id: bet.referrer_bet_id || null,
-      referrer_user_id: bet.referrer_user_id || null,
+      referrer_user_id: bet.referrer_user_id ? bet.referrer_user_id.toLowerCase() : null, // Normalize referrer too
+      username: bet.username || null, // X username for social profile display
     };
     
     console.log('🚀 Executing Supabase insert query with simplified bet:', simplifiedBet);
@@ -143,10 +147,11 @@ export async function getUserBets(userId: string, limit: number = 10): Promise<{
       return { success: false, error: 'Server-side Supabase client not initialized' };
     }
     
+    // Use case-insensitive matching for wallet addresses
     const { data, error } = await supabase
       .from('bets')
       .select('*')
-      .eq('user_id', userId)
+      .ilike('user_id', userId.toLowerCase())
       .order('created_at', { ascending: false })
       .limit(limit)
 
@@ -392,10 +397,11 @@ export async function getReferralStats(userId: string): Promise<{
     
     console.log('📊 Getting referral stats for user:', userId);
     
+    // Use case-insensitive matching for wallet addresses
     const { data, error } = await supabase
       .from('bets')
       .select('*')
-      .eq('referrer_user_id', userId)
+      .ilike('referrer_user_id', userId.toLowerCase())
       .order('created_at', { ascending: false });
 
     if (error) {

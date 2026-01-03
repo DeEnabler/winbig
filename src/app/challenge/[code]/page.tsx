@@ -220,9 +220,10 @@ export default async function ChallengePage({ params }: ChallengePageProps) {
     }
   }
 
-  // If still no profile, try by username from prediction share
-  const shareUsername = predictionShare?.username;
-  console.log('🔍 Challenge Page: shareUsername from prediction_share:', shareUsername);
+  // If still no profile, try by username from bet or prediction share
+  // Priority: bet.username (new field) > predictionShare.username
+  const shareUsername = (bet as any)?.username || predictionShare?.username;
+  console.log('🔍 Challenge Page: shareUsername:', shareUsername, '(from bet:', !!(bet as any)?.username, ', from prediction:', !!predictionShare?.username, ')');
   
   if (!userProfile && shareUsername) {
     const profileResult = await getUserProfileByUsername(shareUsername);
@@ -234,13 +235,13 @@ export default async function ChallengePage({ params }: ChallengePageProps) {
   
   console.log('🔍 Challenge Page: Final userProfile:', userProfile?.x_username, userProfile?.x_avatar);
   
-  // Priority: 1. X username with @, 2. X display name, 3. prediction share username, 4. Anonymous (never expose wallet)
+  // Priority: 1. X username with @, 2. X display name, 3. bet/share username, 4. Wallet prefix (never expose full wallet)
   const referrerName = userProfile?.x_username 
     ? `@${userProfile.x_username}`
     : userProfile?.x_name 
       ? userProfile.x_name
       : shareUsername 
-        ? shareUsername
+        ? (shareUsername.startsWith('@') ? shareUsername : `@${shareUsername}`)
         : userId 
           ? `User ${userId.substring(0, 6)}...` // Show start of wallet if no name
           : 'A WinBig Predictor';

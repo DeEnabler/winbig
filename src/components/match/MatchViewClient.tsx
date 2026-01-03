@@ -14,6 +14,7 @@ import {
 import { parseUnits, encodeFunctionData } from 'viem';
 
 import { useEntryContext } from '@/contexts/EntryContext';
+import { useUser } from '@/contexts/UserContext';
 import { useToast } from '@/hooks/use-toast';
 import { useCurrentChainId } from '@/hooks/useCurrentChainId';
 import { appKit } from '@/components/providers/wagmi-config';
@@ -64,6 +65,7 @@ function useDebounce<T>(value: T, delay: number): T {
 export default function MatchViewClient({ match: initialMatch, initialChoice, initialAmount }: MatchViewProps) {
   const router = useRouter();
   const { appendEntryParams } = useEntryContext();
+  const { xProfile } = useUser();
   const { toast } = useToast();
   const { address, isConnected, chain } = useAccount();
   const { switchChain } = useSwitchChain();
@@ -347,6 +349,7 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
         potential_payout: betSnapshot.potentialPayout,
         status: 'pending' as const,
         tx_hash: txHash, // Include transaction hash for idempotency
+        username: xProfile?.x_username || null, // Include X username for social profile display
       };
       
       console.log('🎯 Placing bet via API with SNAPSHOT data:', betData);
