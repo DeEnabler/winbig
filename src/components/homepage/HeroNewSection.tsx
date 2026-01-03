@@ -47,7 +47,7 @@ export default function HeroNewSection() {
           className="text-lg h-14 px-10 rounded-xl bg-accent hover:bg-accent/90 text-white font-semibold shadow-lg shadow-accent/25 animate-pulse-glow gap-3"
         >
           <XLogo className="h-5 w-5" />
-          Connect with X to Start
+          Start Now
         </Button>
       </div>
     </section>
