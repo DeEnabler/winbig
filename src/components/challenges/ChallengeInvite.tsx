@@ -60,12 +60,15 @@ const initializeBettorsFromPrice = (yesPrice?: number, baseTotalBettors = 50) =>
 export default function ChallengeInvite({
   matchId: originalChallengeMatchId,
   referrerName,
+  referrerAvatar: passedAvatar,
+  isVerified = false,
   predictionQuestion,
   predictionId,
   referrerOriginalChoice,
-  initialYesPrice, // New prop for initial odds
-  referrerBetId, // Affiliate tracking: ID of the original bet
-  referrerUserId, // Affiliate tracking: Wallet of the referrer
+  initialYesPrice,
+  betAmount: referrerBetAmount,
+  referrerBetId,
+  referrerUserId,
 }: ChallengeInviteProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -82,13 +85,15 @@ export default function ChallengeInvite({
 
   const [lastUserAction, setLastUserAction] = useState<'with' | 'against' | null>(null);
 
-  const [hasSufficientBalance, setHasSufficientBalance] = useState(true); // Assume true initially
+  const [hasSufficientBalance, setHasSufficientBalance] = useState(true);
   const [isConfirming, setIsConfirming] = useState(false);
-  const [betAmount, setBetAmount] = useState(10); // Example bet amount in USDT
+  const [betAmount, setBetAmount] = useState(10);
 
-  const referrerAvatar = referrerName === mockOpponentUser.username
-    ? mockOpponentUser.avatarUrl
-    : `https://placehold.co/40x40.png?text=${referrerName.substring(0,2).toUpperCase()}`;
+  // Use passed avatar or generate fallback
+  const referrerAvatar = passedAvatar || null;
+  
+  // Clean display name (remove @ if present for initials)
+  const cleanName = referrerName.replace('@', '');
 
   const referrerStats = useMemo((): ReferrerStats | null => {
     if (referrerName === mockOpponentUser.username) {
@@ -486,72 +491,72 @@ export default function ChallengeInvite({
 
   return (
     <>
-      <Card className="w-full max-w-md mx-auto shadow-xl rounded-lg text-center overflow-hidden">
-        <CardHeader className="bg-muted/30 p-3 md:p-4 space-y-1">
-          <div className="flex items-center space-x-3">
-            <Avatar className="w-12 h-12 md:w-16 md:h-16 border-2 border-primary">
-              <AvatarImage src={referrerAvatar} alt={referrerName} data-ai-hint="person avatar" />
-              <AvatarFallback>{referrerName.substring(0, 2).toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <div className="text-left">
-              <h2 className="text-base md:text-lg font-semibold text-foreground">
-                {referrerName === mockOpponentUser.username && "👑 "}@{referrerName}
-                <span className="text-sm md:text-base font-normal text-muted-foreground"> bet <span className={referrerOriginalChoice === 'YES' ? 'text-green-500 font-bold' : 'text-red-500 font-bold'}>{referrerOriginalChoice}</span></span>
-              </h2>
-              {referrerStats && (
-                <>
-                  <div className="flex items-center space-x-2 md:space-x-3 mt-1">
-                    {referrerStats.winStreak >= 3 && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="flex items-center space-x-1 text-xs text-yellow-500">
-                              <Flame className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                              <span className="font-bold">{referrerStats.winStreak}W</span>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Win Streak: {referrerStats.winStreak} wins in a row</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="flex items-center text-xs text-muted-foreground">
-                            <Coins className="w-3 h-3 md:w-4 md:h-4 mr-1 text-green-500" />
-                            <span className="font-bold">{referrerStats.totalWinnings.split(' ')[0]}</span>
-                            <span className="ml-0.5">{referrerStats.totalWinnings.split(' ')[1]}</span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Total Won: {referrerStats.totalWinnings}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="flex items-center text-xs text-muted-foreground">
-                            <Crown className="w-3 h-3 md:w-4 md:h-4 mr-1 text-purple-500" />
-                            <span className="font-bold">{referrerStats.predictionRank}</span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Prediction Rank: {referrerStats.predictionRank}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <p className="text-xs md:text-sm text-muted-foreground italic mt-1.5 text-center sm:text-left">
-                    {egoHookMessage}
-                  </p>
-                </>
+      <Card className="w-full max-w-md mx-auto shadow-xl rounded-2xl overflow-hidden border-0 bg-gradient-to-br from-card via-card to-muted/20">
+        {/* Clean unified header */}
+        <CardHeader className="bg-gradient-to-r from-primary/5 to-accent/5 p-4 md:p-5">
+          <div className="flex items-center gap-4">
+            {/* Avatar with verified badge */}
+            <div className="relative shrink-0">
+              {referrerAvatar ? (
+                <img 
+                  src={referrerAvatar} 
+                  alt={cleanName}
+                  className="w-14 h-14 md:w-16 md:h-16 rounded-full object-cover border-2 border-primary/30 shadow-lg"
+                />
+              ) : (
+                <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-primary/60 to-accent/60 flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                  {cleanName.charAt(0).toUpperCase()}
+                </div>
+              )}
+              {isVerified && (
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#1DA1F2] rounded-full flex items-center justify-center border-2 border-background shadow">
+                  <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                </div>
+              )}
+            </div>
+            
+            {/* Info */}
+            <div className="flex-1 text-left">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg md:text-xl font-bold text-foreground">
+                  {referrerName}
+                </h2>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {isVerified ? 'Verified Predictor' : 'Predictor'}
+              </p>
+            </div>
+            
+            {/* Their stance */}
+            <div className="text-right">
+              <div className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full font-bold text-sm ${
+                referrerOriginalChoice === 'YES'
+                  ? 'bg-green-500/15 text-green-500 border border-green-500/30'
+                  : 'bg-red-500/15 text-red-500 border border-red-500/30'
+              }`}>
+                {referrerOriginalChoice === 'YES' ? '👍' : '👎'} {referrerOriginalChoice}
+              </div>
+              {referrerBetAmount && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  ${referrerBetAmount} bet
+                </p>
               )}
             </div>
           </div>
+          
+          {/* Challenge prompt */}
+          <div className="mt-4 p-3 bg-background/60 rounded-xl border border-border/50">
+            <p className="text-sm text-center">
+              <span className="text-muted-foreground">Think </span>
+              <span className="font-semibold">{referrerName}</span>
+              <span className="text-muted-foreground"> is wrong? </span>
+              <span className="font-bold text-primary">Prove it!</span>
+            </p>
+          </div>
         </CardHeader>
+        
         <CardContent className="space-y-4 p-4 md:p-6">
           <p className="italic text-lg md:text-xl font-semibold text-foreground leading-tight">
             “{predictionQuestion}”

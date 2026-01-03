@@ -127,10 +127,13 @@ export interface PredictionCardProps {
 export interface ChallengeInviteProps {
   matchId: string;
   referrerName: string;
+  referrerAvatar?: string | null; // X profile avatar URL
+  isVerified?: boolean; // Has linked X account
   predictionQuestion: string;
   predictionId: string;
   referrerOriginalChoice: 'YES' | 'NO';
   initialYesPrice?: number; // Added to pass initial odds
+  betAmount?: number; // Amount the referrer bet (if bet share)
   // Affiliate tracking props
   referrerBetId?: number; // ID of the original bet that was shared
   referrerUserId?: string; // Wallet address of the referrer
