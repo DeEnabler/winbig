@@ -2,7 +2,7 @@
 import type { Metadata, ResolvingMetadata } from 'next';
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import { getBetByShareCode, getUserProfileByWallet, supabase } from '@/lib/supabase-server';
+import { getBetByShareCode, getUserProfileByWallet, getUserProfileByUsername, supabase } from '@/lib/supabase-server';
 import { getMarketDetails } from '@/lib/marketService';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -97,6 +97,14 @@ export async function generateMetadata(
   let userProfile = null;
   if (userId) {
     const profileResult = await getUserProfileByWallet(userId);
+    if (profileResult.success && profileResult.data) {
+      userProfile = profileResult.data;
+    }
+  }
+
+  // If still no profile, try by username from prediction share
+  if (!userProfile && username) {
+    const profileResult = await getUserProfileByUsername(username);
     if (profileResult.success && profileResult.data) {
       userProfile = profileResult.data;
     }
@@ -203,14 +211,23 @@ export default async function ChallengePage({ params }: ChallengePageProps) {
       userProfile = profileResult.data;
     }
   }
+
+  // If still no profile, try by username from prediction share
+  const shareUsername = predictionShare?.username;
+  if (!userProfile && shareUsername) {
+    const profileResult = await getUserProfileByUsername(shareUsername);
+    if (profileResult.success && profileResult.data) {
+      userProfile = profileResult.data;
+    }
+  }
   
   // Priority: 1. X username with @, 2. X display name, 3. prediction share username, 4. Anonymous (never expose wallet)
   const referrerName = userProfile?.x_username 
     ? `@${userProfile.x_username}`
     : userProfile?.x_name 
       ? userProfile.x_name
-      : predictionShare?.username 
-        ? predictionShare.username
+      : shareUsername 
+        ? shareUsername
         : 'A WinBig Predictor';
   
   const referrerAvatar = userProfile?.x_avatar || null;

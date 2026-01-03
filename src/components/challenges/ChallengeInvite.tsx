@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, Swords, ShieldCheck, Users, Zap, BarChartHorizontalBig, Clock, AlertTriangle, Crown, Coins, Info, Flame, Share2, Loader2, Copy, Check } from 'lucide-react';
 import { mockOpponentUser } from '@/lib/mockData';
 import { useAccount } from 'wagmi';
+import { useUser } from '@/contexts/UserContext';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -70,6 +71,7 @@ export default function ChallengeInvite({
   const { toast } = useToast();
   const { appendEntryParams } = useEntryContext();
   const { address, isConnected, chain } = useAccount();
+  const { xProfile } = useUser();
   const { data: hash, writeContract } = useWriteContract();
 
   const [pendingActionData, setPendingActionData] = useState<{
@@ -364,6 +366,7 @@ export default function ChallengeInvite({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: address,
+          username: xProfile?.x_username || null,
           market_id: predictionId,
           predicted_outcome: stance,
         }),

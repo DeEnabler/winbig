@@ -182,26 +182,14 @@ export async function getUserProfileByWallet(walletAddress: string): Promise<{ s
       return { success: false, error: 'Server-side Supabase client not initialized' };
     }
     
+    // Try case-insensitive match using ilike
     const { data, error } = await supabase
       .from('user_profiles')
       .select('*')
-      .eq('wallet_address', walletAddress.toLowerCase())
-      .single();
+      .ilike('wallet_address', walletAddress)
+      .maybeSingle();
 
-    // Also try with original case if not found
-    if (!data && !error?.message?.includes('multiple')) {
-      const { data: dataOriginal, error: errorOriginal } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('wallet_address', walletAddress)
-        .single();
-      
-      if (dataOriginal) {
-        return { success: true, data: dataOriginal };
-      }
-    }
-
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+    if (error) {
       console.error('Error fetching user profile:', error);
       return { success: false, error: error.message };
     }
@@ -209,6 +197,34 @@ export async function getUserProfileByWallet(walletAddress: string): Promise<{ s
     return { success: !!data, data: data || undefined };
   } catch (err) {
     console.error('Exception fetching user profile:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
+
+// Helper function to get user profile by X username
+export async function getUserProfileByUsername(username: string): Promise<{ success: boolean; data?: UserProfile; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Server-side Supabase client not initialized' };
+    }
+    
+    // Remove @ if present
+    const cleanUsername = username.startsWith('@') ? username.substring(1) : username;
+    
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .ilike('x_username', cleanUsername)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching user profile by username:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: !!data, data: data || undefined };
+  } catch (err) {
+    console.error('Exception fetching user profile by username:', err);
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
   }
 }

@@ -15,6 +15,8 @@ import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
+import { useUser } from '@/contexts/UserContext';
+
 interface MarketFeedCardProps {
   market: LiveMarket;
 }
@@ -28,6 +30,7 @@ function calculatePayout(betAmount: number, odds: number): number {
 export default function MarketFeedCard({ market }: MarketFeedCardProps) {
   const router = useRouter();
   const { address, isConnected } = useAccount();
+  const { xProfile } = useUser();
   const { open } = useAppKit();
   const { toast } = useToast();
   
@@ -70,6 +73,7 @@ export default function MarketFeedCard({ market }: MarketFeedCardProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: address,
+          username: xProfile?.x_username || null,
           market_id: market.id,
           predicted_outcome: stance,
         }),
