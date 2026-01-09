@@ -274,12 +274,13 @@ export default function PositionsPage() {
                             {position.endsAt ? formatDistanceToNow(position.endsAt, { addSuffix: true }) : 'N/A'}
                           </TableCell>
                           <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-1">
+                            <div className="flex items-center justify-center gap-2">
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <Button 
                                     size="sm" 
-                                    className="bg-warning hover:bg-warning/90 text-warning-foreground h-8 text-xs"
+                                    variant="outline"
+                                    className="border-warning text-warning hover:bg-warning hover:text-warning-foreground h-8 text-xs"
                                     disabled={position.currentValue <= 0}
                                   >
                                     <ShoppingCart className="w-3 h-3 mr-1" /> Sell
@@ -305,11 +306,11 @@ export default function PositionsPage() {
                               </AlertDialog>
                               <Button 
                                 onClick={() => handleSharePosition(position)} 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8"
+                                variant="outline" 
+                                size="sm"
+                                className="h-8 text-xs"
                               >
-                                <LucideXIcon className="w-4 h-4" />
+                                <LucideXIcon className="w-3 h-3 mr-1" /> Share
                               </Button>
                             </div>
                           </TableCell>
