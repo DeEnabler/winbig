@@ -56,7 +56,10 @@ async function getPositions(userId: string): Promise<{ activePositions: OpenPosi
             const hasEnded = now > endsAt;
             
             // Aggregate values across all bets in this market+outcome
-            let totalAmount = 0;
+            // 💰 Use gross_amount (what user paid) for display, actual shares for P&L
+            let totalGrossAmount = 0; // What user actually paid
+            let totalNetToMarket = 0; // What went to Polymarket
+            let totalPlatformFee = 0; // Platform fees collected
             let totalPotentialPayout = 0;
             let totalShares = 0;
             let totalSettledAmount = 0;
@@ -66,22 +69,39 @@ async function getPositions(userId: string): Promise<{ activePositions: OpenPosi
             let hasBonusApplied = false;
             
             for (const bet of marketBets) {
-                const betAmount = Number(bet.amount);
-                totalAmount += betAmount;
+                // Use gross_amount if available (after migration), otherwise fall back to amount
+                const grossAmount = Number(bet.gross_amount) || Number(bet.amount);
+                const netToMarket = Number(bet.net_to_market) || grossAmount * 0.98; // Estimate 2% fee if not set
+                const platformFee = Number(bet.platform_fee) || grossAmount * 0.02;
+                
+                totalGrossAmount += grossAmount;
+                totalNetToMarket += netToMarket;
+                totalPlatformFee += platformFee;
                 totalPotentialPayout += Number(bet.potential_payout) || 0;
                 betIds.push(bet.id);
                 
-                // Calculate shares for this bet
-                // Priority: 1) shares_received (from hedger), 2) estimate from execution_price, 3) estimate from odds_shown
+                // Calculate shares for this bet - use actual on-chain data when available
+                // Priority: 1) actual_shares (from economics), 2) shares_received (from hedger), 
+                //           3) expected_shares, 4) estimate from execution_price, 5) estimate from net_to_market
                 let betShares = 0;
-                if (bet.shares_received && Number(bet.shares_received) > 0) {
+                if (bet.actual_shares && Number(bet.actual_shares) > 0) {
+                    // Best: Actual on-chain shares
+                    betShares = Number(bet.actual_shares);
+                } else if (bet.shares_received && Number(bet.shares_received) > 0) {
+                    // From hedger confirmation
                     betShares = Number(bet.shares_received);
+                } else if (bet.expected_shares && Number(bet.expected_shares) > 0) {
+                    // From execution preview at bet time
+                    betShares = Number(bet.expected_shares);
                 } else if (bet.execution_price && Number(bet.execution_price) > 0) {
-                    // Shares = amount / execution_price
-                    betShares = betAmount / Number(bet.execution_price);
+                    // Estimate: net_to_market / execution_price
+                    betShares = netToMarket / Number(bet.execution_price);
+                } else if (bet.vwap && Number(bet.vwap) > 0) {
+                    // Estimate from VWAP
+                    betShares = netToMarket / Number(bet.vwap);
                 } else if (bet.odds_shown_to_user && Number(bet.odds_shown_to_user) > 0) {
-                    // Fallback: estimate shares from odds shown at time of bet
-                    betShares = betAmount / Number(bet.odds_shown_to_user);
+                    // Last resort: estimate from odds shown (less accurate due to markup)
+                    betShares = netToMarket / Number(bet.odds_shown_to_user);
                 }
                 totalShares += betShares;
                 
@@ -97,20 +117,24 @@ async function getPositions(userId: string): Promise<{ activePositions: OpenPosi
             }
             
             // Calculate current value using total shares × current sell price
+            // 💰 Use RAW Polymarket prices for accurate valuation (not marked-up prices)
             let currentSellPrice = 0;
             if (marketOdds) {
+                // Use raw execution sell price (what we'd get if we sold on Polymarket)
                 currentSellPrice = firstBet.outcome === 'YES' 
                     ? marketOdds.execution.yesSellPrice 
                     : marketOdds.execution.noSellPrice;
             }
             const currentValue = totalShares * currentSellPrice;
             
-            // Calculate unrealized P&L
-            const unrealizedPnL = currentValue - totalAmount;
-            const unrealizedPnLPercent = totalAmount > 0 ? (unrealizedPnL / totalAmount) * 100 : 0;
+            // 💰 Calculate unrealized P&L based on what user PAID (gross amount)
+            // This shows accurate profit/loss from user's perspective
+            const unrealizedPnL = currentValue - totalGrossAmount;
+            const unrealizedPnLPercent = totalGrossAmount > 0 ? (unrealizedPnL / totalGrossAmount) * 100 : 0;
             
-            // Calculate average entry price
-            const avgEntryPrice = totalShares > 0 ? totalAmount / totalShares : 0;
+            // Calculate average entry price based on net amount to market / shares
+            // This represents the true cost basis per share
+            const avgEntryPrice = totalShares > 0 ? totalNetToMarket / totalShares : 0;
             
             // Determine status based on aggregated bet states
             let status: OpenPositionStatus = 'LIVE';
@@ -129,7 +153,8 @@ async function getPositions(userId: string): Promise<{ activePositions: OpenPosi
                 predictionText: marketDetails?.question || 'Unknown Market',
                 category: marketDetails?.category || 'General',
                 userChoice: firstBet.outcome as 'YES' | 'NO',
-                betAmount: totalAmount,
+                // 💰 Show gross amount (what user paid) - this is what they see
+                betAmount: totalGrossAmount,
                 potentialPayout: totalPotentialPayout,
                 totalShares: totalShares,
                 avgEntryPrice: avgEntryPrice,

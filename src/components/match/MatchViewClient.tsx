@@ -23,7 +23,7 @@ import { appKit } from '@/components/providers/wagmi-config';
 // import { supabase } from '@/lib/supabase';
 // import type { BetRecord } from '@/lib/supabase';
 import { mockCurrentUser } from '@/lib/mockData';
-import type { Match, ExecutionPreview, MatchViewProps } from '@/types';
+import type { Match, ExecutionPreview, MatchViewProps, BetEconomics } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
@@ -85,11 +85,21 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
   // NEW: Use ref for synchronous guard against duplicate processing
   const processedTxHashesRef = useRef<Set<string>>(new Set());
   
+  // Extended bet snapshot interface with economic data
+  interface BetSnapshot {
+    amount: number;
+    outcome: 'YES' | 'NO';
+    odds: number;
+    potentialPayout: number;
+    // Economic tracking fields
+    economics?: BetEconomics;
+  }
+  
   // NEW: Store bet snapshots keyed by transaction hash
-  const [pendingBets, setPendingBets] = useState<Map<string, {amount: number, outcome: 'YES' | 'NO', odds: number, potentialPayout: number}>>(new Map());
+  const [pendingBets, setPendingBets] = useState<Map<string, BetSnapshot>>(new Map());
   
   // NEW: Temporary storage for bet snapshot until txHash is available
-  const pendingBetSnapshotRef = useRef<{amount: number, outcome: 'YES' | 'NO', odds: number, potentialPayout: number} | null>(null);
+  const pendingBetSnapshotRef = useRef<BetSnapshot | null>(null);
 
   // Reset processed transactions and pending bets when bet parameters change
   useEffect(() => {
@@ -298,16 +308,27 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
     }
 
     // CRITICAL FIX: Capture bet data snapshot BEFORE sending transaction
-    const betSnapshot = {
+    // Include economic data from execution preview for accurate tracking
+    const betSnapshot: BetSnapshot = {
       amount: betAmountState,
       outcome: selectedChoice,
       odds: selectedChoice === 'YES' ? match.yesPrice : match.noPrice,
       potentialPayout: executionPreview?.potentialPayout ?? 0,
+      // 💰 Capture economics from execution preview
+      economics: executionPreview?.economics,
     };
 
-    // Log final transaction parameters
+    // Log final transaction parameters with economic breakdown
     console.log('💰 Sending USDT transfer:', betSnapshot.amount, 'USDT, Gas:', gasEstimate?.toString() || 'wallet-managed');
     console.log('📸 Bet snapshot captured:', betSnapshot);
+    if (betSnapshot.economics) {
+      console.log('💵 Economic breakdown:', {
+        grossAmount: betSnapshot.economics.grossAmount,
+        netToMarket: betSnapshot.economics.netToMarket,
+        platformFee: betSnapshot.economics.platformFee,
+        polymarketSpread: (betSnapshot.economics.polymarketSpread * 100).toFixed(2) + '%',
+      });
+    }
 
     if (sendTransaction) {
       setIsBetting(true);
@@ -335,12 +356,13 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
 
   const proceedWithBetPlacement = useCallback(async (
     senderAddress: `0x${string}`, 
-    betSnapshot: {amount: number, outcome: 'YES' | 'NO', odds: number, potentialPayout: number}, 
+    betSnapshot: BetSnapshot, 
     txHash: string
   ) => {
     try {
       // CRITICAL FIX: Use snapshot data instead of live state
-      const betData = {
+      // Include economic tracking fields from execution preview
+      const betData: Record<string, any> = {
         user_id: senderAddress || mockCurrentUser.id, // Use wallet address from receipt, fallback to mock for dev
         market_id: match.predictionId,
         outcome: betSnapshot.outcome,
@@ -352,8 +374,22 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
         username: xProfile?.x_username || null, // Include X username for social profile display
       };
       
+      // 💰 Add economic tracking fields if available from execution preview
+      if (betSnapshot.economics) {
+        betData.gross_amount = betSnapshot.economics.grossAmount;
+        betData.net_to_market = betSnapshot.economics.netToMarket;
+        betData.platform_fee = betSnapshot.economics.platformFee;
+        betData.platform_markup_percent = betSnapshot.economics.platformMarkupPercent;
+        betData.polymarket_spread = betSnapshot.economics.polymarketSpread;
+        betData.total_effective_spread = betSnapshot.economics.totalEffectiveSpread;
+        betData.expected_shares = betSnapshot.economics.expectedShares;
+      }
+      
       console.log('🎯 Placing bet via API with SNAPSHOT data:', betData);
       console.log('📸 Using bet snapshot:', betSnapshot, 'for tx:', txHash);
+      if (betSnapshot.economics) {
+        console.log('💵 Economic data included:', betSnapshot.economics);
+      }
       
       const response = await fetch('/api/bets', {
         method: 'POST',
@@ -405,7 +441,7 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
     } finally {
       setIsProcessing(false); // FIXED: Unlock UI after API call completes
     }
-  }, [match, toast]); // FIXED: Removed betAmountState and selectedChoice dependencies
+  }, [match, toast, xProfile]); // FIXED: Removed betAmountState and selectedChoice dependencies, added xProfile
 
   useEffect(() => {
     if (sendError) {

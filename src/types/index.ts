@@ -244,6 +244,38 @@ export interface OrderBook {
   asks: OrderLevel[];
 }
 
+/**
+ * 💰 Economic breakdown for affiliate earnings
+ */
+export interface AffiliateEarningsBreakdown {
+  tier1: number;
+  tier2: number;
+  total: number;
+  platformRetained: number;
+}
+
+/**
+ * 💵 Full economic breakdown for a bet execution
+ */
+export interface BetEconomics {
+  /** What the user pays (gross amount) */
+  grossAmount: number;
+  /** What goes to Polymarket after platform fee */
+  netToMarket: number;
+  /** WinBig's captured fee */
+  platformFee: number;
+  /** Platform markup percentage (e.g., 0.02 for 2%) */
+  platformMarkupPercent: number;
+  /** Polymarket's natural spread from orderbook */
+  polymarketSpread: number;
+  /** Combined total spread (platform markup + polymarket spread) */
+  totalEffectiveSpread: number;
+  /** Expected shares based on net amount */
+  expectedShares: number;
+  /** Affiliate earnings breakdown */
+  affiliateEarnings: AffiliateEarningsBreakdown;
+}
+
 export interface ExecutionPreview {
   success: boolean;
   timestamp?: string;
@@ -256,4 +288,6 @@ export interface ExecutionPreview {
   price_impact_pct?: number;
   summary?: string;
   steps?: string[];
+  /** 💰 Full economic breakdown including fees and spreads */
+  economics?: BetEconomics;
 }

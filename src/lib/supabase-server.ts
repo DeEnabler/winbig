@@ -1,4 +1,10 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { 
+  PLATFORM_FEE_RATE, 
+  TIER_1_COMMISSION_RATE, 
+  TIER_2_COMMISSION_RATE,
+  PLATFORM_MARKUP_PERCENT,
+} from '@/lib/marketService';
 
 console.log('🔧 Initializing server-side Supabase client...');
 
@@ -38,7 +44,7 @@ export interface BetRecord {
   outcome: 'YES' | 'NO'
   amount: number
   odds_shown_to_user: number
-  potential_payout?: number | null // ADDED
+  potential_payout?: number | null
   timestamp?: string
   status: 'pending' | 'executed' | 'failed' | 'cancelled'
   tx_hash: string // REQUIRED: Transaction hash for idempotency and tracking
@@ -48,6 +54,17 @@ export interface BetRecord {
   referrer_bet_id?: number | null // ID of the bet that referred this user
   referrer_user_id?: string | null // Wallet address of the referrer (for earnings)
   username?: string | null // X/Twitter username for social profile display
+  
+  // 💰 Economic tracking fields (NEW)
+  gross_amount?: number | null // What user paid (same as amount, for clarity)
+  net_to_market?: number | null // What goes to Polymarket after platform fee
+  platform_fee?: number | null // WinBig's captured fee
+  platform_markup_percent?: number | null // Markup % at time of bet (e.g., 0.02)
+  polymarket_spread?: number | null // Polymarket spread at execution time
+  total_effective_spread?: number | null // Combined platform + Polymarket spread
+  expected_shares?: number | null // Calculated at bet time
+  actual_shares?: number | null // Confirmed from hedger/on-chain
+  vwap?: number | null // Volume-weighted average price
   
   // Backend fields (filled by hedger)
   execution_price?: number | null
@@ -118,6 +135,32 @@ export async function insertBet(bet: Omit<BetRecord, 'id' | 'created_at'>): Prom
     }
     if (bet.username) {
       simplifiedBet.username = bet.username;
+    }
+    
+    // 💰 Add economic tracking fields if provided (after migration is run)
+    if (bet.gross_amount !== undefined) {
+      simplifiedBet.gross_amount = bet.gross_amount;
+    }
+    if (bet.net_to_market !== undefined) {
+      simplifiedBet.net_to_market = bet.net_to_market;
+    }
+    if (bet.platform_fee !== undefined) {
+      simplifiedBet.platform_fee = bet.platform_fee;
+    }
+    if (bet.platform_markup_percent !== undefined) {
+      simplifiedBet.platform_markup_percent = bet.platform_markup_percent;
+    }
+    if (bet.polymarket_spread !== undefined) {
+      simplifiedBet.polymarket_spread = bet.polymarket_spread;
+    }
+    if (bet.total_effective_spread !== undefined) {
+      simplifiedBet.total_effective_spread = bet.total_effective_spread;
+    }
+    if (bet.expected_shares !== undefined) {
+      simplifiedBet.expected_shares = bet.expected_shares;
+    }
+    if (bet.vwap !== undefined) {
+      simplifiedBet.vwap = bet.vwap;
     }
     
     console.log('🚀 Executing Supabase insert query with simplified bet:', simplifiedBet);
@@ -223,10 +266,11 @@ export interface AffiliateEarning {
   notes?: string | null;
 }
 
-// Commission rates for the 2-layer affiliate system
-const TIER_1_COMMISSION_RATE = 0.08; // 8% of platform fee
-const TIER_2_COMMISSION_RATE = 0.02; // 2% of platform fee
-const PLATFORM_FEE_RATE = 0.05;      // 5% platform fee on bets
+// Commission rates are now imported from @/lib/marketService:
+// TIER_1_COMMISSION_RATE = 0.08 (8% of platform fee)
+// TIER_2_COMMISSION_RATE = 0.02 (2% of platform fee)
+// PLATFORM_FEE_RATE = 0.05 (5% platform fee on bets)
+// PLATFORM_MARKUP_PERCENT = 0.02 (2% markup on each side)
 
 // Helper function to get user profile by wallet address
 export async function getUserProfileByWallet(walletAddress: string): Promise<{ success: boolean; data?: UserProfile; error?: string }> {

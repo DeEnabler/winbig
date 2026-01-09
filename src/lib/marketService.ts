@@ -4,6 +4,134 @@ import 'server-only';
 import redis, { safeRedisOperation } from '@/lib/redis';
 import type { LiveMarket, OrderBook } from '@/types';
 
+// ============================================
+// 💰 PLATFORM FEE & MARKUP CONFIGURATION
+// ============================================
+// These constants control how WinBig captures margin on trades.
+// The markup is applied by widening the bid/ask spread shown to users.
+
+/** Platform markup percentage applied to each side of the spread (2% = 4% total round-trip) */
+export const PLATFORM_MARKUP_PERCENT = 0.02;
+
+/** Target platform fee rate for affiliate calculations (5% of bet volume) */
+export const PLATFORM_FEE_RATE = 0.05;
+
+/** Tier 1 affiliate commission rate (8% of platform fee = 0.4% of bet) */
+export const TIER_1_COMMISSION_RATE = 0.08;
+
+/** Tier 2 affiliate commission rate (2% of platform fee = 0.1% of bet) */
+export const TIER_2_COMMISSION_RATE = 0.02;
+
+/**
+ * Raw execution prices from Polymarket orderbook
+ */
+export interface RawPrices {
+  yesBuyPrice: number;
+  yesSellPrice: number;
+  noBuyPrice: number;
+  noSellPrice: number;
+}
+
+/**
+ * Prices after applying WinBig's platform markup
+ */
+export interface MarkedUpPrices extends RawPrices {
+  /** The markup percentage applied to each side */
+  markupPercent: number;
+  /** Effective total spread (markup × 2) */
+  effectiveSpread: number;
+  /** Whether markup was applied */
+  markupApplied: boolean;
+}
+
+/**
+ * 💰 Applies platform markup to raw Polymarket prices.
+ * 
+ * This widens the spread shown to users:
+ * - Buy prices are increased (worse for buyer)
+ * - Sell prices are decreased (worse for seller)
+ * 
+ * This is how WinBig captures margin without showing explicit fees.
+ * 
+ * @param rawPrices - Raw execution prices from Polymarket
+ * @param markupPercent - Optional custom markup (defaults to PLATFORM_MARKUP_PERCENT)
+ * @returns Marked up prices with spread information
+ */
+export function applyOddsMarkup(
+  rawPrices: RawPrices,
+  markupPercent: number = PLATFORM_MARKUP_PERCENT
+): MarkedUpPrices {
+  return {
+    // Worse buy prices for users (higher cost per share)
+    yesBuyPrice: Math.min(0.99, rawPrices.yesBuyPrice * (1 + markupPercent)),
+    noBuyPrice: Math.min(0.99, rawPrices.noBuyPrice * (1 + markupPercent)),
+    // Worse sell prices for users (lower value when selling)
+    yesSellPrice: Math.max(0.01, rawPrices.yesSellPrice * (1 - markupPercent)),
+    noSellPrice: Math.max(0.01, rawPrices.noSellPrice * (1 - markupPercent)),
+    // Markup metadata
+    markupPercent,
+    effectiveSpread: markupPercent * 2, // Total round-trip cost
+    markupApplied: true,
+  };
+}
+
+/**
+ * 📊 Calculates the fee breakdown for a given bet amount.
+ * 
+ * @param grossAmount - What the user pays
+ * @param markupPercent - The markup percentage applied
+ * @returns Breakdown of fees and net amounts
+ */
+export function calculateFeeBreakdown(
+  grossAmount: number,
+  markupPercent: number = PLATFORM_MARKUP_PERCENT
+): {
+  grossAmount: number;
+  platformFee: number;
+  netToMarket: number;
+  effectiveFeeRate: number;
+} {
+  // The platform fee is effectively the markup on the purchase
+  // For a buy at markup%, we're sending (1 - markup%) to market
+  const effectiveFeeRate = markupPercent;
+  const platformFee = grossAmount * effectiveFeeRate;
+  const netToMarket = grossAmount - platformFee;
+
+  return {
+    grossAmount,
+    platformFee,
+    netToMarket,
+    effectiveFeeRate,
+  };
+}
+
+/**
+ * 💵 Calculates affiliate earnings for a bet.
+ * 
+ * @param betAmount - The gross bet amount from user
+ * @returns Breakdown of affiliate earnings by tier
+ */
+export function calculateAffiliateEarnings(betAmount: number): {
+  tier1Earnings: number;
+  tier2Earnings: number;
+  totalAffiliateEarnings: number;
+  platformRetained: number;
+} {
+  // Affiliate earnings are based on the notional platform fee (5% of bet volume)
+  const notionalPlatformFee = betAmount * PLATFORM_FEE_RATE;
+  const tier1Earnings = notionalPlatformFee * TIER_1_COMMISSION_RATE; // 8% of 5% = 0.4%
+  const tier2Earnings = notionalPlatformFee * TIER_2_COMMISSION_RATE; // 2% of 5% = 0.1%
+  const totalAffiliateEarnings = tier1Earnings + tier2Earnings;
+  const platformRetained = notionalPlatformFee - totalAffiliateEarnings;
+
+  return {
+    tier1Earnings,
+    tier2Earnings,
+    totalAffiliateEarnings,
+    platformRetained,
+  };
+}
+
 interface GetLiveMarketsParams {
   limit?: number;
   cursor?: string;
@@ -348,7 +476,7 @@ export async function getMarketDetails(marketId: string): Promise<LiveMarket | n
  * 🎯 **UTILITY FUNCTION: Get Market Odds with Full Context**
  * 
  * Returns comprehensive market odds data including normalized probabilities,
- * execution prices, and market efficiency metrics.
+ * execution prices, market efficiency metrics, AND marked-up prices for WinBig platform.
  */
 export async function getMarketOdds(conditionId: string): Promise<{
   conditionId: string;
@@ -363,11 +491,19 @@ export async function getMarketOdds(conditionId: string): Promise<{
     yesSellPrice: number;
     noSellPrice: number;
   };
+  /** 💰 Marked-up prices that WinBig shows to users (includes platform margin) */
+  markedUp: MarkedUpPrices;
   efficiency: {
     yesMidpoint: number;
     noMidpoint: number;
     totalMidpoints: number;
     marketEfficiency: number;
+  };
+  /** Polymarket's natural bid/ask spread before our markup */
+  polymarketSpread: {
+    yesSpread: number;
+    noSpread: number;
+    avgSpread: number;
   };
   raw: {
     yesExecutionPercent: number;
@@ -388,14 +524,32 @@ export async function getMarketOdds(conditionId: string): Promise<{
       return null;
     }
     
-         const { yesImpliedProbability, noImpliedProbability, marketEfficiency, calculationMethod } = getMarketOddsFromRedis(marketData);
-     
-     const yesBuyPrice = parseFloat(String(marketData.yes_buy_price || '0'));
-     const noBuyPrice = parseFloat(String(marketData.no_buy_price || '0'));
-     const yesSellPrice = parseFloat(String(marketData.yes_sell_price || '0'));
-     const noSellPrice = parseFloat(String(marketData.no_sell_price || '0'));
-     const yesMidpoint = parseFloat(String(marketData.yes_midpoint || '0'));
-     const noMidpoint = parseFloat(String(marketData.no_midpoint || '0'));
+    const { yesImpliedProbability, noImpliedProbability, marketEfficiency, calculationMethod } = getMarketOddsFromRedis(marketData);
+    
+    const yesBuyPrice = parseFloat(String(marketData.yes_buy_price || '0'));
+    const noBuyPrice = parseFloat(String(marketData.no_buy_price || '0'));
+    const yesSellPrice = parseFloat(String(marketData.yes_sell_price || '0'));
+    const noSellPrice = parseFloat(String(marketData.no_sell_price || '0'));
+    const yesMidpoint = parseFloat(String(marketData.yes_midpoint || '0'));
+    const noMidpoint = parseFloat(String(marketData.no_midpoint || '0'));
+    
+    // Calculate raw Polymarket spread (before our markup)
+    const yesSpread = yesBuyPrice > 0 && yesSellPrice > 0 
+      ? (yesBuyPrice - yesSellPrice) / yesMidpoint 
+      : 0;
+    const noSpread = noBuyPrice > 0 && noSellPrice > 0 
+      ? (noBuyPrice - noSellPrice) / noMidpoint 
+      : 0;
+    const avgSpread = (yesSpread + noSpread) / 2;
+    
+    // Apply WinBig platform markup to prices
+    const rawPrices: RawPrices = {
+      yesBuyPrice,
+      yesSellPrice,
+      noBuyPrice,
+      noSellPrice,
+    };
+    const markedUp = applyOddsMarkup(rawPrices);
     
     return {
       conditionId,
@@ -407,7 +561,7 @@ export async function getMarketOdds(conditionId: string): Promise<{
         calculationMethod
       },
       
-      // 💰 Execution prices (what users actually pay)
+      // 💰 Raw execution prices from Polymarket (what we pay)
       execution: {
         yesBuyPrice,
         noBuyPrice,
@@ -415,12 +569,22 @@ export async function getMarketOdds(conditionId: string): Promise<{
         noSellPrice
       },
       
+      // 💵 Marked-up prices shown to users (includes our margin)
+      markedUp,
+      
       // 📈 Market efficiency metrics
       efficiency: {
         yesMidpoint,
         noMidpoint,
         totalMidpoints: yesMidpoint + noMidpoint,
         marketEfficiency
+      },
+      
+      // 📊 Polymarket's natural spread (useful for monitoring)
+      polymarketSpread: {
+        yesSpread,
+        noSpread,
+        avgSpread,
       },
       
       // ⚠️ DON'T USE: Raw execution prices (they don't sum to 100%)
