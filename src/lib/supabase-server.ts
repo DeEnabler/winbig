@@ -441,7 +441,7 @@ export async function getBetByShareCode(shareCode: string): Promise<{ success: b
         return { success: false, error: 'Share link not found or not linked to a bet' };
       }
       console.error('Error fetching share lookup:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: error?.message || 'Unknown error' };
     }
 
     // Now fetch the actual bet
