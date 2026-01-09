@@ -435,16 +435,21 @@ export async function getBetByShareCode(shareCode: string): Promise<{ success: b
       .eq('share_code', shareCode)
       .single();
 
-    // Handle not found case
-    if (error?.code === 'PGRST116' || !share?.bet_id) {
-      console.log('❌ No bet-linked share found with code:', shareCode);
-      return { success: false, error: 'Share link not found or not linked to a bet' };
+    // Handle errors
+    if (error) {
+      const errorMessage = (error as { message?: string })?.message || 'Unknown error';
+      if (error.code === 'PGRST116') {
+        console.log('❌ No bet-linked share found with code:', shareCode);
+        return { success: false, error: 'Share link not found or not linked to a bet' };
+      }
+      console.error('Error fetching share lookup:', error);
+      return { success: false, error: errorMessage };
     }
     
-    // Handle other errors
-    if (error) {
-      console.error('Error fetching share lookup:', error);
-      return { success: false, error: error.message };
+    // Handle missing bet_id
+    if (!share?.bet_id) {
+      console.log('❌ Share found but no bet_id linked:', shareCode);
+      return { success: false, error: 'Share link not linked to a bet' };
     }
 
     // Now fetch the actual bet
