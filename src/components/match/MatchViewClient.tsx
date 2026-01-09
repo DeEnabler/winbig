@@ -457,16 +457,28 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
   }, []);
 
   const choiceData = useMemo(() => {
-    // Use execution preview if available, otherwise use match's actual market odds (not 50/50!)
-    const yesPrice = executionPreview?.success 
-      ? (executionPreview.vwap || 0) * 100 
-      : (match.yesImpliedProbability * 100) || (match.yesPrice * 100) || 50;
-    const noPrice = 100 - yesPrice;
+    // Default to market odds from the match
+    let yesPrice = (match.yesImpliedProbability * 100) || (match.yesPrice * 100) || 50;
+    let noPrice = 100 - yesPrice;
+    
+    // If we have execution preview data, use it for the SELECTED outcome only
+    // IMPORTANT: VWAP from execution preview is for the selected outcome, not always YES
+    if (executionPreview?.success && executionPreview.vwap && selectedChoice) {
+      const previewPrice = executionPreview.vwap * 100;
+      if (selectedChoice === 'YES') {
+        yesPrice = previewPrice;
+        noPrice = 100 - yesPrice;
+      } else if (selectedChoice === 'NO') {
+        noPrice = previewPrice;
+        yesPrice = 100 - noPrice;
+      }
+    }
+    
     return {
       YES: { label: 'YES', price: yesPrice, color: 'text-green-500', gradient: 'from-green-500/10 to-transparent' },
       NO: { label: 'NO', price: noPrice, color: 'text-red-500', gradient: 'from-red-500/10 to-transparent' },
     };
-  }, [executionPreview, match.yesImpliedProbability, match.yesPrice]);
+  }, [executionPreview, match.yesImpliedProbability, match.yesPrice, selectedChoice]);
 
   return (
     <div className="max-w-2xl mx-auto">
