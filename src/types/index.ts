@@ -246,25 +246,37 @@ export interface OrderBook {
 
 /**
  * 💰 Economic breakdown for affiliate earnings
+ * Based on ACTUAL collected fees (not phantom fees).
+ * See docs/ECONOMIC_FLOW_ANALYSIS.md for full breakdown.
  */
 export interface AffiliateEarningsBreakdown {
+  /** Tier 1 (direct referrer) earnings */
   tier1: number;
+  /** Tier 2 (sub-referrer) earnings */
   tier2: number;
+  /** Total affiliate payout */
   total: number;
+  /** Amount retained by platform after affiliate payouts */
   platformRetained: number;
 }
 
 /**
  * 💵 Full economic breakdown for a bet execution
+ * 
+ * All calculations based on ACTUAL collected fees via markup:
+ * - Platform markup: 3% (PLATFORM_MARKUP_PERCENT)
+ * - Tier 1: 25% of fee = 0.75% of bet
+ * - Tier 2: 10% of fee = 0.30% of bet
+ * - Platform retains: 65% of fee = 1.95% of bet (before gas)
  */
 export interface BetEconomics {
   /** What the user pays (gross amount) */
   grossAmount: number;
   /** What goes to Polymarket after platform fee */
   netToMarket: number;
-  /** WinBig's captured fee */
+  /** WinBig's captured fee (based on ACTUAL markup) */
   platformFee: number;
-  /** Platform markup percentage (e.g., 0.02 for 2%) */
+  /** Platform markup percentage (e.g., 0.03 for 3%) */
   platformMarkupPercent: number;
   /** Polymarket's natural spread from orderbook */
   polymarketSpread: number;
@@ -272,8 +284,12 @@ export interface BetEconomics {
   totalEffectiveSpread: number;
   /** Expected shares based on net amount */
   expectedShares: number;
-  /** Affiliate earnings breakdown */
+  /** Affiliate earnings breakdown (based on actual fees) */
   affiliateEarnings: AffiliateEarningsBreakdown;
+  /** Estimated net profit after affiliate payouts and gas (for monitoring) */
+  estimatedNetProfit?: number;
+  /** Warning if margins are too thin */
+  profitabilityWarning?: string;
 }
 
 export interface ExecutionPreview {

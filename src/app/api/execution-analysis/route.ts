@@ -32,7 +32,9 @@ function parseOrderbook(data: any): OrderBook | null {
 }
 
 /**
- * Extended execution result with economic breakdown
+ * Extended execution result with economic breakdown.
+ * Based on ACTUAL collected fees (markup), not phantom fees.
+ * See docs/ECONOMIC_FLOW_ANALYSIS.md for full breakdown.
  */
 interface ExtendedExecutionResult {
   success: boolean;
@@ -45,29 +47,33 @@ interface ExtendedExecutionResult {
   price_impact_pct?: number;
   summary?: string;
   steps?: string[];
-  // 💰 Economic breakdown (NEW)
+  // 💰 Full economic breakdown
   economics?: {
-    // What user pays
+    /** What user pays (gross amount) */
     grossAmount: number;
-    // What goes to Polymarket after our fee
+    /** What goes to Polymarket after platform fee */
     netToMarket: number;
-    // WinBig's captured fee
+    /** WinBig's captured fee (based on ACTUAL markup) */
     platformFee: number;
-    // Platform markup percentage
+    /** Platform markup percentage (e.g., 0.03 for 3%) */
     platformMarkupPercent: number;
-    // Polymarket's natural spread (bid-ask)
+    /** Polymarket's natural spread (bid-ask) */
     polymarketSpread: number;
-    // Combined total spread user experiences
+    /** Combined total spread user experiences */
     totalEffectiveSpread: number;
-    // Expected shares based on net amount sent to market
+    /** Expected shares based on net amount sent to market */
     expectedShares: number;
-    // Affiliate earnings breakdown
+    /** Affiliate earnings breakdown (based on actual fees) */
     affiliateEarnings: {
       tier1: number;
       tier2: number;
       total: number;
       platformRetained: number;
     };
+    /** Estimated net profit after affiliate payouts and gas */
+    estimatedNetProfit?: number;
+    /** Warning if margins are too thin */
+    profitabilityWarning?: string;
   };
 }
 
@@ -150,7 +156,7 @@ function calculateExecutionFromCost(
     // Calculate total effective spread (Polymarket spread + our markup)
     const totalEffectiveSpread = polymarketSpread + (PLATFORM_MARKUP_PERCENT * 2);
     
-    // Calculate affiliate earnings
+    // Calculate affiliate earnings (now based on ACTUAL collected fees)
     const affiliateEarnings = calculateAffiliateEarnings(grossAmount);
 
     return {
@@ -163,7 +169,7 @@ function calculateExecutionFromCost(
         price_impact_pct: priceImpactPct,
         summary: `Spend $${grossAmount.toFixed(2)} to get ~${totalSharesExecuted.toFixed(2)} shares.`,
         steps: executionSteps,
-        // 💰 Full economic breakdown
+        // 💰 Full economic breakdown (based on ACTUAL fees, not phantom)
         economics: {
           grossAmount,
           netToMarket,
@@ -178,6 +184,9 @@ function calculateExecutionFromCost(
             total: affiliateEarnings.totalAffiliateEarnings,
             platformRetained: affiliateEarnings.platformRetained,
           },
+          // 💵 Profitability metrics (new)
+          estimatedNetProfit: affiliateEarnings.estimatedNetProfit,
+          profitabilityWarning: affiliateEarnings.profitabilityWarning,
         },
     };
 }

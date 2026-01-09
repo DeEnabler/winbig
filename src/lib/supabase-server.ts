@@ -4,6 +4,8 @@ import {
   TIER_1_COMMISSION_RATE, 
   TIER_2_COMMISSION_RATE,
   PLATFORM_MARKUP_PERCENT,
+  MAX_AFFILIATE_PAYOUT_RATE,
+  ESTIMATED_GAS_COST_USD,
 } from '@/lib/marketService';
 
 console.log('🔧 Initializing server-side Supabase client...');
@@ -266,11 +268,23 @@ export interface AffiliateEarning {
   notes?: string | null;
 }
 
-// Commission rates are now imported from @/lib/marketService:
-// TIER_1_COMMISSION_RATE = 0.08 (8% of platform fee)
-// TIER_2_COMMISSION_RATE = 0.02 (2% of platform fee)
-// PLATFORM_FEE_RATE = 0.05 (5% platform fee on bets)
-// PLATFORM_MARKUP_PERCENT = 0.02 (2% markup on each side)
+// ============================================
+// COMMISSION RATES (imported from @/lib/marketService)
+// ============================================
+// These rates are based on ACTUAL collected fees, NOT phantom fees.
+// See docs/ECONOMIC_FLOW_ANALYSIS.md for full breakdown.
+//
+// PLATFORM_MARKUP_PERCENT = 0.03 (3% markup on each side)
+// PLATFORM_FEE_RATE = 0.03 (same as markup - what we ACTUALLY collect)
+// TIER_1_COMMISSION_RATE = 0.25 (25% of platform fee = 0.75% of bet)
+// TIER_2_COMMISSION_RATE = 0.10 (10% of platform fee = 0.30% of bet)
+//
+// Example: $100 bet
+// - Platform collects: $3.00 (3% markup)
+// - Tier 1 affiliate: $0.75 (25% of $3.00)
+// - Tier 2 affiliate: $0.30 (10% of $3.00)
+// - Platform retains: $1.95 (65% of $3.00, before gas)
+// ============================================
 
 // Helper function to get user profile by wallet address
 export async function getUserProfileByWallet(walletAddress: string): Promise<{ success: boolean; data?: UserProfile; error?: string }> {

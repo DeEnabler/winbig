@@ -26,11 +26,29 @@ export const wagmiAdapter = new WagmiAdapter({
 
 export const wagmiConfig = wagmiAdapter.wagmiConfig;
 
-// Lazy initialization of appKit to ensure it's created on client side only
+// AppKit instance - must be initialized before useAppKit hooks are called
 let _appKit: AppKit | null = null;
+let _isInitialized = false;
 
-function getOrCreateAppKit(): AppKit {
-  if (_appKit) return _appKit;
+/**
+ * Initialize AppKit. Must be called once on client side before any useAppKit hooks.
+ * Safe to call multiple times - will only initialize once.
+ */
+export function initializeAppKit(): AppKit | null {
+  if (typeof window === 'undefined') {
+    return null; // SSR - don't initialize
+  }
+  
+  if (_isInitialized) {
+    return _appKit;
+  }
+  
+  _isInitialized = true;
+  
+  if (!projectId) {
+    console.warn('⚠️ Cannot initialize AppKit: Project ID is not set');
+    return null;
+  }
   
   _appKit = createAppKit({
     adapters: [wagmiAdapter],
@@ -51,13 +69,38 @@ function getOrCreateAppKit(): AppKit {
   return _appKit;
 }
 
-// Export a proxy that lazily initializes appKit
+/**
+ * Get the AppKit instance. Returns null if not initialized.
+ */
+export function getAppKit(): AppKit | null {
+  return _appKit;
+}
+
+/**
+ * AppKit instance proxy - provides safe access to the initialized AppKit.
+ * Automatically initializes on first access if not already initialized.
+ */
 export const appKit = new Proxy({} as AppKit, {
   get(_target, prop) {
-    const kit = getOrCreateAppKit();
-    const value = (kit as any)[prop];
+    // Try to initialize if not done yet (client-side only)
+    if (!_isInitialized) {
+      initializeAppKit();
+    }
+    
+    if (!_appKit) {
+      console.warn(`AppKit not initialized. Cannot access "${String(prop)}".`);
+      // Return a no-op function to prevent crashes
+      if (prop === 'open') {
+        return () => {
+          console.warn('AppKit.open() called but AppKit is not initialized');
+        };
+      }
+      return undefined;
+    }
+    
+    const value = (_appKit as any)[prop];
     if (typeof value === 'function') {
-      return value.bind(kit);
+      return value.bind(_appKit);
     }
     return value;
   }
