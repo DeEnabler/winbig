@@ -2,19 +2,20 @@
 // src/app/api/og/route.tsx
 import { ImageResponse } from '@vercel/og';
 import { type NextRequest } from 'next/server';
-import type { OgData } from '@/types'; // Import OgData type
+import type { OgData } from '@/types';
 
-export const runtime = 'edge'; // Recommended for @vercel/og
+export const runtime = 'edge';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.winbig.fun';
 
   // Extract all params relevant to OgData
   const ogData: OgData = {
     predictionText: searchParams.get('predictionText') || 'A WinBig Prediction',
     userChoice: searchParams.get('userChoice') as 'YES' | 'NO' | undefined,
     userAvatar: searchParams.get('userAvatar') || 'https://placehold.co/128x128.png?text=WB',
-    username: searchParams.get('username') || undefined, // Make username optional for more generic cards
+    username: searchParams.get('username') || undefined,
     outcome: (searchParams.get('outcome')?.toUpperCase() as OgData['outcome']) || 'PENDING',
     betAmount: searchParams.get('betAmount') ? parseFloat(searchParams.get('betAmount')!) : undefined,
     betSize: searchParams.get('betSize') || undefined,
@@ -27,7 +28,6 @@ export async function GET(req: NextRequest) {
     ogType: searchParams.get('ogType') as OgData['ogType'] || 'generic_prediction',
   };
 
-
   let choiceColor = 'text-gray-300';
   if (ogData.userChoice === 'YES') choiceColor = 'text-green-400';
   if (ogData.userChoice === 'NO') choiceColor = 'text-red-400';
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   let outcomeBgColor = 'bg-gray-500';
   let outcomeTextColor = 'text-white';
   if (ogData.outcome === 'WON') {
-    outcomeBgColor = 'bg-yellow-500'; // Gold for WON
+    outcomeBgColor = 'bg-yellow-500';
   } else if (ogData.outcome === 'LOST') {
     outcomeBgColor = 'bg-slate-700';
   } else if (ogData.outcome === 'SOLD') {
@@ -44,102 +44,75 @@ export async function GET(req: NextRequest) {
     outcomeBgColor = 'bg-purple-600';
   }
 
-
-  let ctaText = "Bet with me on WinBig!";
+  // 🔥 Snappy, ego-inducing CTAs
+  let ctaText = "Think you can beat me?";
   if (ogData.ogType === 'match_challenge') {
-    ctaText = "Bet against me?";
-    if (ogData.outcome === 'WON') ctaText = "I called it. Can you?";
-    else if (ogData.outcome === 'LOST') ctaText = "Think you’re smarter?";
+    ctaText = "Prove me wrong 👀";
+    if (ogData.outcome === 'WON') ctaText = "I called it. Your turn.";
+    else if (ogData.outcome === 'LOST') ctaText = "Think you're smarter?";
   } else if (ogData.ogType === 'position_outcome') {
-    if (ogData.outcome === 'WON') ctaText = `I WON ${ogData.betAmount ? '$' + ogData.betAmount : ''}!`;
-    else if (ogData.outcome === 'SOLD') ctaText = `SOLD for ${ogData.betAmount ? '$' + ogData.betAmount : ''}!`;
-    else if (ogData.outcome === 'LOST') ctaText = `Took an L on this one.`;
-    else ctaText = "Check out my bet!";
+    if (ogData.outcome === 'WON') ctaText = `💰 +$${ogData.betAmount || ''}`;
+    else if (ogData.outcome === 'SOLD') ctaText = `Cashed out $${ogData.betAmount || ''}`;
+    else if (ogData.outcome === 'LOST') ctaText = `L taken. Next is mine.`;
+    else ctaText = "Join my bet!";
   }
-  
-  const tagline = ogData.ogType === 'match_challenge' ? 'Bet Like a Legend!' : 'WinBig - Track Your Bets!';
 
-  const mainTitle = ogData.titleOverride || (
-    ogData.username && ogData.userChoice ?
-    `${ogData.username} bet ${ogData.userChoice} on:` :
-    `Prediction:`
-  );
-
+  // Shorter prediction for display
+  const shortPrediction = ogData.predictionText.length > 100 
+    ? ogData.predictionText.substring(0, 97) + '...'
+    : ogData.predictionText;
 
   return new ImageResponse(
     (
       <div tw="flex flex-col w-full h-full items-center justify-between text-white p-10 pb-6" style={{ fontFamily: 'sans-serif', background: 'linear-gradient(135deg, #0F1629 0%, #1A2238 50%, #0F1629 100%)' }}>
-        {/* Header: App Logo + User Avatar + Username */}
+        {/* Header: Logo + Bet Amount */}
         <div tw="flex w-full justify-between items-center">
           <div tw="flex items-center">
-             <div tw="text-5xl font-bold mr-3" style={{color: '#FF7A3D'}}>WinBig</div>
-             {ogData.bonusApplied && (
-                <div tw="flex items-center bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-xl font-semibold shadow-md">
-                    ✨ +20% Bonus!
-                </div>
-             )}
+            {/* Logo */}
+            <img 
+              src={`${appUrl}/logo.png`} 
+              tw="w-16 h-16 rounded-xl mr-4" 
+              alt="WinBig" 
+            />
+            <div tw="text-4xl font-bold" style={{color: '#FF7A3D'}}>WinBig</div>
           </div>
-          {ogData.username && (
-            <div tw="flex items-center">
-              <span tw="text-2xl mr-4" style={{color: '#E2E8F0'}}>{ogData.username}</span>
-              <img src={ogData.userAvatar} tw="w-20 h-20 rounded-full border-4" style={{borderColor: '#4B6BFB'}} alt="User Avatar" />
+          {/* Bet amount badge - prominent! */}
+          {ogData.betAmount && (
+            <div tw="flex items-center bg-green-500 text-white px-6 py-3 rounded-full text-3xl font-bold shadow-lg">
+              💰 ${ogData.betAmount}
             </div>
           )}
         </div>
 
-        {/* Main Content: Prediction + Stance (if applicable) */}
+        {/* Main Content: Bold YES/NO + Prediction */}
         <div tw="flex flex-col items-center text-center my-auto">
-          <div tw="text-lg uppercase tracking-wider mb-2" style={{color: '#64748B'}}>
-            {ogData.userChoice ? 'predicts' : (ogData.ogType === 'position_outcome' ? 'Bet Result' : 'Featured Prediction')}
-          </div>
+          {/* Big bold choice */}
           {ogData.userChoice && (
-            <div tw={`text-8xl font-bold ${choiceColor} mb-5`}>
+            <div tw={`text-9xl font-black ${choiceColor} mb-4`}>
               {ogData.userChoice}
             </div>
           )}
-          <div tw="text-4xl font-semibold leading-tight max-w-4xl px-4" style={{color: '#E2E8F0'}}>
-            "{ogData.predictionText}"
+          {/* Prediction text */}
+          <div tw="text-3xl font-semibold leading-tight max-w-4xl px-4" style={{color: '#E2E8F0'}}>
+            {shortPrediction}
           </div>
         </div>
 
-        {/* Dynamic Badges Area - only if relevant (e.g. match challenges) */}
-        {ogData.ogType === 'match_challenge' && (
-          <div tw="flex flex-wrap justify-center items-center gap-3 mb-3 text-xl">
-            {ogData.streak && (
-              <div tw="flex items-center text-white px-4 py-1.5 rounded-full shadow-md" style={{backgroundColor: '#FF7A3D'}}>
-                <span tw="mr-1.5">🔥</span> {ogData.streak}-Win Streak
-              </div>
-            )}
-            {ogData.betSize && ( // betSize here often means the bet 'unit' like 5 SOL
-              <div tw="flex items-center bg-green-500 text-white px-4 py-1.5 rounded-full shadow-md">
-                <span tw="mr-1.5">💰</span> {ogData.betSize} {(ogData.betSize.match(/^\d+$/) ? 'SOL ' : '')}Bet
-              </div>
-            )}
-             {ogData.betAmount && !ogData.betSize && ( // fallback to betAmount if betSize not specified for OG
-              <div tw="flex items-center bg-green-500 text-white px-4 py-1.5 rounded-full shadow-md">
-                <span tw="mr-1.5">💰</span> ${ogData.betAmount} Bet
-              </div>
-            )}
-            {ogData.rank && (
-              <div tw="flex items-center text-white px-4 py-1.5 rounded-full shadow-md" style={{backgroundColor: '#4B6BFB'}}>
-                <span tw="mr-1.5">👑</span> Rank #{ogData.rank} <span tw="ml-1">in {ogData.rankCategory || 'Predictions'}</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Footer: Outcome, CTA */}
+        {/* Footer: Username/CTA */}
         <div tw="flex w-full justify-between items-center text-2xl">
           <div tw="flex items-center">
-            <div tw={`px-5 py-2 rounded-lg ${outcomeBgColor} ${outcomeTextColor} font-bold shadow-md`}>
-              {ogData.outcome}
-            </div>
+            {ogData.username && (
+              <div tw="flex items-center">
+                <img src={ogData.userAvatar} tw="w-12 h-12 rounded-full border-2 mr-3" style={{borderColor: '#4B6BFB'}} alt="" />
+                <span style={{color: '#E2E8F0'}}>{ogData.username}</span>
+              </div>
+            )}
           </div>
-          <div tw="italic" style={{color: '#FF7A3D'}}>{ctaText}</div>
+          <div tw="font-bold" style={{color: '#FF7A3D'}}>{ctaText}</div>
         </div>
 
-        <div tw="w-full text-center text-lg mt-3" style={{color: '#64748B'}}>{tagline}</div>
-
+        {/* Subtle tagline */}
+        <div tw="w-full text-center text-lg mt-2" style={{color: '#64748B'}}>winbig.fun</div>
       </div>
     ),
     {

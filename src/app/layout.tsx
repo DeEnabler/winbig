@@ -18,9 +18,60 @@ import { InitialPopups } from '@/components/popups/InitialPopups';
 
 export const dynamic = 'force-dynamic';
 
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.winbig.fun';
+
 export const metadata = {
-  title: 'WinBig',
-  description: 'WinBig is a decentralized prediction market platform.',
+  title: 'WinBig - Bet Like a Legend',
+  description: 'Place bets on real-world predictions. Challenge friends. Win big. 🔥',
+  keywords: ['prediction market', 'betting', 'crypto', 'web3', 'polymarket'],
+  authors: [{ name: 'WinBig' }],
+  creator: 'WinBig',
+  publisher: 'WinBig',
+  metadataBase: new URL(appUrl),
+  
+  // Icons for various platforms
+  icons: {
+    icon: [
+      { url: '/logo.png', sizes: '32x32', type: 'image/png' },
+      { url: '/vb-icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/logo.png', sizes: '180x180', type: 'image/png' },
+    ],
+    shortcut: '/logo.png',
+  },
+  
+  // Default OG for pages without custom OG
+  openGraph: {
+    title: 'WinBig - Bet Like a Legend',
+    description: 'Place bets on real-world predictions. Challenge friends. Win big. 🔥',
+    url: appUrl,
+    siteName: 'WinBig',
+    images: [
+      {
+        url: `${appUrl}/logo.png`,
+        width: 512,
+        height: 512,
+        alt: 'WinBig Logo',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  
+  // Twitter card
+  twitter: {
+    card: 'summary',
+    title: 'WinBig - Bet Like a Legend',
+    description: 'Place bets on real-world predictions. Challenge friends. Win big. 🔥',
+    images: [`${appUrl}/logo.png`],
+    creator: '@winbigfun',
+  },
+  
+  // For messaging apps
+  other: {
+    'msapplication-TileImage': `${appUrl}/logo.png`,
+  },
 };
 
 export default function RootLayout({

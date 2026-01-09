@@ -119,16 +119,23 @@ export async function generateMetadata(
     ogImageUrl.searchParams.set('betAmount', bet.amount.toString());
   }
 
-  // Different title/description for bet vs prediction shares
+  // Snappy, ego-inducing, click-bait copy 🔥
   let title: string;
   let description: string;
   
+  // Shorten the prediction for titles (keep it punchy)
+  const shortPrediction = predictionText.length > 60 
+    ? predictionText.substring(0, 57) + '...' 
+    : predictionText;
+  
   if (bet) {
-    title = `${shortWallet} bet $${bet.amount} on ${outcome} - WinBig`;
-    description = `Challenge this bet: "${predictionText.substring(0, 100)}..."`;
+    // Personal, bold, direct - "I bet $50 this happens"
+    title = `💰 $${bet.amount} says ${outcome}: ${shortPrediction}`;
+    description = `Think I'm wrong? Prove it. 👀`;
   } else {
-    title = `${shortWallet} predicts ${outcome}! - WinBig`;
-    description = `Think ${shortWallet} is wrong? Prove it! "${predictionText.substring(0, 80)}..."`;
+    // For predictions without bets - still bold
+    title = `🎯 ${outcome}: ${shortPrediction}`;
+    description = `I called it. Can you? 🔥`;
   }
 
   return {
