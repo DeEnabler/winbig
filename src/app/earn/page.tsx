@@ -47,9 +47,9 @@ export default function EarnPage() {
   // Simulator state (for non-connected users)
   const [simulatedFriends, setSimulatedFriends] = useState(5);
   const dailyBetPerFriend = 100; // $100 USDT
-  const platformFeeRate = 0.05; // 5%
-  const tier1Rate = 0.08; // 8%
-  const tier2Rate = 0.02; // 2%
+  const platformFeeRate = 0.03; // 3% (Markup)
+  const tier1Rate = 0.25; // 25% of platform fee
+  const tier2Rate = 0.10; // 10% of platform fee
 
   const dailyFeePerFriend = dailyBetPerFriend * platformFeeRate;
   const directDailyEarnings = simulatedFriends * dailyFeePerFriend * tier1Rate;
@@ -82,13 +82,13 @@ export default function EarnPage() {
     },
     {
       icon: <Coins className="w-10 h-10 text-primary mb-3" />,
-      title: 'Earn 8% (Tier 1)',
-      description: 'Get 8% of the platform fee whenever your direct referrals bet.',
+      title: 'Earn 25% (Tier 1)',
+      description: 'Get 25% of the platform fee whenever your direct referrals bet.',
     },
     {
       icon: <Users className="w-10 h-10 text-primary mb-3" />,
-      title: 'Earn 2% (Tier 2)',
-      description: 'Plus 2% from your referrals\' referrals. It compounds!',
+      title: 'Earn 10% (Tier 2)',
+      description: 'Plus 10% from your referrals\' referrals. It compounds!',
     },
   ];
 
@@ -244,36 +244,50 @@ export default function EarnPage() {
                 </Card>
               </div>
 
-              {/* Affiliate Link Card */}
-              {earnings.affiliateUrl && (
-                <Card className="mb-6 bg-gradient-to-r from-primary/5 to-accent/5 border-primary/20">
-                  <CardHeader>
-                    <CardTitle className="flex items-center text-lg">
-                      <Share2 className="w-5 h-5 mr-2" /> Your Affiliate Link
-                    </CardTitle>
-                    <CardDescription>Share this link to earn from referrals</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 bg-background/80 rounded-lg px-4 py-3 font-mono text-sm truncate border">
-                        {earnings.affiliateUrl}
-                      </div>
-                      <Button onClick={handleCopyLink} variant="default" size="lg" className="shrink-0">
-                        {copied ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
-                        {copied ? 'Copied!' : 'Copy'}
+              {/* How to Earn Section */}
+              <Card className="mb-6 bg-gradient-to-r from-primary/5 to-accent/5 border-primary/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-lg">
+                    <Flame className="w-5 h-5 mr-2" /> How to Earn
+                  </CardTitle>
+                  <CardDescription>Share your predictions to grow your network and earn commissions.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      The best way to earn is by sharing specific predictions. When people bet against you or with you, they join your referral network forever.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Button asChild variant="outline" className="w-full justify-between h-auto py-4 px-6">
+                        <a href="/">
+                          <div className="text-left">
+                            <div className="font-bold">Share a Market</div>
+                            <div className="text-xs text-muted-foreground">Find a hot topic to share</div>
+                          </div>
+                          <ChevronRight className="w-5 h-5 ml-2" />
+                        </a>
+                      </Button>
+                      <Button asChild variant="outline" className="w-full justify-between h-auto py-4 px-6">
+                        <a href="/positions">
+                          <div className="text-left">
+                            <div className="font-bold">Share Your Bet</div>
+                            <div className="text-xs text-muted-foreground">Show off your winning streak</div>
+                          </div>
+                          <ChevronRight className="w-5 h-5 ml-2" />
+                        </a>
                       </Button>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <Badge variant="outline" className="text-xs">
-                        <Layers className="w-3 h-3 mr-1" /> 8% Tier 1 Commission
+                        <Layers className="w-3 h-3 mr-1" /> 25% of Platform Fee (Tier 1)
                       </Badge>
                       <Badge variant="outline" className="text-xs">
-                        <Users className="w-3 h-3 mr-1" /> 2% Tier 2 Commission
+                        <Users className="w-3 h-3 mr-1" /> 10% of Platform Fee (Tier 2)
                       </Badge>
                     </div>
-                  </CardContent>
-                </Card>
-              )}
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* Recent Earnings Activity */}
               {earnings.recentAffiliateEarnings && earnings.recentAffiliateEarnings.length > 0 && (
@@ -394,7 +408,7 @@ export default function EarnPage() {
             <p className="text-2xl md:text-3xl font-bold text-green-500 mt-1">
               You could earn ~{formatCurrency(directDailyEarnings)}/day
             </p>
-            <p className="text-sm text-muted-foreground">(8% of 5% platform fee from direct referrals)</p>
+            <p className="text-sm text-muted-foreground">(25% of 3% platform fee from direct referrals)</p>
           </div>
 
           <div className="mb-5">
@@ -421,7 +435,7 @@ export default function EarnPage() {
             <p className="text-xl md:text-2xl font-bold text-green-400 mt-1">
               + {formatCurrency(subDailyEarnings)}/day
             </p>
-            <p className="text-sm text-muted-foreground">(2% of fees from tier-2 referrals)</p>
+            <p className="text-sm text-muted-foreground">(10% of fees from tier-2 referrals)</p>
           </div>
           <p className="text-center text-3xl md:text-4xl font-extrabold text-primary mt-5">
             Total: ~{formatCurrency(totalDailyEarnings)}/day
@@ -452,10 +466,10 @@ export default function EarnPage() {
       {/* Footer */}
       <footer className="text-center mt-8 md:mt-10 py-5 border-t border-border/50">
         <p className="text-xs text-muted-foreground mb-1">
-          <ShieldCheck className="w-3 h-3 inline mr-1" /> Revenue is generated from a 5% platform fee on each bet.
+          <ShieldCheck className="w-3 h-3 inline mr-1" /> Revenue is generated from a 3% platform fee on each bet.
         </p>
         <p className="text-xs text-muted-foreground">
-          Tier 1 affiliates earn 8% of fees. Tier 2 affiliates earn 2% of fees.
+          Tier 1 affiliates earn 25% of fees. Tier 2 affiliates earn 10% of fees.
         </p>
       </footer>
     </div>
