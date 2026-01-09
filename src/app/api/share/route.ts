@@ -1,6 +1,6 @@
 // src/app/api/share/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { getBetById, updateBetShareCode } from '@/lib/supabase-server';
+import { getBetById, updateBetShareCode, supabase } from '@/lib/supabase-server';
 import { generateShareCode, getShareUrl, isValidShareCode } from '@/lib/shareCode';
 
 /**
@@ -56,6 +56,13 @@ export async function POST(request: NextRequest) {
     const bet = betResult.data;
     
     // Check if bet already has a share entry in prediction_shares
+    if (!supabase) {
+      return NextResponse.json(
+        { success: false, error: 'Database not available' },
+        { status: 500 }
+      );
+    }
+    
     const { data: existingShare } = await supabase
       .from('prediction_shares')
       .select('share_code')
