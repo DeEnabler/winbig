@@ -2,11 +2,12 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Gift, Zap, LogIn } from 'lucide-react'; // Added LogIn
+import { Gift, Zap, LogIn } from 'lucide-react';
 import { useEntryContext } from '@/contexts/EntryContext';
 import { useRouter } from 'next/navigation';
 import { useAccount } from 'wagmi';
 import { useToast } from '@/hooks/use-toast';
+import { appKit } from '@/components/providers/wagmi-config';
 
 export default function StickyCtaBanner() {
   const router = useRouter();
@@ -18,10 +19,12 @@ export default function StickyCtaBanner() {
 
   const handleCTAClick = () => {
     if (!isConnected) {
-            toast({ 
-              title: showBonusCTA ? "Connect Wallet for Bonus!" : "Connect Wallet", 
+      toast({ 
+        title: showBonusCTA ? "Connect Wallet for Bonus!" : "Connect Wallet", 
         description: showBonusCTA ? "Connect your wallet to claim your 10 SOL bonus and start betting!" : "Connect your wallet to start betting!" 
-            });
+      });
+      // Actually open the wallet modal!
+      appKit.open();
     } else {
       // If connected, navigate to a primary betting area, e.g., the main challenge or feed.
       router.push(appendEntryParams('/challenge')); 

@@ -1,5 +1,5 @@
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
-import { createAppKit } from '@reown/appkit/react'
+import { createAppKit, type AppKit } from '@reown/appkit/react'
 import { bsc } from '@reown/appkit/networks'
 import { createStorage, cookieStorage } from '@wagmi/core'
 
@@ -13,7 +13,7 @@ if (!projectId) {
 export const metadata = {
   name: 'WinBig',
   description: 'WinBig Betting App',
-  url: 'https://www.winbig.fun',
+  url: typeof window !== 'undefined' ? window.location.origin : 'https://www.winbig.fun',
   icons: ['https://avatars.githubusercontent.com/u/179229932']
 };
 
@@ -26,11 +26,41 @@ export const wagmiAdapter = new WagmiAdapter({
 
 export const wagmiConfig = wagmiAdapter.wagmiConfig;
 
-export const appKit = createAppKit({
-  adapters: [wagmiAdapter],
-  projectId,
-  networks: [bsc],
-  metadata,
+// Lazy initialization of appKit to ensure it's created on client side only
+let _appKit: AppKit | null = null;
+
+function getOrCreateAppKit(): AppKit {
+  if (_appKit) return _appKit;
+  
+  _appKit = createAppKit({
+    adapters: [wagmiAdapter],
+    projectId,
+    networks: [bsc],
+    metadata,
+    // Enable features for better mobile support
+    features: {
+      analytics: true,
+      email: false,
+      socials: false,
+    },
+    // Allow all wallets including mobile
+    allowUnsupportedChain: false,
+    enableCoinbase: true,
+  });
+  
+  return _appKit;
+}
+
+// Export a proxy that lazily initializes appKit
+export const appKit = new Proxy({} as AppKit, {
+  get(_target, prop) {
+    const kit = getOrCreateAppKit();
+    const value = (kit as any)[prop];
+    if (typeof value === 'function') {
+      return value.bind(kit);
+    }
+    return value;
+  }
 });
 
 // Legacy exports for backward compatibility

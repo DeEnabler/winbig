@@ -19,6 +19,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import BonusDisplay from './BonusDisplay';
 import { useWriteContract } from 'wagmi';
 import { parseUnits } from 'viem';
+import { appKit } from '@/components/providers/wagmi-config';
 
 const REWARD_AMOUNT = 100;
 const REWARD_CURRENCY = "WinPoints";
@@ -243,12 +244,14 @@ export default function ChallengeInvite({
 
     const handleBetAction = async (userAction: 'with' | 'against') => {
     if (!isConnected || !address) {
-      // Logic for non-connected users (toast, etc.) remains the same
+      // Show toast and open wallet modal
       toast({
         title: "Connect Wallet",
         description: "Please connect your wallet to place a bet.",
         duration: 5000
       });
+      // Actually open the wallet modal!
+      appKit.open();
       return;
     }
 
