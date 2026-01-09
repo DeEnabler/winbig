@@ -32,51 +32,120 @@ async function getPositions(userId: string): Promise<{ activePositions: OpenPosi
     
     console.log(`✅ [Positions] Found ${bets.length} bets for user:`, normalizedUserId);
 
-    const positions = await Promise.all(bets.map(async (bet) => {
-        const marketDetails = await getMarketDetails(bet.market_id);
-        const marketOdds = await getMarketOdds(bet.market_id);
-
-        let status: OpenPositionStatus = 'LIVE'; // Default status
-        let currentValue = 0;
-        
-        const now = new Date();
-        const endsAt = marketDetails?.endsAt ? new Date(marketDetails.endsAt) : new Date();
-        const hasEnded = now > endsAt;
-
-        if (bet.status === 'executed' && !hasEnded) {
-            status = 'LIVE';
-            if (marketOdds && bet.shares_received) {
-                currentValue = bet.outcome === 'YES' 
-                    ? bet.shares_received * marketOdds.execution.yesSellPrice 
-                    : bet.shares_received * marketOdds.execution.noSellPrice;
-            }
-        } else if (bet.status === 'executed' && hasEnded) {
-            // This logic is simplified. For now, if the market has ended, we'll mark it as pending collection.
-            // A more robust solution would check a dedicated 'resolution' source.
-            status = 'PENDING_COLLECTION';
-        } else if (bet.status === 'pending') {
-            status = 'LIVE'; // Or a 'PENDING' status if you want to distinguish it
+    // Group bets by market_id + outcome for aggregation
+    const betsByMarketOutcome = new Map<string, typeof bets>();
+    for (const bet of bets) {
+        const key = `${bet.market_id}:${bet.outcome}`;
+        if (!betsByMarketOutcome.has(key)) {
+            betsByMarketOutcome.set(key, []);
         }
-        // NOTE: 'SOLD', 'COLLECTED' etc. would need to be set based on other logic, perhaps another column in the DB.
-        // This is a simplified mapping.
+        betsByMarketOutcome.get(key)!.push(bet);
+    }
+    
+    console.log(`📊 [Positions] Aggregated into ${betsByMarketOutcome.size} unique market positions`);
 
-        return {
-            id: String(bet.id),
-            betId: bet.id, // Include betId for affiliate linking
-            predictionId: bet.market_id,
-            predictionText: marketDetails?.question || 'Unknown Market',
-            category: marketDetails?.category || 'General',
-            userChoice: bet.outcome,
-            betAmount: Number(bet.amount),
-            potentialPayout: Number(bet.potential_payout) || 0,
-            currentValue: currentValue,
-            settledAmount: bet.status === 'executed' && hasEnded ? Number(bet.potential_payout) : undefined, // Simplified
-            endsAt: endsAt,
-            status: status,
-            matchId: bet.session_id || '',
-            imageUrl: marketDetails?.imageUrl,
-        } as OpenPosition;
-    }));
+    // Build aggregated positions
+    const positions = await Promise.all(
+        Array.from(betsByMarketOutcome.entries()).map(async ([key, marketBets]) => {
+            const firstBet = marketBets[0]; // Use first bet for market details (most recent due to ordering)
+            const marketDetails = await getMarketDetails(firstBet.market_id);
+            const marketOdds = await getMarketOdds(firstBet.market_id);
+            
+            const now = new Date();
+            const endsAt = marketDetails?.endsAt ? new Date(marketDetails.endsAt) : new Date();
+            const hasEnded = now > endsAt;
+            
+            // Aggregate values across all bets in this market+outcome
+            let totalAmount = 0;
+            let totalPotentialPayout = 0;
+            let totalShares = 0;
+            let totalSettledAmount = 0;
+            const betIds: number[] = [];
+            let hasAnyExecuted = false;
+            let hasAnyPending = false;
+            let hasBonusApplied = false;
+            
+            for (const bet of marketBets) {
+                const betAmount = Number(bet.amount);
+                totalAmount += betAmount;
+                totalPotentialPayout += Number(bet.potential_payout) || 0;
+                betIds.push(bet.id);
+                
+                // Calculate shares for this bet
+                // Priority: 1) shares_received (from hedger), 2) estimate from execution_price, 3) estimate from odds_shown
+                let betShares = 0;
+                if (bet.shares_received && Number(bet.shares_received) > 0) {
+                    betShares = Number(bet.shares_received);
+                } else if (bet.execution_price && Number(bet.execution_price) > 0) {
+                    // Shares = amount / execution_price
+                    betShares = betAmount / Number(bet.execution_price);
+                } else if (bet.odds_shown_to_user && Number(bet.odds_shown_to_user) > 0) {
+                    // Fallback: estimate shares from odds shown at time of bet
+                    betShares = betAmount / Number(bet.odds_shown_to_user);
+                }
+                totalShares += betShares;
+                
+                if (bet.status === 'executed') {
+                    hasAnyExecuted = true;
+                    if (hasEnded) {
+                        totalSettledAmount += Number(bet.potential_payout) || 0;
+                    }
+                }
+                if (bet.status === 'pending') {
+                    hasAnyPending = true;
+                }
+            }
+            
+            // Calculate current value using total shares × current sell price
+            let currentSellPrice = 0;
+            if (marketOdds) {
+                currentSellPrice = firstBet.outcome === 'YES' 
+                    ? marketOdds.execution.yesSellPrice 
+                    : marketOdds.execution.noSellPrice;
+            }
+            const currentValue = totalShares * currentSellPrice;
+            
+            // Calculate unrealized P&L
+            const unrealizedPnL = currentValue - totalAmount;
+            const unrealizedPnLPercent = totalAmount > 0 ? (unrealizedPnL / totalAmount) * 100 : 0;
+            
+            // Calculate average entry price
+            const avgEntryPrice = totalShares > 0 ? totalAmount / totalShares : 0;
+            
+            // Determine status based on aggregated bet states
+            let status: OpenPositionStatus = 'LIVE';
+            if (hasAnyExecuted && hasEnded) {
+                status = 'PENDING_COLLECTION';
+            } else if (hasAnyExecuted || hasAnyPending) {
+                status = 'LIVE';
+            }
+
+            return {
+                id: key, // Use market:outcome as the aggregate ID
+                betId: firstBet.id, // Primary bet ID (most recent) for affiliate linking
+                betIds: betIds, // All bet IDs in this aggregate
+                betCount: marketBets.length, // Number of bets consolidated
+                predictionId: firstBet.market_id,
+                predictionText: marketDetails?.question || 'Unknown Market',
+                category: marketDetails?.category || 'General',
+                userChoice: firstBet.outcome as 'YES' | 'NO',
+                betAmount: totalAmount,
+                potentialPayout: totalPotentialPayout,
+                totalShares: totalShares,
+                avgEntryPrice: avgEntryPrice,
+                currentValue: currentValue,
+                unrealizedPnL: unrealizedPnL,
+                unrealizedPnLPercent: unrealizedPnLPercent,
+                settledAmount: hasEnded ? totalSettledAmount : undefined,
+                endsAt: endsAt,
+                status: status,
+                matchId: firstBet.session_id || '',
+                imageUrl: marketDetails?.imageUrl,
+                aiHint: marketDetails?.aiHint || marketDetails?.category?.toLowerCase(),
+                bonusApplied: hasBonusApplied,
+            } as OpenPosition;
+        })
+    );
     
     const activePositions = positions.filter(p => p.status === 'LIVE' || p.status === 'ENDING_SOON');
     const pastPositions = positions.filter(p => p.status !== 'LIVE' && p.status !== 'ENDING_SOON');

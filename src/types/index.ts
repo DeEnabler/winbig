@@ -171,6 +171,7 @@ export interface EntryContextType {
   referrerBetId?: number;
   referrerUserId?: string;
   shareCode?: string;
+  affiliateCode?: string; // User's persistent affiliate code (from /ref/[code] links)
   appendEntryParams: (url: string) => string;
 }
 
@@ -195,15 +196,21 @@ export interface OgData {
 export type OpenPositionStatus = 'LIVE' | 'ENDING_SOON' | 'SETTLED_WON' | 'SETTLED_LOST' | 'SOLD' | 'PENDING_COLLECTION' | 'COLLECTED';
 
 export interface OpenPosition {
-  id: string; // Unique ID for this specific bet/position
-  betId?: number; // Supabase bet record ID for affiliate linking
+  id: string; // Unique ID for this specific bet/position (or aggregated position key)
+  betId?: number; // Primary bet ID for affiliate linking (first/latest bet in aggregate)
+  betIds?: number[]; // All bet IDs in this aggregated position
+  betCount?: number; // Number of individual bets aggregated into this position
   predictionId: string;
   predictionText: string;
   category: string;
   userChoice: 'YES' | 'NO';
-  betAmount: number;
-  potentialPayout: number; // Max possible win if user's choice is correct
-  currentValue: number; // Current estimated value of the position before settlement
+  betAmount: number; // Total bet amount (sum of all bets in aggregate)
+  potentialPayout: number; // Total potential payout (sum of all payouts)
+  totalShares: number; // Total shares owned across all bets
+  avgEntryPrice: number; // Average entry price across all bets
+  currentValue: number; // Current value if sold now (shares × current sell price)
+  unrealizedPnL: number; // Current profit/loss (currentValue - betAmount)
+  unrealizedPnLPercent: number; // P&L as percentage
   settledAmount?: number; // Actual amount won or sold for
   endsAt: Date; // For active positions, this is expiry. For past, this is settlement time.
   status: OpenPositionStatus;

@@ -106,11 +106,19 @@ export async function insertBet(bet: Omit<BetRecord, 'id' | 'created_at'>): Prom
       execution_price: bet.execution_price || null,
       status: bet.status || 'pending',
       tx_hash: bet.tx_hash, // CRITICAL: Include transaction hash for idempotency
-      // Affiliate tracking fields
-      referrer_bet_id: bet.referrer_bet_id || null,
-      referrer_user_id: bet.referrer_user_id ? bet.referrer_user_id.toLowerCase() : null, // Normalize referrer too
-      username: bet.username || null, // X username for social profile display
     };
+    
+    // Only add optional affiliate/social fields if they have values
+    // This prevents errors if the columns don't exist yet (before migration)
+    if (bet.referrer_bet_id) {
+      simplifiedBet.referrer_bet_id = bet.referrer_bet_id;
+    }
+    if (bet.referrer_user_id) {
+      simplifiedBet.referrer_user_id = bet.referrer_user_id.toLowerCase();
+    }
+    if (bet.username) {
+      simplifiedBet.username = bet.username;
+    }
     
     console.log('🚀 Executing Supabase insert query with simplified bet:', simplifiedBet);
     const { data, error } = await supabase
@@ -131,6 +139,19 @@ export async function insertBet(bet: Omit<BetRecord, 'id' | 'created_at'>): Prom
     }
 
     console.log('✅ Bet inserted successfully:', data);
+
+    // Create affiliate earnings entries (tier-1 and tier-2) if there's a referrer
+    if (data && data.referrer_user_id) {
+      console.log('💰 Creating affiliate earnings for bet with referrer...');
+      try {
+        const affiliateResult = await createAffiliateEarnings(data as BetRecord);
+        console.log('💰 Affiliate earnings result:', affiliateResult);
+      } catch (affiliateErr) {
+        // Don't fail the bet insertion if affiliate earnings fail
+        console.error('⚠️ Failed to create affiliate earnings (non-blocking):', affiliateErr);
+      }
+    }
+
     return { success: true, data }
   } catch (err) {
     console.error('❌ Unexpected error in insertBet:', err);
@@ -167,7 +188,7 @@ export async function getUserBets(userId: string, limit: number = 10): Promise<{
   }
 }
 
-// User profile type for social info
+// User profile type for social info (with affiliate fields)
 export interface UserProfile {
   id: string;
   x_user_id: string;
@@ -178,7 +199,34 @@ export interface UserProfile {
   linked_at?: string | null;
   created_at?: string;
   updated_at?: string;
+  // Affiliate tracking fields
+  referred_by?: string | null;       // Wallet address of who referred this user
+  referred_at?: string | null;       // When they were referred
+  affiliate_code?: string | null;    // Unique code for their referral links
 }
+
+// Affiliate earnings record type
+export interface AffiliateEarning {
+  id?: number;
+  created_at?: string;
+  affiliate_user_id: string;
+  source_user_id: string;
+  source_bet_id: number;
+  tier: 1 | 2;
+  commission_rate: number;
+  platform_fee_rate: number;
+  bet_amount: number;
+  earnings_amount: number;
+  status: 'pending' | 'available' | 'withdrawn' | 'cancelled';
+  withdrawn_at?: string | null;
+  withdrawal_tx_hash?: string | null;
+  notes?: string | null;
+}
+
+// Commission rates for the 2-layer affiliate system
+const TIER_1_COMMISSION_RATE = 0.08; // 8% of platform fee
+const TIER_2_COMMISSION_RATE = 0.02; // 2% of platform fee
+const PLATFORM_FEE_RATE = 0.05;      // 5% platform fee on bets
 
 // Helper function to get user profile by wallet address
 export async function getUserProfileByWallet(walletAddress: string): Promise<{ success: boolean; data?: UserProfile; error?: string }> {
@@ -420,6 +468,387 @@ export async function getReferralStats(userId: string): Promise<{
     };
   } catch (err) {
     console.error('Exception fetching referral stats:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
+
+// ============================================
+// 2-LAYER AFFILIATE SYSTEM FUNCTIONS
+// ============================================
+
+// Get who referred a user (for tier-2 calculation)
+export async function getUserReferrer(userId: string): Promise<{ success: boolean; data?: string | null; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Server-side Supabase client not initialized' };
+    }
+    
+    console.log('🔍 Looking up referrer for user:', userId);
+    
+    // First, check user_profiles for the referred_by field
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('referred_by')
+      .ilike('wallet_address', userId.toLowerCase())
+      .maybeSingle();
+
+    if (profileError) {
+      console.error('Error looking up user referrer:', profileError);
+      // Don't fail - try the fallback
+    }
+
+    if (profile?.referred_by) {
+      console.log('✅ Found referrer in user_profiles:', profile.referred_by);
+      return { success: true, data: profile.referred_by };
+    }
+
+    // Fallback: Look at the user's first bet to find their original referrer
+    const { data: firstBet, error: betError } = await supabase
+      .from('bets')
+      .select('referrer_user_id')
+      .ilike('user_id', userId.toLowerCase())
+      .not('referrer_user_id', 'is', null)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (betError) {
+      console.error('Error looking up first bet referrer:', betError);
+    }
+
+    if (firstBet?.referrer_user_id) {
+      console.log('✅ Found referrer from first bet:', firstBet.referrer_user_id);
+      return { success: true, data: firstBet.referrer_user_id };
+    }
+
+    console.log('ℹ️ No referrer found for user:', userId);
+    return { success: true, data: null };
+  } catch (err) {
+    console.error('Exception looking up user referrer:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
+
+// Create affiliate earnings entries for a bet (tier-1 and tier-2)
+export async function createAffiliateEarnings(
+  bet: BetRecord
+): Promise<{ success: boolean; tier1Created: boolean; tier2Created: boolean; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, tier1Created: false, tier2Created: false, error: 'Supabase not initialized' };
+    }
+
+    if (!bet.id || !bet.referrer_user_id) {
+      console.log('ℹ️ No referrer for this bet, skipping affiliate earnings');
+      return { success: true, tier1Created: false, tier2Created: false };
+    }
+
+    const betAmount = bet.amount;
+    const bettorUserId = bet.user_id.toLowerCase();
+    const tier1Referrer = bet.referrer_user_id.toLowerCase();
+
+    console.log('💰 Creating affiliate earnings for bet:', bet.id);
+    console.log('   Bettor:', bettorUserId);
+    console.log('   Tier-1 Referrer:', tier1Referrer);
+    console.log('   Bet Amount:', betAmount);
+
+    let tier1Created = false;
+    let tier2Created = false;
+
+    // Create Tier-1 earnings (direct referrer)
+    const tier1Earnings = betAmount * PLATFORM_FEE_RATE * TIER_1_COMMISSION_RATE;
+    const tier1Record: Omit<AffiliateEarning, 'id' | 'created_at'> = {
+      affiliate_user_id: tier1Referrer,
+      source_user_id: bettorUserId,
+      source_bet_id: bet.id,
+      tier: 1,
+      commission_rate: TIER_1_COMMISSION_RATE,
+      platform_fee_rate: PLATFORM_FEE_RATE,
+      bet_amount: betAmount,
+      earnings_amount: tier1Earnings,
+      status: 'pending',
+    };
+
+    const { error: tier1Error } = await supabase
+      .from('affiliate_earnings')
+      .insert([tier1Record]);
+
+    if (tier1Error) {
+      console.error('❌ Error creating tier-1 earnings:', tier1Error);
+      // Continue to try tier-2 even if tier-1 fails
+    } else {
+      console.log('✅ Tier-1 earnings created:', tier1Earnings, 'for', tier1Referrer);
+      tier1Created = true;
+    }
+
+    // Look up tier-2 referrer (who referred the tier-1 referrer?)
+    const tier2Result = await getUserReferrer(tier1Referrer);
+    
+    if (tier2Result.success && tier2Result.data) {
+      const tier2Referrer = tier2Result.data.toLowerCase();
+      
+      // Make sure tier-2 referrer is not the same as the bettor (prevent self-referral loops)
+      if (tier2Referrer !== bettorUserId && tier2Referrer !== tier1Referrer) {
+        console.log('   Tier-2 Referrer:', tier2Referrer);
+
+        const tier2Earnings = betAmount * PLATFORM_FEE_RATE * TIER_2_COMMISSION_RATE;
+        const tier2Record: Omit<AffiliateEarning, 'id' | 'created_at'> = {
+          affiliate_user_id: tier2Referrer,
+          source_user_id: bettorUserId,
+          source_bet_id: bet.id,
+          tier: 2,
+          commission_rate: TIER_2_COMMISSION_RATE,
+          platform_fee_rate: PLATFORM_FEE_RATE,
+          bet_amount: betAmount,
+          earnings_amount: tier2Earnings,
+          status: 'pending',
+        };
+
+        const { error: tier2Error } = await supabase
+          .from('affiliate_earnings')
+          .insert([tier2Record]);
+
+        if (tier2Error) {
+          console.error('❌ Error creating tier-2 earnings:', tier2Error);
+        } else {
+          console.log('✅ Tier-2 earnings created:', tier2Earnings, 'for', tier2Referrer);
+          tier2Created = true;
+        }
+      }
+    }
+
+    return { success: true, tier1Created, tier2Created };
+  } catch (err) {
+    console.error('❌ Exception creating affiliate earnings:', err);
+    return { 
+      success: false, 
+      tier1Created: false, 
+      tier2Created: false, 
+      error: err instanceof Error ? err.message : 'Unknown error' 
+    };
+  }
+}
+
+// Get affiliate earnings summary for a user
+export async function getAffiliateEarningsSummary(userId: string): Promise<{
+  success: boolean;
+  data?: {
+    total_earnings: number;
+    tier1_earnings: number;
+    tier2_earnings: number;
+    pending_earnings: number;
+    available_earnings: number;
+    withdrawn_earnings: number;
+    total_referrals: number;
+    tier1_referrals: number;
+    tier2_referrals: number;
+  };
+  error?: string;
+}> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Server-side Supabase client not initialized' };
+    }
+
+    console.log('📊 Getting affiliate earnings summary for:', userId);
+
+    const { data, error } = await supabase
+      .from('affiliate_earnings')
+      .select('*')
+      .ilike('affiliate_user_id', userId.toLowerCase())
+      .neq('status', 'cancelled');
+
+    if (error) {
+      console.error('Error fetching affiliate earnings:', error);
+      return { success: false, error: error.message };
+    }
+
+    const earnings = data || [];
+
+    // Calculate summaries
+    const total_earnings = earnings.reduce((sum, e) => sum + (e.earnings_amount || 0), 0);
+    const tier1_earnings = earnings.filter(e => e.tier === 1).reduce((sum, e) => sum + (e.earnings_amount || 0), 0);
+    const tier2_earnings = earnings.filter(e => e.tier === 2).reduce((sum, e) => sum + (e.earnings_amount || 0), 0);
+    const pending_earnings = earnings.filter(e => e.status === 'pending').reduce((sum, e) => sum + (e.earnings_amount || 0), 0);
+    const available_earnings = earnings.filter(e => e.status === 'available').reduce((sum, e) => sum + (e.earnings_amount || 0), 0);
+    const withdrawn_earnings = earnings.filter(e => e.status === 'withdrawn').reduce((sum, e) => sum + (e.earnings_amount || 0), 0);
+
+    // Count unique referrals
+    const uniqueSourceUsers = new Set(earnings.map(e => e.source_user_id.toLowerCase()));
+    const tier1SourceUsers = new Set(earnings.filter(e => e.tier === 1).map(e => e.source_user_id.toLowerCase()));
+    const tier2SourceUsers = new Set(earnings.filter(e => e.tier === 2).map(e => e.source_user_id.toLowerCase()));
+
+    console.log('✅ Affiliate summary calculated:', { total_earnings, tier1_earnings, tier2_earnings });
+
+    return {
+      success: true,
+      data: {
+        total_earnings,
+        tier1_earnings,
+        tier2_earnings,
+        pending_earnings,
+        available_earnings,
+        withdrawn_earnings,
+        total_referrals: uniqueSourceUsers.size,
+        tier1_referrals: tier1SourceUsers.size,
+        tier2_referrals: tier2SourceUsers.size,
+      },
+    };
+  } catch (err) {
+    console.error('Exception getting affiliate earnings summary:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
+
+// Get recent affiliate earnings for a user
+export async function getRecentAffiliateEarnings(
+  userId: string,
+  limit: number = 20
+): Promise<{ success: boolean; data?: AffiliateEarning[]; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Server-side Supabase client not initialized' };
+    }
+
+    const { data, error } = await supabase
+      .from('affiliate_earnings')
+      .select('*')
+      .ilike('affiliate_user_id', userId.toLowerCase())
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('Error fetching recent affiliate earnings:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: data || [] };
+  } catch (err) {
+    console.error('Exception fetching recent affiliate earnings:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
+
+// Update user's referrer (called when they first join via referral link)
+export async function setUserReferrer(
+  userId: string,
+  referrerUserId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Server-side Supabase client not initialized' };
+    }
+
+    console.log('🔗 Setting referrer for user:', userId, '-> referred by:', referrerUserId);
+
+    // Check if user already has a profile
+    const { data: existingProfile } = await supabase
+      .from('user_profiles')
+      .select('id, referred_by')
+      .ilike('wallet_address', userId.toLowerCase())
+      .maybeSingle();
+
+    if (existingProfile?.referred_by) {
+      console.log('ℹ️ User already has a referrer, not updating');
+      return { success: true };
+    }
+
+    if (existingProfile) {
+      // Update existing profile
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({
+          referred_by: referrerUserId.toLowerCase(),
+          referred_at: new Date().toISOString(),
+        })
+        .eq('id', existingProfile.id);
+
+      if (error) {
+        console.error('Error updating user referrer:', error);
+        return { success: false, error: error.message };
+      }
+    }
+    // Note: If no profile exists yet, the referrer will be set from the first bet's referrer_user_id
+
+    console.log('✅ User referrer set successfully');
+    return { success: true };
+  } catch (err) {
+    console.error('Exception setting user referrer:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
+
+// Get or generate affiliate code for a user
+export async function getOrCreateAffiliateCode(userId: string): Promise<{ success: boolean; data?: string; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Server-side Supabase client not initialized' };
+    }
+
+    // Check if user already has an affiliate code
+    const { data: profile, error: fetchError } = await supabase
+      .from('user_profiles')
+      .select('affiliate_code, x_username')
+      .ilike('wallet_address', userId.toLowerCase())
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('Error fetching affiliate code:', fetchError);
+    }
+
+    if (profile?.affiliate_code) {
+      return { success: true, data: profile.affiliate_code };
+    }
+
+    // Generate a new affiliate code
+    const baseCode = profile?.x_username 
+      ? profile.x_username.toLowerCase().replace(/[^a-z0-9]/g, '')
+      : `user${userId.substring(2, 8).toLowerCase()}`;
+    
+    const randomSuffix = Math.random().toString(36).substring(2, 6);
+    const affiliateCode = `${baseCode}_${randomSuffix}`;
+
+    // If profile exists, update it
+    if (profile) {
+      const { error: updateError } = await supabase
+        .from('user_profiles')
+        .update({ affiliate_code: affiliateCode })
+        .ilike('wallet_address', userId.toLowerCase());
+
+      if (updateError) {
+        console.error('Error updating affiliate code:', updateError);
+        return { success: false, error: updateError.message };
+      }
+    }
+
+    return { success: true, data: affiliateCode };
+  } catch (err) {
+    console.error('Exception with affiliate code:', err);
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
+
+// Look up user by affiliate code
+export async function getUserByAffiliateCode(affiliateCode: string): Promise<{ success: boolean; data?: UserProfile; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Server-side Supabase client not initialized' };
+    }
+
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('affiliate_code', affiliateCode.toLowerCase())
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching user by affiliate code:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: !!data, data: data || undefined };
+  } catch (err) {
+    console.error('Exception fetching user by affiliate code:', err);
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
   }
 } 

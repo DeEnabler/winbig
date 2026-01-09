@@ -8,12 +8,48 @@ import { createContext, useContext, useMemo, useState, useEffect } from 'react';
 
 const EntryContext = createContext<EntryContextType | undefined>(undefined);
 
+// Local storage key for persisting referrer info
+const REFERRER_STORAGE_KEY = 'winbig_referrer_v1';
+
 interface EntryContextProviderProps {
   children: ReactNode;
   // Optional props for server-side affiliate data (passed from challenge/[code] page)
   initialReferrerBetId?: number;
   initialReferrerUserId?: string;
   initialShareCode?: string;
+}
+
+// Helper to load referrer from localStorage
+function loadStoredReferrer(): { referrerUserId?: string; affiliateCode?: string } {
+  if (typeof window === 'undefined') return {};
+  try {
+    const stored = localStorage.getItem(REFERRER_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error('Failed to load stored referrer:', e);
+  }
+  return {};
+}
+
+// Helper to save referrer to localStorage
+function saveReferrer(referrerUserId: string, affiliateCode?: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    // Only save if not already set (first referrer wins)
+    const existing = loadStoredReferrer();
+    if (!existing.referrerUserId) {
+      localStorage.setItem(REFERRER_STORAGE_KEY, JSON.stringify({
+        referrerUserId,
+        affiliateCode,
+        savedAt: new Date().toISOString(),
+      }));
+      console.log('💾 Saved referrer to localStorage:', referrerUserId, affiliateCode);
+    }
+  } catch (e) {
+    console.error('Failed to save referrer:', e);
+  }
 }
 
 export function EntryContextProvider({ 
@@ -29,19 +65,37 @@ export function EntryContextProvider({
   const [referrerBetId, setReferrerBetId] = useState<number | undefined>(initialReferrerBetId);
   const [referrerUserId, setReferrerUserId] = useState<string | undefined>(initialReferrerUserId);
   const [shareCode, setShareCode] = useState<string | undefined>(initialShareCode);
+  const [affiliateCode, setAffiliateCode] = useState<string | undefined>(undefined);
+
+  // Load stored referrer on mount
+  useEffect(() => {
+    const stored = loadStoredReferrer();
+    if (stored.referrerUserId && !referrerUserId) {
+      setReferrerUserId(stored.referrerUserId);
+    }
+    if (stored.affiliateCode && !affiliateCode) {
+      setAffiliateCode(stored.affiliateCode);
+    }
+  }, []);
 
   // Update affiliate data from URL params if present
   useEffect(() => {
     const urlReferrerBetId = searchParams.get('ref_bet_id');
     const urlReferrerUserId = searchParams.get('ref_user_id');
     const urlShareCode = searchParams.get('share_code');
+    const urlAffiliateCode = searchParams.get('ref'); // From /ref/[code] redirects
     
     if (urlReferrerBetId) {
       const betId = parseInt(urlReferrerBetId, 10);
       if (!isNaN(betId)) setReferrerBetId(betId);
     }
-    if (urlReferrerUserId) setReferrerUserId(urlReferrerUserId);
+    if (urlReferrerUserId) {
+      setReferrerUserId(urlReferrerUserId);
+      // Persist the referrer for future sessions
+      saveReferrer(urlReferrerUserId, urlAffiliateCode || undefined);
+    }
     if (urlShareCode) setShareCode(urlShareCode);
+    if (urlAffiliateCode) setAffiliateCode(urlAffiliateCode);
     
     // Also extract share code from /challenge/[code] path
     if (pathname.startsWith('/challenge/') && !shareCode) {
@@ -74,6 +128,7 @@ export function EntryContextProvider({
       if (referrerBetId) url.searchParams.set('ref_bet_id', referrerBetId.toString());
       if (referrerUserId) url.searchParams.set('ref_user_id', referrerUserId);
       if (shareCode) url.searchParams.set('share_code', shareCode);
+      if (affiliateCode) url.searchParams.set('ref', affiliateCode);
       
       const searchString = url.searchParams.toString();
       return `${url.pathname}${searchString ? `?${searchString}` : ''}`;
@@ -87,9 +142,10 @@ export function EntryContextProvider({
       referrerBetId,
       referrerUserId,
       shareCode,
+      affiliateCode,
       appendEntryParams,
     };
-  }, [searchParams, referrerBetId, referrerUserId, shareCode]);
+  }, [searchParams, referrerBetId, referrerUserId, shareCode, affiliateCode]);
 
   return (
     <EntryContext.Provider value={contextValue}>

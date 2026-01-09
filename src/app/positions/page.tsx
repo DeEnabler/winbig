@@ -7,8 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Clock, Sparkles, DollarSign, ShoppingCart, Gift, Share2, X as LucideXIcon, BookOpenText, Info, Loader2 } from 'lucide-react';
-import NextImage from 'next/image';
+import { Clock, Sparkles, DollarSign, ShoppingCart, Gift, Share2, X as LucideXIcon, BookOpenText, Info, Loader2, TrendingUp, Layers } from 'lucide-react';
+// NextImage removed - using gradient backgrounds instead
 import { formatDistanceToNow, format } from 'date-fns';
 import { motion } from 'framer-motion';
 import { useEntryContext } from '@/contexts/EntryContext';
@@ -28,6 +28,28 @@ const ShareDialog = dynamic(() => import('@/components/sharing/ShareDialog'), {
 
 function formatCurrency(amount: number, includeSign = true) {
   return `${includeSign ? '$' : ''}${amount.toFixed(2)}`;
+}
+
+// Category-based gradient backgrounds for cards without images
+function getCategoryGradient(category: string): string {
+  const categoryLower = category.toLowerCase();
+  if (categoryLower.includes('crypto') || categoryLower.includes('bitcoin') || categoryLower.includes('eth')) {
+    return 'from-amber-500/20 via-orange-500/10 to-yellow-500/20';
+  }
+  if (categoryLower.includes('sport') || categoryLower.includes('nfl') || categoryLower.includes('nba')) {
+    return 'from-green-500/20 via-emerald-500/10 to-teal-500/20';
+  }
+  if (categoryLower.includes('politic') || categoryLower.includes('election')) {
+    return 'from-blue-500/20 via-indigo-500/10 to-purple-500/20';
+  }
+  if (categoryLower.includes('tech') || categoryLower.includes('ai')) {
+    return 'from-cyan-500/20 via-sky-500/10 to-blue-500/20';
+  }
+  if (categoryLower.includes('entertainment') || categoryLower.includes('movie')) {
+    return 'from-pink-500/20 via-rose-500/10 to-red-500/20';
+  }
+  // Default gradient
+  return 'from-primary/20 via-primary/5 to-primary/10';
 }
 
 const fetchPositions = async (userId: string | undefined): Promise<{ activePositions: OpenPosition[], pastPositions: OpenPosition[] }> => {
@@ -109,7 +131,10 @@ export default function PositionsPage() {
         
         if (result.success && result.data?.share_url) {
           setCurrentShareUrl(result.data.share_url);
-          setCurrentShareMessage(`🎯 I bet $${position.betAmount} on ${position.userChoice} for "${position.predictionText.substring(0, 60)}..." Think I'm wrong? Challenge me!`);
+          const pnlText = position.unrealizedPnL >= 0 
+            ? `up ${formatCurrency(position.unrealizedPnL)} (${position.unrealizedPnLPercent.toFixed(0)}%)` 
+            : `down ${formatCurrency(Math.abs(position.unrealizedPnL))} (${Math.abs(position.unrealizedPnLPercent).toFixed(0)}%)`;
+          setCurrentShareMessage(`🎯 I'm ${pnlText} on my $${position.betAmount.toFixed(0)} ${position.userChoice} position: "${position.predictionText.substring(0, 50)}..." Think I'm wrong? Challenge me!`);
           
           // Generate OG image URL
           const ogUrl = new URL(`${appUrl}/api/og`);
@@ -217,16 +242,26 @@ export default function PositionsPage() {
                     transition={{ duration: 0.4, delay: index * 0.1 }}
                   >
                     <Card className="flex flex-col h-full overflow-hidden shadow-xl hover:shadow-2xl transition-shadow duration-300 rounded-xl">
-                      {position.imageUrl && (
-                        <div className="relative w-full h-36">
-                          <NextImage src={position.imageUrl} alt={position.predictionText} fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" style={{ objectFit: 'cover' }} data-ai-hint={position.aiHint || position.category} />
-                          {position.bonusApplied && (
-                            <Badge className="absolute top-2 right-2 bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90 dark:bg-yellow-600 dark:text-yellow-50 dark:hover:bg-yellow-600/90 shadow-md text-xs px-2 py-0.5">
-                              <Sparkles className="w-3 h-3 mr-1" /> Bonus
-                            </Badge>
-                          )}
+                      {/* Gradient header with category indicator and bet count */}
+                      <div className={`relative w-full h-24 bg-gradient-to-br ${getCategoryGradient(position.category)} flex items-center justify-center`}>
+                        <div className="flex flex-col items-center gap-1">
+                          <TrendingUp className={`w-8 h-8 ${position.userChoice === 'YES' ? 'text-green-500' : 'text-red-500'}`} />
+                          <span className={`text-lg font-bold ${position.userChoice === 'YES' ? 'text-green-600' : 'text-red-600'}`}>
+                            {position.userChoice}
+                          </span>
                         </div>
-                      )}
+                        {/* Bet count badge - show when multiple bets consolidated */}
+                        {(position.betCount && position.betCount > 1) && (
+                          <Badge className="absolute top-2 left-2 bg-primary/90 text-primary-foreground shadow-md text-xs px-2 py-0.5">
+                            <Layers className="w-3 h-3 mr-1" /> {position.betCount} bets
+                          </Badge>
+                        )}
+                        {position.bonusApplied && (
+                          <Badge className="absolute top-2 right-2 bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90 dark:bg-yellow-600 dark:text-yellow-50 dark:hover:bg-yellow-600/90 shadow-md text-xs px-2 py-0.5">
+                            <Sparkles className="w-3 h-3 mr-1" /> Bonus
+                          </Badge>
+                        )}
+                      </div>
                       <CardHeader className="pb-2 pt-3">
                         <CardTitle className="text-base leading-tight line-clamp-2">{position.predictionText}</CardTitle>
                         <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
@@ -238,13 +273,41 @@ export default function PositionsPage() {
                         </div>
                       </CardHeader>
                       <CardContent className="flex-grow space-y-1.5 py-2 px-4 text-xs">
-                        <div>Your Bet: <span className={`font-semibold ${position.userChoice === 'YES' ? 'text-green-600' : 'text-red-600'}`}>{position.userChoice}</span> for {formatCurrency(position.betAmount)}</div>
-                        <div>Potential Payout: <span className="font-semibold text-primary">{formatCurrency(position.potentialPayout)}</span></div>
-                        <div className="flex items-center">
-                          <DollarSign className="w-3 h-3 mr-1 text-success" /> Current Sell Value: <span className="font-semibold text-success ml-1">{formatCurrency(position.currentValue)}</span>
+                        {/* Cost basis and current value */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Invested:</span>
+                          <span className="font-semibold">{formatCurrency(position.betAmount)}</span>
                         </div>
-                        <div className="text-muted-foreground">Status: <span className={`font-semibold ${statusText === 'LIVE' ? 'text-blue-500' : 'text-orange-500'}`}>{statusText}</span>
-                          {position.opponentUsername && <span className="block text-xxs truncate">vs @{position.opponentUsername}</span>}
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Value Now:</span>
+                          <span className="font-bold text-base">{formatCurrency(position.currentValue)}</span>
+                        </div>
+                        
+                        {/* P&L Display - the key metric */}
+                        <div className={`flex items-center justify-between p-2 -mx-2 rounded-md ${
+                          position.unrealizedPnL >= 0 
+                            ? 'bg-green-500/10' 
+                            : 'bg-red-500/10'
+                        }`}>
+                          <span className="font-medium">P&L:</span>
+                          <div className="text-right">
+                            <span className={`font-bold text-base ${
+                              position.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              {position.unrealizedPnL >= 0 ? '+' : ''}{formatCurrency(position.unrealizedPnL)}
+                            </span>
+                            <span className={`ml-1.5 text-xs ${
+                              position.unrealizedPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              ({position.unrealizedPnLPercent >= 0 ? '+' : ''}{position.unrealizedPnLPercent.toFixed(1)}%)
+                            </span>
+                          </div>
+                        </div>
+                        
+                        {/* Additional details */}
+                        <div className="flex items-center justify-between text-muted-foreground text-xxs pt-1 border-t border-border/50">
+                          <span>{position.totalShares?.toFixed(2) || '0'} shares @ {formatCurrency(position.avgEntryPrice || 0)} avg</span>
+                          <span className={`font-semibold ${statusText === 'LIVE' ? 'text-blue-500' : 'text-orange-500'}`}>{statusText}</span>
                         </div>
                       </CardContent>
                       <CardFooter className="pt-2 pb-3 px-4 flex flex-col gap-2">
