@@ -36,7 +36,8 @@ import ShareDialog from '@/components/sharing/ShareDialog';
 import { ExecutionPreviewDisplay } from '@/components/match/ExecutionPreviewDisplay';
 import BetSuccessScreen from '@/components/match/BetSuccessScreen';
 
-import { Loader2, Share2, Zap } from 'lucide-react';
+import { Loader2, Share2, Zap, Gift, Sparkles } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 const USDT_CONTRACT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955';
 const BETTING_WALLET_ADDRESS = '0x4Eaf22CA76bC525551a59bbD45D37A42284F9671';
@@ -82,6 +83,15 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
   const [betPlaced, setBetPlaced] = useState(!!match.userBet);
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
 
+  // Bonus balance state
+  const [bonusBalance, setBonusBalance] = useState(0);
+  const [isLoadingBonus, setIsLoadingBonus] = useState(false);
+
+  // Calculate how much bonus to use and how much cash is needed
+  const bonusToUse = Math.min(bonusBalance, betAmountState);
+  const cashRequired = Math.max(0, betAmountState - bonusToUse);
+  const isFullyBonusFunded = bonusBalance >= betAmountState && bonusBalance > 0;
+
   // NEW: Use ref for synchronous guard against duplicate processing
   const processedTxHashesRef = useRef<Set<string>>(new Set());
   
@@ -107,10 +117,40 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
     setPendingBets(new Map());
   }, [selectedChoice]); // FIXED: Only reset on choice change, not amount
 
+  // Fetch bonus balance when user connects
+  useEffect(() => {
+    const fetchBonusBalance = async () => {
+      if (!address) {
+        setBonusBalance(0);
+        return;
+      }
+      
+      setIsLoadingBonus(true);
+      try {
+        const response = await fetch(`/api/bonus?user_id=${address}`);
+        const result = await response.json();
+        
+        if (result.success && result.data?.summary) {
+          setBonusBalance(result.data.summary.total_balance || 0);
+          console.log('💰 Bonus balance loaded:', result.data.summary.total_balance);
+        }
+      } catch (err) {
+        console.error('Failed to fetch bonus balance:', err);
+      } finally {
+        setIsLoadingBonus(false);
+      }
+    };
+
+    fetchBonusBalance();
+  }, [address]);
+
+  // Only create transfer data for the cash portion (not bonus)
   const transferData = useMemo(() => {
-    if (!betAmountState || !selectedChoice) return undefined;
+    if (!selectedChoice) return undefined;
+    // If fully bonus-funded, no transfer needed
+    if (cashRequired <= 0) return undefined;
     
-    const amountInWei = parseUnits(betAmountState.toString(), 18);
+    const amountInWei = parseUnits(cashRequired.toString(), 18);
     const data = encodeFunctionData({
       abi: USDT_ABI,
       functionName: 'transfer',
@@ -118,7 +158,7 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
     });
     
     return data;
-  }, [betAmountState, selectedChoice]);
+  }, [cashRequired, selectedChoice]);
 
   // Add gas estimation for accurate fees
   const { data: gasEstimate } = useEstimateGas(
@@ -280,24 +320,9 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
       toast({ variant: 'destructive', title: 'Selection Required', description: 'Please choose YES or NO.' });
       return;
     }
-    if (!isConnected) {
+    if (!isConnected || !address) {
       toast({ title: 'Connect Wallet', description: 'Please connect your wallet to place a bet.' });
       appKit.open();
-      return;
-    }
-    if (chain?.id !== 56) {
-      // BSC Mainnet
-      toast({ title: 'Switching to BSC', description: 'Please approve the network switch to continue.' });
-      try {
-        await switchChain({ chainId: 56 });
-      } catch (error) {
-        toast({ variant: 'destructive', title: 'Network Switch Failed', description: 'Please switch to BSC manually.' });
-        return;
-      }
-    }
-
-    if (!transferData) {
-      toast({ variant: 'destructive', title: 'Transaction Error', description: 'Could not prepare transaction data.' });
       return;
     }
 
@@ -318,9 +343,9 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
       economics: executionPreview?.economics,
     };
 
-    // Log final transaction parameters with economic breakdown
-    console.log('💰 Sending USDT transfer:', betSnapshot.amount, 'USDT, Gas:', gasEstimate?.toString() || 'wallet-managed');
+    // Log bet parameters
     console.log('📸 Bet snapshot captured:', betSnapshot);
+    console.log('💰 Bonus to use:', bonusToUse, '| Cash required:', cashRequired);
     if (betSnapshot.economics) {
       console.log('💵 Economic breakdown:', {
         grossAmount: betSnapshot.economics.grossAmount,
@@ -330,10 +355,47 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
       });
     }
 
+    // BONUS-FIRST LOGIC: If fully covered by bonus, skip USDT transfer
+    if (isFullyBonusFunded) {
+      console.log('🎁 Bet fully funded by bonus - skipping USDT transfer');
+      setIsBetting(true);
+      setIsProcessing(true);
+      toast({ title: 'Placing Bet...', description: `Using $${bonusToUse.toFixed(2)} bonus` });
+      
+      // Generate a unique tx_hash for bonus-only bets
+      const bonusTxHash = `bonus_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Directly proceed with bet placement
+      await proceedWithBetPlacement(address as `0x${string}`, betSnapshot, bonusTxHash, bonusToUse);
+      return;
+    }
+
+    // For bets requiring USDT, check network and transfer data
+    if (chain?.id !== 56) {
+      // BSC Mainnet
+      toast({ title: 'Switching to BSC', description: 'Please approve the network switch to continue.' });
+      try {
+        await switchChain({ chainId: 56 });
+      } catch (error) {
+        toast({ variant: 'destructive', title: 'Network Switch Failed', description: 'Please switch to BSC manually.' });
+        return;
+      }
+    }
+
+    if (!transferData) {
+      toast({ variant: 'destructive', title: 'Transaction Error', description: 'Could not prepare transaction data.' });
+      return;
+    }
+
+    // Log final transaction parameters with economic breakdown
+    console.log('💰 Sending USDT transfer:', cashRequired, 'USDT (+ $', bonusToUse, 'bonus), Gas:', gasEstimate?.toString() || 'wallet-managed');
+
     if (sendTransaction) {
       setIsBetting(true);
       setIsProcessing(true); // Lock UI to prevent amount changes
-      toast({ title: 'Confirming...', description: 'Please confirm the transaction in your wallet.' });
+      
+      const bonusNote = bonusToUse > 0 ? ` (+ $${bonusToUse.toFixed(2)} bonus)` : '';
+      toast({ title: 'Confirming...', description: `Transferring $${cashRequired.toFixed(2)}${bonusNote}` });
       
       try {
         sendTransaction({
@@ -357,7 +419,8 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
   const proceedWithBetPlacement = useCallback(async (
     senderAddress: `0x${string}`, 
     betSnapshot: BetSnapshot, 
-    txHash: string
+    txHash: string,
+    bonusAmountUsed: number = 0
   ) => {
     try {
       // CRITICAL FIX: Use snapshot data instead of live state
@@ -371,8 +434,14 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
         potential_payout: betSnapshot.potentialPayout,
         status: 'pending' as const,
         tx_hash: txHash, // Include transaction hash for idempotency
-        username: xProfile?.x_username || null, // Include X username for social profile display
       };
+      
+      // 🎁 Add bonus tracking fields
+      if (bonusAmountUsed > 0) {
+        betData.bonus_amount_used = bonusAmountUsed;
+        betData.cash_amount_used = betSnapshot.amount - bonusAmountUsed;
+        console.log('🎁 Bonus amount used:', bonusAmountUsed, '| Cash:', betData.cash_amount_used);
+      }
       
       // 💰 Add economic tracking fields if available from execution preview
       if (betSnapshot.economics) {
@@ -404,14 +473,16 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
         throw new Error(result.error || 'Failed to place bet via API.');
       }
       
-      toast({ title: "Bet Confirmed!", description: `Your ${betSnapshot.outcome} bet is in!` });
+      const bonusNote = bonusAmountUsed > 0 ? ` (including $${bonusAmountUsed.toFixed(2)} bonus)` : '';
+      toast({ title: "Bet Confirmed!", description: `Your ${betSnapshot.outcome} bet is in!${bonusNote}` });
       setMatch(prev => ({ 
         ...prev, 
         userBet: { 
           side: betSnapshot.outcome, 
           amount: betSnapshot.amount, 
           status: 'PENDING',
-          betId: result.data?.id
+          betId: result.data?.id,
+          bonusApplied: bonusAmountUsed > 0
         } 
       }));
       setBetPlaced(true);
@@ -429,6 +500,11 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
         newMap.delete(txHash);
         return newMap;
       });
+      
+      // Refresh bonus balance after bet
+      if (bonusAmountUsed > 0) {
+        setBonusBalance(prev => Math.max(0, prev - bonusAmountUsed));
+      }
       
       console.log('✅ Bet placed successfully:', result.data);
     } catch (error: any) {
@@ -482,9 +558,10 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
       toast({ title: "Transaction Confirmed!", description: "Your payment is confirmed. Placing bet..." });
       
       // Use snapshot data instead of live state
-      proceedWithBetPlacement(receipt.from, betSnapshot, txHash);
+      // Include bonus amount if any (for mixed bonus+cash bets)
+      proceedWithBetPlacement(receipt.from, betSnapshot, txHash, bonusToUse);
     }
-  }, [isConfirmed, txHash, receipt, pendingBets, proceedWithBetPlacement, toast]);
+  }, [isConfirmed, txHash, receipt, pendingBets, proceedWithBetPlacement, toast, bonusToUse]);
 
   const totalPot = useMemo(() => {
     const yesBets = 1000;
@@ -591,6 +668,35 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
                   onValueChange={(value) => setBetAmountState(value[0])}
                   disabled={isBetting || isConfirming || isProcessing}
                 />
+                
+                {/* Bonus indicator */}
+                {bonusBalance > 0 && (
+                  <div className="mt-3 p-3 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Gift className="w-4 h-4 text-amber-500" />
+                      <span className="text-sm font-medium text-amber-600 dark:text-amber-400">
+                        Bonus Available: ${bonusBalance.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      {isFullyBonusFunded ? (
+                        <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                          <Sparkles className="w-3 h-3 mr-1" />
+                          100% Bonus - No wallet needed
+                        </Badge>
+                      ) : bonusToUse > 0 ? (
+                        <div className="flex gap-2">
+                          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
+                            Bonus: ${bonusToUse.toFixed(2)}
+                          </Badge>
+                          <Badge variant="outline">
+                            Wallet: ${cashRequired.toFixed(2)}
+                          </Badge>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {executionPreview && (
@@ -603,15 +709,17 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
               <Button
                 onClick={handlePlaceBet}
                 size="lg"
-                className="w-full font-bold text-lg"
-                disabled={isBetting || isConfirming || isSubmitting || isProcessing || !sendTransaction}
+                className={`w-full font-bold text-lg ${isFullyBonusFunded ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600' : ''}`}
+                disabled={isBetting || isConfirming || isSubmitting || isProcessing || (!sendTransaction && !isFullyBonusFunded)}
               >
                 {isBetting || isConfirming || isSubmitting || isProcessing ? (
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                ) : isFullyBonusFunded ? (
+                  <Gift className="mr-2 h-5 w-5" />
                 ) : (
                   <Zap className="mr-2 h-5 w-5" />
                 )}
-                {isProcessing ? 'Placing Bet...' : isConfirming ? 'Confirming...' : isSubmitting ? 'Check Wallet...' : isBetting ? 'Processing...' : `Place Bet on ${selectedChoice || ''}`}
+                {isProcessing ? 'Placing Bet...' : isConfirming ? 'Confirming...' : isSubmitting ? 'Check Wallet...' : isBetting ? 'Processing...' : isFullyBonusFunded ? `Use Bonus on ${selectedChoice || ''}` : `Place Bet on ${selectedChoice || ''}`}
               </Button>
               <Button
                 onClick={openShareDialog}

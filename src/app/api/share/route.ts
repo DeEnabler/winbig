@@ -55,14 +55,21 @@ export async function POST(request: NextRequest) {
     
     const bet = betResult.data;
     
-    // Check if bet already has a share code
-    if (bet.share_code && isValidShareCode(bet.share_code)) {
-      console.log('✅ API: Bet already has share_code:', bet.share_code);
+    // Check if bet already has a share entry in prediction_shares
+    const { data: existingShare } = await supabase
+      .from('prediction_shares')
+      .select('share_code')
+      .eq('bet_id', bet_id)
+      .eq('is_active', true)
+      .maybeSingle();
+    
+    if (existingShare?.share_code && isValidShareCode(existingShare.share_code)) {
+      console.log('✅ API: Bet already has share entry:', existingShare.share_code);
       return NextResponse.json({
         success: true,
         data: {
-          share_code: bet.share_code,
-          share_url: getShareUrl(bet.share_code),
+          share_code: existingShare.share_code,
+          share_url: getShareUrl(existingShare.share_code),
           bet
         }
       });

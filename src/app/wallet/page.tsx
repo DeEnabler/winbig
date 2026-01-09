@@ -27,6 +27,12 @@ import {
   BarChart3,
   Activity,
   ExternalLink,
+  Copy,
+  Check,
+  Share2,
+  Lock,
+  Unlock,
+  Loader2,
 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -36,8 +42,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/contexts/UserContext';
 import type { EarningsStats } from '@/app/api/earnings/route';
 import type { BetRecord } from '@/lib/supabase-server';
+import type { BonusBalanceSummary, GiftHistoryItem } from '@/lib/bonus-service';
 
 // Animated counter component for dramatic number reveals
 function AnimatedNumber({ 
@@ -155,9 +166,33 @@ const fetchEarnings = async (userId: string | undefined): Promise<EarningsStats 
   return data.success ? data.data : null;
 };
 
+// Fetch bonus data
+interface BonusApiData {
+  summary: BonusBalanceSummary;
+  bonuses: any[];
+  gift_history: GiftHistoryItem[];
+}
+
+const fetchBonus = async (userId: string | undefined): Promise<BonusApiData | null> => {
+  if (!userId) return null;
+  const response = await fetch(`/api/bonus?user_id=${userId}`);
+  if (!response.ok) throw new Error('Failed to fetch bonus');
+  const data = await response.json();
+  return data.success ? data.data : null;
+};
+
 export default function WalletPage() {
   const { address, isConnected } = useAccount();
   const { open } = useAppKit();
+  const { toast } = useToast();
+  const { xProfile } = useUser();
+  
+  // Gift creation state
+  const [isGiftDialogOpen, setIsGiftDialogOpen] = useState(false);
+  const [giftAmount, setGiftAmount] = useState(50);
+  const [isCreatingGift, setIsCreatingGift] = useState(false);
+  const [createdGiftUrl, setCreatedGiftUrl] = useState<string | null>(null);
+  const [copiedGiftUrl, setCopiedGiftUrl] = useState(false);
   
   const { data: earnings, isLoading, error, refetch } = useQuery({
     queryKey: ['earnings', address],
@@ -165,6 +200,79 @@ export default function WalletPage() {
     enabled: !!address,
     refetchInterval: 30000,
   });
+  
+  const { data: bonusData, isLoading: isBonusLoading, refetch: refetchBonus } = useQuery({
+    queryKey: ['bonus', address],
+    queryFn: () => fetchBonus(address),
+    enabled: !!address,
+    refetchInterval: 30000,
+  });
+  
+  // Handle gift creation
+  const handleCreateGift = async () => {
+    if (!address || !bonusData?.summary.sharable_balance) return;
+    
+    if (giftAmount > bonusData.summary.sharable_balance) {
+      toast({
+        variant: 'destructive',
+        title: 'Insufficient Balance',
+        description: `You only have $${bonusData.summary.sharable_balance.toFixed(2)} sharable bonus`,
+      });
+      return;
+    }
+    
+    setIsCreatingGift(true);
+    try {
+      const response = await fetch('/api/bonus/gift', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: address,
+          amount: giftAmount,
+          username: xProfile?.x_username,
+          avatar: xProfile?.x_avatar,
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setCreatedGiftUrl(result.data.gift_url);
+        refetchBonus();
+        toast({
+          title: '🎁 Gift Link Created!',
+          description: `Share the link to give $${giftAmount} bonus`,
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Failed to Create Gift',
+          description: result.error || 'Please try again',
+        });
+      }
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to create gift link',
+      });
+    } finally {
+      setIsCreatingGift(false);
+    }
+  };
+  
+  const copyGiftUrl = async () => {
+    if (!createdGiftUrl) return;
+    await navigator.clipboard.writeText(createdGiftUrl);
+    setCopiedGiftUrl(true);
+    setTimeout(() => setCopiedGiftUrl(false), 2000);
+  };
+  
+  const resetGiftDialog = () => {
+    setCreatedGiftUrl(null);
+    setGiftAmount(50);
+    setCopiedGiftUrl(false);
+  };
 
   // Not connected state
   if (!isConnected) {
@@ -406,6 +514,83 @@ export default function WalletPage() {
         </Card>
       </motion.div>
 
+      {/* Bonus Balance Card */}
+      {bonusData && (bonusData.summary.total_balance > 0 || bonusData.summary.sharable_balance > 0 || bonusData.summary.pending_profits > 0) && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="mb-8"
+        >
+          <Card className="relative overflow-hidden border-0 shadow-xl bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 text-white rounded-2xl">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.2),transparent_50%)]" />
+            
+            <CardContent className="relative p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Gift className="w-6 h-6" />
+                  <h3 className="text-lg font-bold">Bonus Balance</h3>
+                </div>
+                {bonusData.summary.sharable_balance > 0 && (
+                  <Button
+                    onClick={() => setIsGiftDialogOpen(true)}
+                    size="sm"
+                    className="bg-white/20 hover:bg-white/30 text-white border-0"
+                  >
+                    <Share2 className="w-4 h-4 mr-1" />
+                    Share Bonus
+                  </Button>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-white/10 rounded-xl p-4">
+                  <p className="text-white/70 text-xs uppercase mb-1">Personal</p>
+                  <p className="text-2xl font-bold">${bonusData.summary.personal_balance.toFixed(2)}</p>
+                </div>
+                <div className="bg-white/10 rounded-xl p-4">
+                  <p className="text-white/70 text-xs uppercase mb-1">Sharable</p>
+                  <p className="text-2xl font-bold">${bonusData.summary.sharable_balance.toFixed(2)}</p>
+                </div>
+                <div className="bg-white/10 rounded-xl p-4">
+                  <div className="flex items-center gap-1 mb-1">
+                    <Lock className="w-3 h-3 text-white/70" />
+                    <p className="text-white/70 text-xs uppercase">Pending Profits</p>
+                  </div>
+                  <p className="text-2xl font-bold">${bonusData.summary.pending_profits.toFixed(2)}</p>
+                </div>
+                <div className="bg-white/10 rounded-xl p-4">
+                  <div className="flex items-center gap-1 mb-1">
+                    <Unlock className="w-3 h-3 text-white/70" />
+                    <p className="text-white/70 text-xs uppercase">Unlocked</p>
+                  </div>
+                  <p className="text-2xl font-bold">${bonusData.summary.unlocked_profits.toFixed(2)}</p>
+                </div>
+              </div>
+              
+              {/* Volume Progress */}
+              {bonusData.summary.volume_required > 0 && (
+                <div className="mt-4 bg-white/10 rounded-xl p-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="text-sm text-white/80">Volume Progress</p>
+                    <p className="text-sm font-semibold">
+                      {bonusData.summary.volume_progress_percent.toFixed(1)}%
+                    </p>
+                  </div>
+                  <Progress 
+                    value={bonusData.summary.volume_progress_percent} 
+                    className="h-2 bg-white/20"
+                  />
+                  <p className="text-xs text-white/60 mt-2">
+                    ${bonusData.summary.volume_completed.toFixed(0)} / ${bonusData.summary.volume_required.toFixed(0)} wagered
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <StatCard
@@ -434,14 +619,13 @@ export default function WalletPage() {
           delay={0.3}
         />
         <StatCard
-          title="Best Streak"
-          value={stats.bestStreak}
-          prefix=""
-          suffix=" wins"
-          icon={Trophy}
-          gradient="bg-gradient-to-br from-orange-500 to-red-600"
+          title="Bonus Balance"
+          value={bonusData?.summary.total_balance || 0}
+          icon={Gift}
+          trend={bonusData?.summary.total_balance ? 'up' : 'neutral'}
+          trendValue={bonusData?.summary.pending_profits ? `$${bonusData.summary.pending_profits.toFixed(0)} locked` : undefined}
+          gradient="bg-gradient-to-br from-amber-500 to-orange-600"
           delay={0.4}
-          decimals={0}
         />
       </div>
 
@@ -491,14 +675,18 @@ export default function WalletPage() {
         transition={{ delay: 0.6 }}
       >
         <Tabs defaultValue="bets" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-4 rounded-xl">
+          <TabsList className="grid w-full grid-cols-3 mb-4 rounded-xl">
             <TabsTrigger value="bets" className="rounded-lg">
               <Target className="w-4 h-4 mr-2" />
               Recent Bets
             </TabsTrigger>
             <TabsTrigger value="referrals" className="rounded-lg">
+              <Users className="w-4 h-4 mr-2" />
+              Referrals
+            </TabsTrigger>
+            <TabsTrigger value="gifts" className="rounded-lg">
               <Gift className="w-4 h-4 mr-2" />
-              Referral Activity
+              Gifts
             </TabsTrigger>
           </TabsList>
 
@@ -613,6 +801,76 @@ export default function WalletPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="gifts">
+            <Card className="rounded-2xl shadow-lg">
+              <CardContent className="p-0">
+                {!bonusData?.gift_history || bonusData.gift_history.length === 0 ? (
+                  <div className="p-10 text-center">
+                    <Gift className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-xl font-semibold mb-2">No Gift History</p>
+                    <p className="text-muted-foreground mb-4">
+                      {bonusData?.summary.sharable_balance ? 
+                        'Share your bonus with friends!' : 
+                        'Gift history will appear here when you send or receive bonus gifts.'}
+                    </p>
+                    {bonusData?.summary.sharable_balance && bonusData.summary.sharable_balance > 0 && (
+                      <Button onClick={() => setIsGiftDialogOpen(true)} className="rounded-xl">
+                        <Share2 className="w-4 h-4 mr-2" />
+                        Create Gift Link
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>With</TableHead>
+                        <TableHead className="text-right">Status</TableHead>
+                        <TableHead className="text-right">Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {bonusData.gift_history.map((gift: GiftHistoryItem) => (
+                        <TableRow key={gift.id}>
+                          <TableCell>
+                            <Badge variant={gift.direction === 'sent' ? 'outline' : 'default'}>
+                              {gift.direction === 'sent' ? 'Sent' : 'Received'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-semibold">
+                            <span className={gift.direction === 'sent' ? 'text-red-500' : 'text-green-500'}>
+                              {gift.direction === 'sent' ? '-' : '+'}${gift.amount.toFixed(2)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {gift.other_username || 
+                              (gift.other_user_id ? `${gift.other_user_id.slice(0, 6)}...` : 'Pending')}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Badge 
+                              variant={gift.status === 'claimed' ? 'default' : 'secondary'}
+                              className={
+                                gift.status === 'claimed' ? 'bg-green-500' : 
+                                gift.status === 'pending' ? 'bg-yellow-500' : ''
+                              }
+                            >
+                              {gift.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right text-muted-foreground text-sm">
+                            {format(new Date(gift.created_at), 'MMM d')}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </motion.div>
 
@@ -641,6 +899,140 @@ export default function WalletPage() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Gift Creation Dialog */}
+      <Dialog open={isGiftDialogOpen} onOpenChange={(open) => {
+        setIsGiftDialogOpen(open);
+        if (!open) resetGiftDialog();
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gift className="w-5 h-5 text-primary" />
+              Share Bonus
+            </DialogTitle>
+            <DialogDescription>
+              Create a shareable link to gift bonus funds to friends.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {!createdGiftUrl ? (
+            <>
+              <div className="space-y-4 py-4">
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm text-muted-foreground">Available to share</span>
+                    <span className="font-bold text-lg">
+                      ${bonusData?.summary.sharable_balance.toFixed(2) || '0.00'}
+                    </span>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Gift Amount</label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl font-bold text-muted-foreground">$</span>
+                    <Input
+                      type="number"
+                      value={giftAmount}
+                      onChange={(e) => setGiftAmount(Number(e.target.value))}
+                      min={10}
+                      max={bonusData?.summary.sharable_balance || 500}
+                      className="text-2xl font-bold h-14"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Min: $10 • Max: $500
+                  </p>
+                </div>
+                
+                <div className="bg-amber-500/10 rounded-lg p-3 text-sm">
+                  <p className="text-amber-600 dark:text-amber-400">
+                    <Sparkles className="w-4 h-4 inline mr-1" />
+                    Recipients must trade ${giftAmount * 30} to unlock profits.
+                  </p>
+                </div>
+              </div>
+              
+              <DialogFooter>
+                <Button
+                  onClick={handleCreateGift}
+                  disabled={isCreatingGift || giftAmount < 10 || giftAmount > (bonusData?.summary.sharable_balance || 0)}
+                  className="w-full"
+                >
+                  {isCreatingGift ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Gift className="w-4 h-4 mr-2" />
+                      Create Gift Link
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <div className="space-y-4 py-4">
+                <div className="text-center">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-green-500/10 rounded-full flex items-center justify-center">
+                    <Check className="w-8 h-8 text-green-500" />
+                  </div>
+                  <p className="text-lg font-semibold mb-1">Gift Link Created!</p>
+                  <p className="text-muted-foreground text-sm">
+                    Share this link to give ${giftAmount} bonus
+                  </p>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={createdGiftUrl}
+                    readOnly
+                    className="font-mono text-sm"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={copyGiftUrl}
+                  >
+                    {copiedGiftUrl ? (
+                      <Check className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      const text = `I'm sending you $${giftAmount} bonus to trade on WinBig! 🎁\n\nClaim here: ${createdGiftUrl}`;
+                      const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+                      window.open(twitterUrl, '_blank');
+                    }}
+                  >
+                    Share on X
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    onClick={() => {
+                      resetGiftDialog();
+                      setIsGiftDialogOpen(false);
+                    }}
+                  >
+                    Done
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

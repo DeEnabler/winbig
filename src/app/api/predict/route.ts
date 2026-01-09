@@ -8,7 +8,6 @@ export interface PredictionShare {
   created_at?: string;
   share_code: string;
   user_id: string;
-  username?: string | null;
   market_id: string;
   predicted_outcome: 'YES' | 'NO';
   bet_id?: number | null;
@@ -94,7 +93,6 @@ export async function POST(request: NextRequest) {
     const predictionShare: Omit<PredictionShare, 'id' | 'created_at'> = {
       share_code: shareCode,
       user_id,
-      username: username || null,
       market_id,
       predicted_outcome,
       clicks: 0,

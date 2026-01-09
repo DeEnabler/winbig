@@ -2,40 +2,16 @@
 import type { Metadata, ResolvingMetadata } from 'next';
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import { getBetByShareCode, getUserProfileByWallet, getUserProfileByUsername, supabase } from '@/lib/supabase-server';
+import { getBetById, getUserProfileByWallet, supabase } from '@/lib/supabase-server';
 import { getMarketDetails } from '@/lib/marketService';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import ChallengeInvite from '@/components/challenges/ChallengeInvite';
 import { isValidShareCode } from '@/lib/shareCode';
-import type { PredictionShare } from '@/app/api/predict/route';
 
 type ChallengePageProps = {
   params: Promise<{ code: string }>;
 };
-
-// Helper to fetch prediction share
-async function getPredictionShare(code: string): Promise<PredictionShare | null> {
-  if (!supabase) return null;
-  
-  const { data, error } = await supabase
-    .from('prediction_shares')
-    .select('*')
-    .eq('share_code', code)
-    .eq('is_active', true)
-    .single();
-  
-  if (error || !data) return null;
-  
-  // Increment click count (fire and forget)
-  supabase
-    .from('prediction_shares')
-    .update({ clicks: (data.clicks || 0) + 1 })
-    .eq('id', data.id);
-  
-  return data;
-}
-
 
 // Generate dynamic OG metadata
 export async function generateMetadata(
@@ -52,56 +28,51 @@ export async function generateMetadata(
     };
   }
 
-  // Try bet share first
-  const betResult = await getBetByShareCode(code);
-  const bet = betResult.success ? betResult.data : null;
+  if (!supabase) return {};
+
+  // Centralized lookup via prediction_shares table
+  const { data: share, error: shareError } = await supabase
+    .from('prediction_shares')
+    .select('*')
+    .eq('share_code', code)
+    .eq('is_active', true)
+    .single();
   
-  // Try prediction share if no bet
-  const predictionShare = bet ? null : await getPredictionShare(code);
-  
-  if (!bet && !predictionShare) {
+  if (shareError || !share) {
     return {
       title: 'Link Not Found - WinBig',
       description: 'This share link could not be found.',
     };
   }
 
-  const marketId = bet?.market_id || predictionShare?.market_id || '';
+  // Get associated bet if any
+  let bet = null;
+  if (share.bet_id) {
+    const betResult = await getBetById(share.bet_id);
+    bet = betResult.success ? betResult.data : null;
+  }
+
+  const marketId = share.market_id;
   const market = await getMarketDetails(marketId);
   const predictionText = market?.question || 'A WinBig Prediction';
-  const outcome = bet?.outcome || predictionShare?.predicted_outcome || 'YES';
-  const userId = bet?.user_id || predictionShare?.user_id || '';
-  const username = predictionShare?.username;
+  const outcome = share.predicted_outcome || 'YES';
+  const userId = share.user_id;
 
-  // Fetch user's social profile for OG metadata
+  // Fetch user's social profile for OG metadata (latest from user_profiles)
   let userProfile = null;
-  console.log('🔍 Challenge OG: Looking up profile for userId:', userId, 'username:', username);
-  
   if (userId) {
     const profileResult = await getUserProfileByWallet(userId);
-    console.log('🔍 Challenge OG: Wallet lookup result:', profileResult.success, profileResult.data?.x_username);
     if (profileResult.success && profileResult.data) {
       userProfile = profileResult.data;
     }
   }
-
-  // If still no profile, try by username from prediction share
-  if (!userProfile && username) {
-    const profileResult = await getUserProfileByUsername(username);
-    console.log('🔍 Challenge OG: Username lookup result:', profileResult.success, profileResult.data?.x_username);
-    if (profileResult.success && profileResult.data) {
-      userProfile = profileResult.data;
-    }
-  }
-  
-  console.log('🔍 Challenge OG: Final userProfile:', userProfile?.x_username, userProfile?.x_avatar);
 
   // Use social username if available - NEVER expose wallet addresses
   const displayName = userProfile?.x_username 
     ? `@${userProfile.x_username}`
     : userProfile?.x_name 
       ? userProfile.x_name
-      : username || 'A WinBig Predictor';
+      : 'A WinBig Predictor';
   
   const shortWallet = displayName;
 
@@ -129,11 +100,9 @@ export async function generateMetadata(
     : predictionText;
   
   if (bet) {
-    // Personal, bold, direct - "I bet $50 this happens"
     title = `💰 $${bet.amount} says ${outcome}: ${shortPrediction}`;
     description = `Think I'm wrong? Prove it. 👀`;
   } else {
-    // For predictions without bets - still bold
     title = `🎯 ${outcome}: ${shortPrediction}`;
     description = `I called it. Can you? 🔥`;
   }
@@ -170,26 +139,36 @@ export default async function ChallengePage({ params }: ChallengePageProps) {
     );
   }
 
-  // Try bet share first
-  const betResult = await getBetByShareCode(code);
-  let bet = betResult.success ? betResult.data : null;
+  if (!supabase) return null;
+
+  // Centralized lookup via prediction_shares table
+  const { data: share, error: shareError } = await supabase
+    .from('prediction_shares')
+    .select('*')
+    .eq('share_code', code)
+    .eq('is_active', true)
+    .single();
   
-  // Try prediction share if no bet
-  const predictionShare = bet ? null : await getPredictionShare(code);
-  
-  if (!bet && !predictionShare) {
+  if (shareError || !share) {
     notFound();
+  }
+
+  // Get associated bet if any
+  let bet = null;
+  if (share.bet_id) {
+    const betResult = await getBetById(share.bet_id);
+    bet = betResult.success ? betResult.data : null;
   }
 
   // SMART LOOKUP: If we only found a prediction share, check if this user 
   // has actually placed a bet on this market so we can show the real amount.
-  if (!bet && predictionShare && supabase) {
+  if (!bet && share) {
     console.log('🔍 Smart Lookup: Link is prediction-only, checking for associated bet...');
     const { data: latestBet } = await supabase
       .from('bets')
       .select('*')
-      .eq('user_id', predictionShare.user_id)
-      .eq('market_id', predictionShare.market_id)
+      .eq('user_id', share.user_id)
+      .eq('market_id', share.market_id)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -200,7 +179,7 @@ export default async function ChallengePage({ params }: ChallengePageProps) {
     }
   }
 
-  const marketId = bet?.market_id || predictionShare?.market_id || '';
+  const marketId = share.market_id;
   const market = await getMarketDetails(marketId);
 
   if (!market) {
@@ -212,46 +191,26 @@ export default async function ChallengePage({ params }: ChallengePageProps) {
     );
   }
 
-  const outcome = bet?.outcome || predictionShare?.predicted_outcome || 'YES';
-  const userId = bet?.user_id || predictionShare?.user_id || '';
+  const outcome = share.predicted_outcome || 'YES';
+  const userId = share.user_id;
   
-  // Fetch user's social profile (X/Twitter username) if we have a wallet address
+  // Fetch user's social profile (latest from user_profiles)
   let userProfile = null;
-  console.log('🔍 Challenge Page: Looking up profile for userId:', userId);
-  
   if (userId) {
     const profileResult = await getUserProfileByWallet(userId);
-    console.log('🔍 Challenge Page: Wallet lookup result:', profileResult.success, profileResult.data?.x_username, profileResult.error);
     if (profileResult.success && profileResult.data) {
       userProfile = profileResult.data;
     }
   }
 
-  // If still no profile, try by username from bet or prediction share
-  // Priority: bet.username (new field) > predictionShare.username
-  const shareUsername = (bet as any)?.username || predictionShare?.username;
-  console.log('🔍 Challenge Page: shareUsername:', shareUsername, '(from bet:', !!(bet as any)?.username, ', from prediction:', !!predictionShare?.username, ')');
-  
-  if (!userProfile && shareUsername) {
-    const profileResult = await getUserProfileByUsername(shareUsername);
-    console.log('🔍 Challenge Page: Username lookup result:', profileResult.success, profileResult.data?.x_username);
-    if (profileResult.success && profileResult.data) {
-      userProfile = profileResult.data;
-    }
-  }
-  
-  console.log('🔍 Challenge Page: Final userProfile:', userProfile?.x_username, userProfile?.x_avatar);
-  
-  // Priority: 1. X username with @, 2. X display name, 3. bet/share username, 4. Wallet prefix (never expose full wallet)
+  // Priority: 1. X username with @, 2. X display name, 3. Wallet prefix (never expose full wallet)
   const referrerName = userProfile?.x_username 
     ? `@${userProfile.x_username}`
     : userProfile?.x_name 
       ? userProfile.x_name
-      : shareUsername 
-        ? (shareUsername.startsWith('@') ? shareUsername : `@${shareUsername}`)
-        : userId 
-          ? `User ${userId.substring(0, 6)}...` // Show start of wallet if no name
-          : 'A WinBig Predictor';
+      : userId 
+        ? `User ${userId.substring(0, 6)}...` // Show start of wallet if no name
+        : 'A WinBig Predictor';
   
   const referrerAvatar = userProfile?.x_avatar || null;
   const matchId = `share_${code}`;
@@ -261,7 +220,6 @@ export default async function ChallengePage({ params }: ChallengePageProps) {
       <div className="flex flex-col items-center py-6 md:py-8">
         <Suspense fallback={<div className="w-full h-96 flex items-center justify-center"><LoadingSpinner message="Loading Challenge..." /></div>}>
           <div className="w-full max-w-md mx-auto px-4">
-            {/* Single unified ChallengeInvite - all data in one place */}
             <ChallengeInvite
               matchId={matchId}
               referrerName={referrerName}

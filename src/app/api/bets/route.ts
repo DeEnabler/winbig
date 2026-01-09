@@ -2,12 +2,19 @@
 // src/app/api/bets/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { insertBet, BetRecord } from '@/lib/supabase-server'
+import { deductBonusForBet, checkAndUnlockProfits } from '@/lib/bonus-service'
+
+// Extended bet data interface to include bonus fields
+interface BetDataWithBonus extends Omit<BetRecord, 'id' | 'created_at'> {
+  bonus_amount_used?: number;
+  cash_amount_used?: number;
+}
 
 export async function POST(request: NextRequest) {
   try {
     console.log('📥 API: Received bet placement request');
     
-    const betData = await request.json() as Omit<BetRecord, 'id' | 'created_at'>;
+    const betData = await request.json() as BetDataWithBonus;
     console.log('🎯 API: Bet data received:', betData);
     
     // Log referrer information if present (affiliate tracking)
@@ -15,6 +22,14 @@ export async function POST(request: NextRequest) {
       console.log('🔗 API: Affiliate referral detected:', {
         referrer_bet_id: betData.referrer_bet_id,
         referrer_user_id: betData.referrer_user_id,
+      });
+    }
+    
+    // Log bonus information if present
+    if (betData.bonus_amount_used && betData.bonus_amount_used > 0) {
+      console.log('🎁 API: Bonus bet detected:', {
+        bonus_amount_used: betData.bonus_amount_used,
+        cash_amount_used: betData.cash_amount_used,
       });
     }
     
@@ -35,8 +50,9 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Basic tx_hash format validation (should be 66 characters: '0x' + 64 hex chars)
-    if (typeof betData.tx_hash !== 'string' || !/^0x[a-fA-F0-9]{64}$/.test(betData.tx_hash)) {
+    // Allow bonus-only bets (tx_hash starts with 'bonus_') or regular blockchain transactions
+    const isBonusOnlyBet = betData.tx_hash.startsWith('bonus_');
+    if (!isBonusOnlyBet && (typeof betData.tx_hash !== 'string' || !/^0x[a-fA-F0-9]{64}$/.test(betData.tx_hash))) {
       console.error('❌ API: Invalid tx_hash format:', betData.tx_hash);
       return NextResponse.json(
         { success: false, error: 'Invalid transaction hash format' },
@@ -48,7 +64,36 @@ export async function POST(request: NextRequest) {
     const result = await insertBet(betData);
     console.log('📤 API: Bet insertion result:', result);
     
-    if (result.success) {
+    if (result.success && result.data) {
+      // Handle bonus deduction if bonus was used
+      if (betData.bonus_amount_used && betData.bonus_amount_used > 0) {
+        console.log('🎁 API: Processing bonus deduction for bet:', result.data.id);
+        
+        try {
+          const bonusResult = await deductBonusForBet(
+            betData.user_id,
+            betData.bonus_amount_used,
+            result.data.id!
+          );
+          
+          if (bonusResult.success) {
+            console.log('✅ API: Bonus deducted successfully:', bonusResult.data);
+            
+            // Check if any profits can be unlocked (volume requirement met)
+            const unlockResult = await checkAndUnlockProfits(betData.user_id);
+            if (unlockResult.success && unlockResult.data?.unlocked_amount) {
+              console.log('🎉 API: Profits unlocked:', unlockResult.data.unlocked_amount);
+            }
+          } else {
+            console.error('⚠️ API: Bonus deduction failed (non-blocking):', bonusResult.error);
+            // Don't fail the bet - bonus deduction is secondary
+          }
+        } catch (bonusErr) {
+          console.error('⚠️ API: Bonus processing error (non-blocking):', bonusErr);
+          // Don't fail the bet - bonus processing is secondary
+        }
+      }
+      
       return NextResponse.json({
         success: true,
         data: result.data

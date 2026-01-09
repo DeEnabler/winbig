@@ -51,11 +51,9 @@ export interface BetRecord {
   status: 'pending' | 'executed' | 'failed' | 'cancelled'
   tx_hash: string // REQUIRED: Transaction hash for idempotency and tracking
   
-  // Affiliate/referral tracking fields
-  share_code?: string | null // Unique code for shareable affiliate links
+  // Affiliate/referral tracking fields (Financial Attribution)
   referrer_bet_id?: number | null // ID of the bet that referred this user
   referrer_user_id?: string | null // Wallet address of the referrer (for earnings)
-  username?: string | null // X/Twitter username for social profile display
   
   // 💰 Economic tracking fields (NEW)
   gross_amount?: number | null // What user paid (same as amount, for clarity)
@@ -134,9 +132,6 @@ export async function insertBet(bet: Omit<BetRecord, 'id' | 'created_at'>): Prom
     }
     if (bet.referrer_user_id) {
       simplifiedBet.referrer_user_id = bet.referrer_user_id.toLowerCase();
-    }
-    if (bet.username) {
-      simplifiedBet.username = bet.username;
     }
     
     // 💰 Add economic tracking fields if provided (after migration is run)
@@ -425,63 +420,78 @@ export async function getBetById(betId: number): Promise<{ success: boolean; dat
   }
 }
 
-// Get a bet by its share code (for affiliate link lookups)
+// Get a bet by its share code (centralized via prediction_shares table)
 export async function getBetByShareCode(shareCode: string): Promise<{ success: boolean; data?: BetRecord; error?: string }> {
   try {
     if (!supabase) {
       return { success: false, error: 'Server-side Supabase client not initialized' };
     }
     
-    console.log('🔍 Looking up bet by share_code:', shareCode);
+    console.log('🔍 Looking up bet via share_code in prediction_shares:', shareCode);
     
-    const { data, error } = await supabase
-      .from('bets')
-      .select('*')
+    const { data: share, error } = await supabase
+      .from('prediction_shares')
+      .select('bet_id')
       .eq('share_code', shareCode)
       .single();
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        console.log('❌ No bet found with share_code:', shareCode);
-        return { success: false, error: 'Share link not found' };
+    if (error || !share?.bet_id) {
+      if (error?.code === 'PGRST116' || !share?.bet_id) {
+        console.log('❌ No bet-linked share found with code:', shareCode);
+        return { success: false, error: 'Share link not found or not linked to a bet' };
       }
-      console.error('Error fetching bet by share_code:', error);
+      console.error('Error fetching share lookup:', error);
       return { success: false, error: error.message };
     }
 
-    console.log('✅ Found bet with share_code:', shareCode);
-    return { success: true, data };
+    // Now fetch the actual bet
+    return getBetById(share.bet_id);
   } catch (err) {
     console.error('Exception fetching bet by share_code:', err);
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
   }
 }
 
-// Update a bet with a share code (used when generating affiliate link)
+// Update a bet with a share code (inserts into prediction_shares)
 export async function updateBetShareCode(betId: number, shareCode: string): Promise<{ success: boolean; data?: BetRecord; error?: string }> {
   try {
     if (!supabase) {
-      return { success: false, error: 'Server-side Supabase client not initialized' };
+      return { success: false, error: 'Supabase not initialized' };
     }
     
-    console.log('🔗 Updating bet', betId, 'with share_code:', shareCode);
+    console.log('🔗 Creating share entry for bet:', betId, 'with share_code:', shareCode);
     
-    const { data, error } = await supabase
+    // Get bet details first to populate prediction_shares
+    const { data: bet } = await supabase
       .from('bets')
-      .update({ share_code: shareCode })
+      .select('user_id, market_id, outcome')
       .eq('id', betId)
-      .select()
       .single();
 
+    if (!bet) {
+      return { success: false, error: 'Bet not found' };
+    }
+
+    const { error } = await supabase
+      .from('prediction_shares')
+      .upsert([{
+        share_code: shareCode,
+        user_id: bet.user_id,
+        market_id: bet.market_id,
+        predicted_outcome: bet.outcome,
+        bet_id: betId,
+        is_active: true
+      }], { onConflict: 'share_code' });
+
     if (error) {
-      console.error('Error updating bet share_code:', error);
+      console.error('Error creating bet share:', error);
       return { success: false, error: error.message };
     }
 
-    console.log('✅ Share code updated successfully for bet:', betId);
-    return { success: true, data };
+    console.log('✅ Share created successfully for bet:', betId);
+    return getBetById(betId);
   } catch (err) {
-    console.error('Exception updating bet share_code:', err);
+    console.error('Exception creating bet share:', err);
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
   }
 }
