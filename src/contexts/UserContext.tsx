@@ -57,6 +57,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [xSession, setXSession] = useState<Session | null>(null);
   const [xProfile, setXProfile] = useState<XUserProfile | null>(null);
   const [isXLoading, setIsXLoading] = useState(true);
+  const [hasShownXConnectToast, setHasShownXConnectToast] = useState(false);
 
   // Derived state
   const walletAddress = address || null;
@@ -108,10 +109,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (event === 'SIGNED_IN' && session?.user) {
         setXUser(session.user);
         await fetchProfile(session.user);
-        toast.success('Connected to X successfully!');
+        if (!hasShownXConnectToast) {
+          toast.success('Connected to X successfully!');
+          setHasShownXConnectToast(true);
+        }
       } else if (event === 'SIGNED_OUT') {
         setXUser(null);
         setXProfile(null);
+        setHasShownXConnectToast(false);
         toast.info('Disconnected from X');
       }
     });

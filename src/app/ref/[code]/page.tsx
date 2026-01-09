@@ -1,10 +1,46 @@
 // src/app/ref/[code]/page.tsx
 import { redirect } from 'next/navigation';
+import type { Metadata } from 'next';
 import { getUserByAffiliateCode } from '@/lib/supabase-server';
 
 type RefPageProps = {
   params: Promise<{ code: string }>;
 };
+
+/**
+ * Generate OG metadata for affiliate links.
+ * This allows WhatsApp/Messenger to show a preview with the logo
+ * before the user is redirected.
+ */
+export async function generateMetadata({ params }: RefPageProps): Promise<Metadata> {
+  const resolvedParams = await params;
+  const { code } = resolvedParams;
+  
+  const result = await getUserByAffiliateCode(code);
+  const username = result.data?.x_username || 'Someone';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.winbig.fun';
+  
+  const title = `Join WinBig via ${username}'s invite`;
+  const description = `${username} invited you to WinBig - the prediction market platform where you can bet on real-world outcomes!`;
+  
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: [{ url: `${appUrl}/logo.png`, width: 800, height: 800, alt: 'WinBig Logo' }],
+      type: 'website',
+      siteName: 'WinBig',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [`${appUrl}/logo.png`],
+    },
+  };
+}
 
 /**
  * Affiliate link redirect page.

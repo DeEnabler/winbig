@@ -7,10 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Clock, Sparkles, DollarSign, ShoppingCart, Gift, Share2, X as LucideXIcon, BookOpenText, Info, Loader2, TrendingUp, Layers } from 'lucide-react';
-// NextImage removed - using gradient backgrounds instead
+import { Sparkles, ShoppingCart, Gift, X as LucideXIcon, BookOpenText, Info, Layers } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
-import { motion } from 'framer-motion';
 import { useEntryContext } from '@/contexts/EntryContext';
 import { useToast } from '@/hooks/use-toast';
 import { useAccount } from 'wagmi';
@@ -28,28 +26,6 @@ const ShareDialog = dynamic(() => import('@/components/sharing/ShareDialog'), {
 
 function formatCurrency(amount: number, includeSign = true) {
   return `${includeSign ? '$' : ''}${amount.toFixed(2)}`;
-}
-
-// Category-based gradient backgrounds for cards without images
-function getCategoryGradient(category: string): string {
-  const categoryLower = category.toLowerCase();
-  if (categoryLower.includes('crypto') || categoryLower.includes('bitcoin') || categoryLower.includes('eth')) {
-    return 'from-amber-500/20 via-orange-500/10 to-yellow-500/20';
-  }
-  if (categoryLower.includes('sport') || categoryLower.includes('nfl') || categoryLower.includes('nba')) {
-    return 'from-green-500/20 via-emerald-500/10 to-teal-500/20';
-  }
-  if (categoryLower.includes('politic') || categoryLower.includes('election')) {
-    return 'from-blue-500/20 via-indigo-500/10 to-purple-500/20';
-  }
-  if (categoryLower.includes('tech') || categoryLower.includes('ai')) {
-    return 'from-cyan-500/20 via-sky-500/10 to-blue-500/20';
-  }
-  if (categoryLower.includes('entertainment') || categoryLower.includes('movie')) {
-    return 'from-pink-500/20 via-rose-500/10 to-red-500/20';
-  }
-  // Default gradient
-  return 'from-primary/20 via-primary/5 to-primary/10';
 }
 
 const fetchPositions = async (userId: string | undefined): Promise<{ activePositions: OpenPosition[], pastPositions: OpenPosition[] }> => {
@@ -191,19 +167,14 @@ export default function PositionsPage() {
   return (
     <>
       <div className="container mx-auto py-6 md:py-10">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-8 text-center"
-        >
+        <div className="mb-8 text-center">
           <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl">
             My Positions
           </h1>
           <p className="mt-3 text-lg text-muted-foreground">
             Track your active bets, sell early, or collect your winnings.
           </p>
-        </motion.div>
+        </div>
 
         {/* Active Positions Section */}
         <div className="mb-12">
@@ -211,12 +182,37 @@ export default function PositionsPage() {
             <Sparkles className="w-6 h-6 mr-2 text-primary" /> Active Bets
           </h2>
           {isLoading ? (
-             <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
-                {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-96 w-full" />)}
-            </div>
+            <Card className="rounded-xl overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Prediction</TableHead>
+                    <TableHead className="text-center">Choice</TableHead>
+                    <TableHead className="text-right">Invested</TableHead>
+                    <TableHead className="text-right">Value</TableHead>
+                    <TableHead className="text-right">P/L</TableHead>
+                    <TableHead className="text-right">Ends</TableHead>
+                    <TableHead className="text-center">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {[...Array(3)].map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell><Skeleton className="h-5 w-48" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-12 mx-auto" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-16 ml-auto" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-16 ml-auto" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-24 ml-auto" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-20 ml-auto" /></TableCell>
+                      <TableCell><Skeleton className="h-8 w-24 mx-auto" /></TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
           ) : error ? (
             <Card className="text-center p-8 bg-destructive/10 rounded-lg">
-                <p className="text-xl font-semibold mb-2 text-destructive">Could not load positions.</p>
+              <p className="text-xl font-semibold mb-2 text-destructive">Could not load positions.</p>
             </Card>
           ) : activePositions.length === 0 ? (
             <Card className="text-center p-8 bg-muted/50 rounded-lg">
@@ -228,114 +224,102 @@ export default function PositionsPage() {
               </Button>
             </Card>
           ) : (
-            <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
-              {activePositions.map((position, index) => {
-                const timeDiff = position.endsAt ? new Date(position.endsAt).getTime() - Date.now() : -1;
-                const isEndingSoon = position.status === 'LIVE' && timeDiff > 0 && timeDiff < 24 * 60 * 60 * 1000;
-                let statusText = position.status === 'ENDING_SOON' || isEndingSoon ? 'Ending Soon' : 'LIVE';
-                
-                return (
-                  <motion.div
-                    key={position.id}
-                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: index * 0.1 }}
-                  >
-                    <Card className="flex flex-col h-full overflow-hidden shadow-xl hover:shadow-2xl transition-shadow duration-300 rounded-xl">
-                      {/* Gradient header with category indicator and bet count */}
-                      <div className={`relative w-full h-24 bg-gradient-to-br ${getCategoryGradient(position.category)} flex items-center justify-center`}>
-                        <div className="flex flex-col items-center gap-1">
-                          <TrendingUp className={`w-8 h-8 ${position.userChoice === 'YES' ? 'text-green-500' : 'text-red-500'}`} />
-                          <span className={`text-lg font-bold ${position.userChoice === 'YES' ? 'text-green-600' : 'text-red-600'}`}>
+            <Card className="rounded-xl overflow-hidden">
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Prediction</TableHead>
+                      <TableHead className="text-center">Choice</TableHead>
+                      <TableHead className="text-right">Invested</TableHead>
+                      <TableHead className="text-right">Value</TableHead>
+                      <TableHead className="text-right">P/L</TableHead>
+                      <TableHead className="text-right">Ends</TableHead>
+                      <TableHead className="text-center">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {activePositions.map((position) => {
+                      const pnlColor = position.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600';
+                      const pnlSign = position.unrealizedPnL >= 0 ? '+' : '';
+                      
+                      return (
+                        <TableRow key={position.id}>
+                          <TableCell className="font-medium max-w-xs">
+                            <div className="truncate" title={position.predictionText}>{position.predictionText}</div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="outline" className="text-xs">{position.category}</Badge>
+                              {position.betCount && position.betCount > 1 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  <Layers className="w-3 h-3 mr-1" /> {position.betCount} bets
+                                </Badge>
+                              )}
+                              {position.bonusApplied && (
+                                <Badge className="bg-yellow-400 text-yellow-900 text-xs">
+                                  <Sparkles className="w-3 h-3 mr-1" /> Bonus
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className={`text-center font-bold ${position.userChoice === 'YES' ? 'text-green-600' : 'text-red-600'}`}>
                             {position.userChoice}
-                          </span>
-                        </div>
-                        {/* Bet count badge - show when multiple bets consolidated */}
-                        {(position.betCount && position.betCount > 1) && (
-                          <Badge className="absolute top-2 left-2 bg-primary/90 text-primary-foreground shadow-md text-xs px-2 py-0.5">
-                            <Layers className="w-3 h-3 mr-1" /> {position.betCount} bets
-                          </Badge>
-                        )}
-                        {position.bonusApplied && (
-                          <Badge className="absolute top-2 right-2 bg-yellow-400 text-yellow-900 hover:bg-yellow-400/90 dark:bg-yellow-600 dark:text-yellow-50 dark:hover:bg-yellow-600/90 shadow-md text-xs px-2 py-0.5">
-                            <Sparkles className="w-3 h-3 mr-1" /> Bonus
-                          </Badge>
-                        )}
-                      </div>
-                      <CardHeader className="pb-2 pt-3">
-                        <CardTitle className="text-base leading-tight line-clamp-2">{position.predictionText}</CardTitle>
-                        <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
-                          <Badge variant="outline" className="text-xs px-1.5 py-0.5">{position.category}</Badge>
-                          <div className="flex items-center">
-                            <Clock className="w-3 h-3 mr-1" />
-                             Ends {position.endsAt ? formatDistanceToNow(position.endsAt, { addSuffix: true }) : 'N/A'}
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="flex-grow space-y-1.5 py-2 px-4 text-xs">
-                        {/* Cost basis and current value */}
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Invested:</span>
-                          <span className="font-semibold">{formatCurrency(position.betAmount)}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Value Now:</span>
-                          <span className="font-bold text-base">{formatCurrency(position.currentValue)}</span>
-                        </div>
-                        
-                        {/* P&L Display - the key metric */}
-                        <div className={`flex items-center justify-between p-2 -mx-2 rounded-md ${
-                          position.unrealizedPnL >= 0 
-                            ? 'bg-green-500/10' 
-                            : 'bg-red-500/10'
-                        }`}>
-                          <span className="font-medium">P&L:</span>
-                          <div className="text-right">
-                            <span className={`font-bold text-base ${
-                              position.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'
-                            }`}>
-                              {position.unrealizedPnL >= 0 ? '+' : ''}{formatCurrency(position.unrealizedPnL)}
-                            </span>
-                            <span className={`ml-1.5 text-xs ${
-                              position.unrealizedPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'
-                            }`}>
-                              ({position.unrealizedPnLPercent >= 0 ? '+' : ''}{position.unrealizedPnLPercent.toFixed(1)}%)
-                            </span>
-                          </div>
-                        </div>
-                        
-                        {/* Additional details */}
-                        <div className="flex items-center justify-between text-muted-foreground text-xxs pt-1 border-t border-border/50">
-                          <span>{position.totalShares?.toFixed(2) || '0'} shares @ {formatCurrency(position.avgEntryPrice || 0)} avg</span>
-                          <span className={`font-semibold ${statusText === 'LIVE' ? 'text-blue-500' : 'text-orange-500'}`}>{statusText}</span>
-                        </div>
-                      </CardContent>
-                      <CardFooter className="pt-2 pb-3 px-4 flex flex-col gap-2">
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button className="w-full bg-warning hover:bg-warning/90 text-warning-foreground h-10 text-sm rounded-lg" size="sm" disabled={position.currentValue <= 0}>
-                              <ShoppingCart className="w-4 h-4 mr-1.5" /> Sell for {formatCurrency(position.currentValue)}
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>Confirm Sell</AlertDialogTitle>
-                              <AlertDialogDescription>Are you sure you want to sell this position for {formatCurrency(position.currentValue)}? This action cannot be undone.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleSellPosition(position.id, position.currentValue)} className="bg-warning hover:bg-warning/90 text-warning-foreground">Yes, Sell</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                        <Button onClick={() => handleSharePosition(position)} variant="outline" size="sm" className="w-full h-10 text-sm rounded-lg">
-                          <LucideXIcon className="w-4 h-4 mr-1.5" /> Share
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  </motion.div>
-                );
-              })}
-            </div>
+                          </TableCell>
+                          <TableCell className="text-right">{formatCurrency(position.betAmount)}</TableCell>
+                          <TableCell className="text-right font-semibold">{formatCurrency(position.currentValue)}</TableCell>
+                          <TableCell className={`text-right font-semibold ${pnlColor}`}>
+                            <div>{pnlSign}{formatCurrency(position.unrealizedPnL)}</div>
+                            <div className="text-xs">({pnlSign}{position.unrealizedPnLPercent.toFixed(1)}%)</div>
+                          </TableCell>
+                          <TableCell className="text-right text-sm text-muted-foreground">
+                            {position.endsAt ? formatDistanceToNow(position.endsAt, { addSuffix: true }) : 'N/A'}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button 
+                                    size="sm" 
+                                    className="bg-warning hover:bg-warning/90 text-warning-foreground h-8 text-xs"
+                                    disabled={position.currentValue <= 0}
+                                  >
+                                    <ShoppingCart className="w-3 h-3 mr-1" /> Sell
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Confirm Sell</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to sell this position for {formatCurrency(position.currentValue)}? This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                      onClick={() => handleSellPosition(position.id, position.currentValue)} 
+                                      className="bg-warning hover:bg-warning/90 text-warning-foreground"
+                                    >
+                                      Yes, Sell
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                              <Button 
+                                onClick={() => handleSharePosition(position)} 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8"
+                              >
+                                <LucideXIcon className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           )}
         </div>
 
