@@ -2,6 +2,7 @@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Info } from 'lucide-react';
 import type { ExecutionPreview } from '@/types';
+import { UsdtLogo } from '@/components/common/BrandLogos';
 
 interface ExecutionPreviewDisplayProps {
   preview: ExecutionPreview | null;
@@ -38,8 +39,8 @@ export const ExecutionPreviewDisplay = ({ preview, isLoading }: ExecutionPreview
   return (
     <div className="text-center p-3 bg-muted/50 rounded-lg space-y-1.5 text-sm min-h-[100px] flex flex-col justify-center">
       <div className="text-xs text-muted-foreground">{preview.summary}</div>
-      <div className="text-lg font-bold">
-        Potential Payout: <span className="text-green-600 dark:text-green-400">${preview.potentialPayout?.toFixed(2)}</span>
+      <div className="text-lg font-bold flex items-center justify-center gap-1">
+        Potential Payout: <span className="text-green-600 dark:text-green-400 inline-flex items-center gap-1">${preview.potentialPayout?.toFixed(2)} <UsdtLogo className="h-4 w-4 opacity-70" /></span>
       </div>
       <div className="text-xs text-muted-foreground">
         (Avg Price: ${preview.vwap?.toFixed(4)}, Impact: {preview.price_impact_pct?.toFixed(2)}%)

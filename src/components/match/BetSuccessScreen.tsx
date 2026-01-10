@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import confetti from 'canvas-confetti';
+import { UsdtLogo } from '@/components/common/BrandLogos';
 
 interface BetSuccessScreenProps {
   betAmount: number;
@@ -174,14 +175,15 @@ export default function BetSuccessScreen({
           >
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Your Bet</span>
-              <Badge className={selectedChoice === 'YES' ? 'bg-green-500' : 'bg-red-500'}>
-                ${betAmount} on {selectedChoice}
+              <Badge className={`inline-flex items-center gap-1 ${selectedChoice === 'YES' ? 'bg-green-500' : 'bg-red-500'}`}>
+                ${betAmount} <UsdtLogo className="h-3 w-3 opacity-80" /> on {selectedChoice}
               </Badge>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Potential Payout</span>
-              <span className="text-xl font-bold text-green-500">
+              <span className="text-xl font-bold text-green-500 inline-flex items-center gap-1">
                 ${potentialPayout.toFixed(2)}
+                <UsdtLogo className="h-4 w-4 opacity-70" />
                 <span className="text-xs ml-1 text-muted-foreground">({multiplier}x)</span>
               </span>
             </div>

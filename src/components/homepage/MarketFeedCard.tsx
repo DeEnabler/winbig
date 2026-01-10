@@ -16,6 +16,7 @@ import { motion } from 'framer-motion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 import { useUser } from '@/contexts/UserContext';
+import { UsdtLogo } from '@/components/common/BrandLogos';
 
 interface MarketFeedCardProps {
   market: LiveMarket;
@@ -178,7 +179,10 @@ export default function MarketFeedCard({ market }: MarketFeedCardProps) {
               className="text-center p-3 rounded-lg bg-green-500/10 border-2 border-green-500/30 hover:border-green-500 hover:bg-green-500/20 transition-all cursor-pointer group/yes"
             >
               <p className="text-xs text-green-600 font-medium group-hover/yes:text-green-500">BET YES</p>
-              <p className="text-xl font-bold text-green-500">${yesPayout.toFixed(2)}</p>
+              <p className="text-xl font-bold text-green-500 inline-flex items-center gap-1">
+                ${yesPayout.toFixed(2)}
+                <UsdtLogo className="h-3.5 w-3.5 opacity-70" />
+              </p>
               <p className="text-[10px] text-muted-foreground">{yesMultiplier}x return</p>
             </motion.button>
             {/* NO payout - CLICKABLE */}
@@ -189,7 +193,10 @@ export default function MarketFeedCard({ market }: MarketFeedCardProps) {
               className="text-center p-3 rounded-lg bg-red-500/10 border-2 border-red-500/30 hover:border-red-500 hover:bg-red-500/20 transition-all cursor-pointer group/no"
             >
               <p className="text-xs text-red-600 font-medium group-hover/no:text-red-500">BET NO</p>
-              <p className="text-xl font-bold text-red-500">${noPayout.toFixed(2)}</p>
+              <p className="text-xl font-bold text-red-500 inline-flex items-center gap-1">
+                ${noPayout.toFixed(2)}
+                <UsdtLogo className="h-3.5 w-3.5 opacity-70" />
+              </p>
               <p className="text-[10px] text-muted-foreground">{noMultiplier}x return</p>
             </motion.button>
           </div>

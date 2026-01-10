@@ -38,6 +38,7 @@ import BetSuccessScreen from '@/components/match/BetSuccessScreen';
 
 import { Loader2, Share2, Zap, Gift, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { UsdtLogo, PoweredByBadge } from '@/components/common/BrandLogos';
 
 const USDT_CONTRACT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955';
 const BETTING_WALLET_ADDRESS = '0x4Eaf22CA76bC525551a59bbD45D37A42284F9671';
@@ -617,7 +618,10 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-muted-foreground">Total Pot</p>
-                  <p className="font-bold text-lg">${totalPot.toLocaleString()}</p>
+                  <p className="font-bold text-lg inline-flex items-center gap-1">
+                    ${totalPot.toLocaleString()}
+                    <UsdtLogo className="h-4 w-4 opacity-70" />
+                  </p>
                 </div>
               </div>
               <p className="text-lg font-semibold text-center my-3">{match.predictionText}</p>
@@ -735,6 +739,9 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
                 )}
                 {isGeneratingShareLink ? 'Generating Link...' : 'Share Challenge'}
               </Button>
+              
+              {/* Trust indicators */}
+              <PoweredByBadge variant="compact" className="pt-2 justify-center opacity-60 hover:opacity-100 transition-opacity" />
             </CardFooter>
           </Card>
         </motion.div>
