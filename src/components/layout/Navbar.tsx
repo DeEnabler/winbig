@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Home, Menu, X, Coins, DollarSign, ListChecks, BarChart3, PlusCircle } from 'lucide-react'; 
+import { Home, Menu, X, Coins, DollarSign, ListChecks, BarChart3, PlusCircle, User } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/common/Logo';
 import { useState, useEffect } from 'react';
@@ -10,11 +10,12 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { mockCurrentUser } from '@/lib/mockData';
 import dynamic from 'next/dynamic';
+import { useUser } from '@/contexts/UserContext';
 
 const ConnectWallet = dynamic(() => import('@/components/wallet/ConnectWallet'), { ssr: false });
 const ConnectXButton = dynamic(() => import('@/components/wallet/ConnectXButton'), { ssr: false });
 
-const navItems = [
+const baseNavItems = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/positions', label: 'My Bets', icon: ListChecks },
   { href: '/earn', label: 'Earn', icon: DollarSign },
@@ -25,6 +26,17 @@ const navItems = [
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const { xProfile, walletAddress } = useUser();
+
+  // Build nav items dynamically based on login status
+  const navItems = [...baseNavItems];
+  if (xProfile && walletAddress) {
+    navItems.splice(2, 0, {
+      href: xProfile.x_username ? `/profile/@${xProfile.x_username}` : `/profile/${walletAddress}`,
+      label: 'Profile',
+      icon: User
+    });
+  }
 
   useEffect(() => {
     setIsMobileMenuOpen(false);

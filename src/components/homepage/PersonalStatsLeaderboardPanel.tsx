@@ -10,13 +10,13 @@ import { mockCurrentUser } from '@/lib/mockData'; // Using mockCurrentUser for p
 import { Button } from '../ui/button';
 import Link from 'next/link';
 
-// Mock data for leaderboard
+// Mock data for leaderboard with profile links
 const mockLeaderboardData = [
-  { id: 'leader1', rank: 1, username: 'CryptoKing88', xp: 125000, streak: 15, avatarUrl: 'https://placehold.co/40x40.png?text=CK' },
-  { id: 'leader2', rank: 2, username: 'ProphetQueen', xp: 110000, streak: 9, avatarUrl: 'https://placehold.co/40x40.png?text=PQ' },
-  { id: 'leader3', rank: 3, username: 'BetGodSupreme', xp: 98000, streak: 22, avatarUrl: 'https://placehold.co/40x40.png?text=BG' },
-  { id: 'leader4', rank: 4, username: 'OddsOracle', xp: 85000, streak: 7, avatarUrl: 'https://placehold.co/40x40.png?text=OO' },
-  { id: 'leader5', rank: 5, username: mockCurrentUser.username, xp: mockCurrentUser.xp, streak: mockCurrentUser.betStreak, avatarUrl: mockCurrentUser.avatarUrl || 'https://placehold.co/40x40.png?text=You' },
+  { id: 'leader1', rank: 1, username: 'CryptoKing88', xp: 125000, streak: 15, avatarUrl: 'https://placehold.co/40x40.png?text=CK', profileUrl: '/profile/@CryptoKing88' },
+  { id: 'leader2', rank: 2, username: 'ProphetQueen', xp: 110000, streak: 9, avatarUrl: 'https://placehold.co/40x40.png?text=PQ', profileUrl: '/profile/@ProphetQueen' },
+  { id: 'leader3', rank: 3, username: 'BetGodSupreme', xp: 98000, streak: 22, avatarUrl: 'https://placehold.co/40x40.png?text=BG', profileUrl: '/profile/@BetGodSupreme' },
+  { id: 'leader4', rank: 4, username: 'OddsOracle', xp: 85000, streak: 7, avatarUrl: 'https://placehold.co/40x40.png?text=OO', profileUrl: '/profile/@OddsOracle' },
+  { id: 'leader5', rank: 5, username: mockCurrentUser.username, xp: mockCurrentUser.xp, streak: mockCurrentUser.betStreak, avatarUrl: mockCurrentUser.avatarUrl || 'https://placehold.co/40x40.png?text=You', profileUrl: `/profile/@${mockCurrentUser.username}` },
 ].sort((a, b) => a.rank - b.rank);
 
 // Mock data for user's recent bets
@@ -99,7 +99,9 @@ export default function PersonalStatsLeaderboardPanel() {
                           <AvatarImage src={user.avatarUrl} alt={user.username} data-ai-hint="person avatar" />
                           <AvatarFallback>{user.username.substring(0,1)}</AvatarFallback>
                         </Avatar>
-                        <span className="font-medium truncate max-w-[100px] sm:max-w-xs">{user.username}</span>
+                        <Link href={user.profileUrl} className="font-medium truncate max-w-[100px] sm:max-w-xs hover:text-primary transition-colors">
+                          {user.username}
+                        </Link>
                       </div>
                     </TableCell>
                     <TableCell className="text-right font-mono">{user.xp.toLocaleString()}</TableCell>

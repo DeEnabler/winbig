@@ -9,7 +9,8 @@ import { useRouter } from 'next/navigation';
 import { useEntryContext } from '@/contexts/EntryContext';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, Swords, ShieldCheck, Users, Zap, BarChartHorizontalBig, Clock, AlertTriangle, Crown, Coins, Info, Flame, Share2, Loader2, Copy, Check } from 'lucide-react';
+import { CheckCircle, Swords, ShieldCheck, Users, Zap, BarChartHorizontalBig, Clock, AlertTriangle, Crown, Coins, Info, Flame, Share2, Loader2, Copy, Check, ExternalLink } from 'lucide-react';
+import Link from 'next/link';
 import { mockOpponentUser } from '@/lib/mockData';
 import { useAccount } from 'wagmi';
 import { useUser } from '@/contexts/UserContext';
@@ -482,7 +483,7 @@ export default function ChallengeInvite({
       const cleanReferrerName = referrerName.replace(/^👑\s*@/, '@');
       if (referrerStats.winStreak > 7) {
         message = `🔥 @${cleanReferrerName} is on a ${referrerStats.winStreak}W tear. Think you can break it?`;
-      } else if (referrerStats.winStreak >= 3) { 
+      } else if (referrerStats.winStreak >= 3) {
         message = `They're on a ${referrerStats.winStreak}W streak. Feeling lucky?`;
       } else if (referrerStats.predictionRank && (referrerStats.predictionRank.includes("Top") || referrerStats.predictionRank.includes("#"))) {
         message = `${cleanReferrerName} is ${referrerStats.predictionRank}. Challenge the champ?`;
@@ -524,9 +525,13 @@ export default function ChallengeInvite({
             {/* Info */}
             <div className="flex-1 text-left">
               <div className="flex items-center gap-2">
-                <h2 className="text-lg md:text-xl font-bold text-foreground">
+                <Link
+                  href={`/profile/${referrerUserId || referrerName}`}
+                  className="text-lg md:text-xl font-bold text-foreground hover:text-primary transition-colors flex items-center gap-1"
+                >
                   {referrerName}
-                </h2>
+                  <ExternalLink className="w-4 h-4 opacity-50" />
+                </Link>
               </div>
               <p className="text-sm text-muted-foreground">
                 {isVerified ? 'Verified Predictor' : 'Predictor'}
@@ -555,7 +560,9 @@ export default function ChallengeInvite({
           <div className="mt-4 p-3 bg-background/60 rounded-xl border border-border/50">
             <p className="text-sm text-center">
               <span className="text-muted-foreground">Think </span>
-              <span className="font-semibold">{referrerName}</span>
+              <Link href={`/profile/${referrerUserId || referrerName}`} className="font-semibold hover:text-primary transition-colors">
+                {referrerName}
+              </Link>
               <span className="text-muted-foreground"> is wrong? </span>
               <span className="font-bold text-primary">Prove it!</span>
             </p>
