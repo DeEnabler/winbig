@@ -9,9 +9,17 @@ import {
   BetRecord,
 } from '@/lib/supabase-server';
 import ProfileClient from '@/components/profile/ProfileClient';
+import PolymarketProfileClient from '@/components/profile/PolymarketProfileClient';
 import type { ProfileData } from '@/app/api/profile/[identifier]/route';
 
 export const dynamic = 'force-dynamic';
+
+// Check if identifier looks like a Polymarket profile request
+function isPolymarketRequest(identifier: string): boolean {
+  // Polymarket profiles: @username format that's not in our database
+  // or explicit polymarket: prefix
+  return identifier.startsWith('polymarket:') || identifier.startsWith('pm:');
+}
 
 interface PageProps {
   params: Promise<{ identifier: string }>;
@@ -162,8 +170,26 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { identifier } = await params;
   const decodedIdentifier = decodeURIComponent(identifier);
   
+  // Check if Polymarket profile
+  if (isPolymarketRequest(decodedIdentifier)) {
+    const polymarketId = decodedIdentifier.replace(/^(polymarket:|pm:)/, '');
+    return {
+      title: `${polymarketId} | Polymarket Profile`,
+      description: `View ${polymarketId}'s Polymarket positions and trading activity.`,
+    };
+  }
+  
   // Try to get profile for better metadata
   const { data } = await getProfileData(decodedIdentifier);
+  
+  // If no local data and looks like username, assume Polymarket
+  if (!data && !decodedIdentifier.startsWith('0x')) {
+    const cleanId = decodedIdentifier.startsWith('@') ? decodedIdentifier.substring(1) : decodedIdentifier;
+    return {
+      title: `@${cleanId} | Polymarket Profile`,
+      description: `View @${cleanId}'s Polymarket positions and trading activity.`,
+    };
+  }
   
   const displayName = data?.profile?.x_name || data?.profile?.x_username || decodedIdentifier;
   const username = data?.profile?.x_username;
@@ -186,7 +212,28 @@ export default async function ProfilePage({ params }: PageProps) {
   const { identifier } = await params;
   const decodedIdentifier = decodeURIComponent(identifier);
   
+  // Check if this is an explicit Polymarket profile request
+  if (isPolymarketRequest(decodedIdentifier)) {
+    const polymarketId = decodedIdentifier.replace(/^(polymarket:|pm:)/, '');
+    return (
+      <Suspense fallback={<ProfileLoadingFallback />}>
+        <PolymarketProfileClient identifier={polymarketId} />
+      </Suspense>
+    );
+  }
+
+  // Try to get local profile first
   const { data, error } = await getProfileData(decodedIdentifier);
+
+  // If no local profile found and it looks like a username, try Polymarket
+  if (!data && !decodedIdentifier.startsWith('0x')) {
+    // Could be a Polymarket username - show Polymarket profile
+    return (
+      <Suspense fallback={<ProfileLoadingFallback />}>
+        <PolymarketProfileClient identifier={decodedIdentifier} />
+      </Suspense>
+    );
+  }
 
   return (
     <Suspense fallback={<ProfileLoadingFallback />}>
