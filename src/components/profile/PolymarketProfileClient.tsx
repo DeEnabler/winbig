@@ -304,6 +304,8 @@ function PositionsTab({ positions }: { positions: PolymarketPosition[] }) {
             const pnl = parseFloat(pos.cashPnl) || 0;
             const pnlPercent = parseFloat(pos.percentPnl) || 0;
             const pnlColor = pnl >= 0 ? 'text-green-500' : 'text-red-500';
+            const outcomeLower = (pos.outcome || '').toLowerCase();
+            const isYes = outcomeLower === 'yes';
             
             return (
               <TableRow key={i}>
@@ -318,8 +320,8 @@ function PositionsTab({ positions }: { positions: PolymarketPosition[] }) {
                   </a>
                 </TableCell>
                 <TableCell className="text-center">
-                  <Badge variant={pos.outcome === 'Yes' ? 'default' : 'destructive'}
-                    className={pos.outcome === 'Yes' ? 'bg-green-500' : ''}>
+                  <Badge variant={isYes ? 'default' : 'destructive'}
+                    className={isYes ? 'bg-green-500' : ''}>
                     {pos.outcome}
                   </Badge>
                 </TableCell>
@@ -375,7 +377,10 @@ function ActivityTab({ activity }: { activity: PolymarketActivity[] }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {activity.slice(0, 50).map((act, i) => (
+          {activity.slice(0, 50).map((act, i) => {
+            const sideUpper = (act.side || '').toUpperCase();
+            const isBuy = sideUpper === 'BUY';
+            return (
             <TableRow key={i}>
               <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                 {formatDistanceToNow(new Date(act.timestamp), { addSuffix: true })}
@@ -387,8 +392,8 @@ function ActivityTab({ activity }: { activity: PolymarketActivity[] }) {
                 <span className="line-clamp-1">{act.title}</span>
               </TableCell>
               <TableCell className="text-center">
-                <Badge variant={act.side === 'BUY' ? 'default' : 'secondary'}
-                  className={act.side === 'BUY' ? 'bg-green-500' : 'bg-red-500 text-white'}>
+                <Badge variant={isBuy ? 'default' : 'secondary'}
+                  className={isBuy ? 'bg-green-500' : 'bg-red-500 text-white'}>
                   {act.side}
                 </Badge>
               </TableCell>
@@ -402,7 +407,8 @@ function ActivityTab({ activity }: { activity: PolymarketActivity[] }) {
                 {formatCurrency((parseFloat(act.price) || 0) * (parseFloat(act.size) || 0))}
               </TableCell>
             </TableRow>
-          ))}
+            );
+          })}
         </TableBody>
       </Table>
     </Card>

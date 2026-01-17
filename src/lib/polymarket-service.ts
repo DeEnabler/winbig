@@ -101,9 +101,9 @@ export async function resolvePolymarketUsername(username: string): Promise<strin
     // Remove @ if present
     const cleanUsername = username.startsWith('@') ? username.substring(1) : username;
     
-    // Try the gamma API to search for user
+    // Use public search to resolve username -> wallet
     const response = await fetch(
-      `${POLYMARKET_GAMMA_API}/users?username=${encodeURIComponent(cleanUsername)}`,
+      `${POLYMARKET_GAMMA_API}/public-search?query=${encodeURIComponent(cleanUsername)}`,
       {
         headers: {
           'Accept': 'application/json',
@@ -118,12 +118,33 @@ export async function resolvePolymarketUsername(username: string): Promise<strin
     }
 
     const data = await response.json();
-    
-    // The API might return an array or single object
-    if (Array.isArray(data) && data.length > 0) {
-      return data[0].proxyWallet || data[0].address || null;
-    } else if (data.proxyWallet || data.address) {
-      return data.proxyWallet || data.address;
+
+    // The public-search endpoint can return different shapes; handle common cases.
+    const candidates: any[] = [];
+    if (Array.isArray(data)) {
+      candidates.push(...data);
+    } else if (data?.profiles && Array.isArray(data.profiles)) {
+      candidates.push(...data.profiles);
+    } else if (data?.users && Array.isArray(data.users)) {
+      candidates.push(...data.users);
+    } else if (data?.results && Array.isArray(data.results)) {
+      candidates.push(...data.results);
+    } else if (data) {
+      candidates.push(data);
+    }
+
+    for (const item of candidates) {
+      const handle = item?.pseudonym || item?.username || item?.xUsername || item?.name;
+      const address = item?.proxyWallet || item?.address || item?.wallet || item?.walletAddress;
+      if (address && handle && String(handle).toLowerCase() === cleanUsername.toLowerCase()) {
+        return address;
+      }
+    }
+
+    // Fallback: return first address-like value if present
+    for (const item of candidates) {
+      const address = item?.proxyWallet || item?.address || item?.wallet || item?.walletAddress;
+      if (address) return address;
     }
 
     return null;
@@ -141,7 +162,7 @@ export async function fetchPolymarketProfile(address: string): Promise<Polymarke
     console.log('📡 Fetching Polymarket profile for:', address);
     
     const response = await fetch(
-      `${POLYMARKET_GAMMA_API}/profiles/${address}`,
+      `${POLYMARKET_GAMMA_API}/public-profile?address=${encodeURIComponent(address)}`,
       {
         headers: {
           'Accept': 'application/json',
@@ -273,7 +294,10 @@ export async function fetchCompletePolymarketProfile(
     
     // If it looks like a username, resolve it first
     if (!addressOrUsername.startsWith('0x')) {
-      const resolved = await resolvePolymarketUsername(addressOrUsername);
+      const cleanIdentifier = addressOrUsername.startsWith('@')
+        ? addressOrUsername.substring(1)
+        : addressOrUsername;
+      const resolved = await resolvePolymarketUsername(cleanIdentifier);
       if (!resolved) {
         console.log('Could not resolve Polymarket username:', addressOrUsername);
         return null;
