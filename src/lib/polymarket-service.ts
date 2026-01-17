@@ -103,7 +103,7 @@ export async function resolvePolymarketUsername(username: string): Promise<strin
     
     // Use public search to resolve username -> wallet
     const response = await fetch(
-      `${POLYMARKET_GAMMA_API}/public-search?query=${encodeURIComponent(cleanUsername)}`,
+      `${POLYMARKET_GAMMA_API}/public-search?q=${encodeURIComponent(cleanUsername)}`,
       {
         headers: {
           'Accept': 'application/json',
@@ -147,9 +147,60 @@ export async function resolvePolymarketUsername(username: string): Promise<strin
       if (address) return address;
     }
 
-    return null;
+    // Fallback: parse Polymarket profile page __NEXT_DATA__ for proxyWallet
+    const fallbackAddress = await resolveFromProfilePage(cleanUsername);
+    return fallbackAddress;
   } catch (error) {
     console.error('Error resolving Polymarket username:', error);
+    return null;
+  }
+}
+
+/**
+ * Fallback: resolve username by parsing Polymarket profile page HTML
+ */
+async function resolveFromProfilePage(username: string): Promise<string | null> {
+  try {
+    const url = `https://polymarket.com/@${encodeURIComponent(username)}`;
+    const response = await fetch(url, {
+      headers: { 'Accept': 'text/html' },
+      next: { revalidate: 300 },
+    });
+    if (!response.ok) {
+      return null;
+    }
+    const html = await response.text();
+    const marker = '<script id="__NEXT_DATA__" type="application/json"';
+    const start = html.indexOf(marker);
+    if (start === -1) {
+      return null;
+    }
+    const scriptStart = html.indexOf('>', start);
+    const scriptEnd = html.indexOf('</script>', scriptStart);
+    if (scriptStart === -1 || scriptEnd === -1) {
+      return null;
+    }
+    const jsonText = html.slice(scriptStart + 1, scriptEnd);
+    const data = JSON.parse(jsonText);
+
+    // Walk the JSON to find a profile-like object with proxyWallet
+    const stack: any[] = [data];
+    while (stack.length) {
+      const node = stack.pop();
+      if (node && typeof node === 'object') {
+        if (node.proxyWallet && typeof node.proxyWallet === 'string') {
+          return node.proxyWallet;
+        }
+        if (Array.isArray(node)) {
+          for (const item of node) stack.push(item);
+        } else {
+          for (const value of Object.values(node)) stack.push(value);
+        }
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error('Error resolving from profile page:', error);
     return null;
   }
 }
