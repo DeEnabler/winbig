@@ -16,7 +16,7 @@ import { motion } from 'framer-motion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 import { useUser } from '@/contexts/UserContext';
-import { UsdtLogo } from '@/components/common/BrandLogos';
+import { UsdtLogo, BnbChainLogo } from '@/components/common/BrandLogos';
 
 interface MarketFeedCardProps {
   market: LiveMarket;
@@ -143,6 +143,9 @@ export default function MarketFeedCard({ market }: MarketFeedCardProps) {
               {market.category}
             </Badge>
           )}
+          <div className="flex items-center gap-0.5 ml-auto opacity-50">
+            <BnbChainLogo className="h-3 w-3" />
+          </div>
         </div>
       </CardHeader>
 

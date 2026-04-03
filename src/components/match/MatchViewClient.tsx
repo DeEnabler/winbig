@@ -38,7 +38,7 @@ import BetSuccessScreen from '@/components/match/BetSuccessScreen';
 
 import { Loader2, Share2, Zap, Gift, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { UsdtLogo, PoweredByBadge } from '@/components/common/BrandLogos';
+import { UsdtLogo, BnbChainLogo } from '@/components/common/BrandLogos';
 
 const USDT_CONTRACT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955';
 const BETTING_WALLET_ADDRESS = '0x4Eaf22CA76bC525551a59bbD45D37A42284F9671';
@@ -740,8 +740,14 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
                 {isGeneratingShareLink ? 'Generating Link...' : 'Share Challenge'}
               </Button>
               
-              {/* Trust indicators */}
-              <PoweredByBadge variant="compact" className="pt-2 justify-center opacity-60 hover:opacity-100 transition-opacity" />
+              {/* Chain indicator */}
+              <div className="flex items-center justify-center gap-1.5 pt-2 text-[11px] text-muted-foreground/50">
+                <BnbChainLogo className="h-3 w-3" />
+                <span>Settles on BNB Chain</span>
+                <span className="mx-0.5">·</span>
+                <UsdtLogo className="h-3 w-3" />
+                <span>USDT</span>
+              </div>
             </CardFooter>
           </Card>
         </motion.div>

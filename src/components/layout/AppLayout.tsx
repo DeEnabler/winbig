@@ -1,7 +1,8 @@
 
 import type { ReactNode } from 'react';
 import Navbar from './Navbar';
-import Link from 'next/link'; // Added this import
+import Link from 'next/link';
+import { BnbChainLogo } from '@/components/common/BrandLogos';
 
 // HeroBetDisplay is now part of specific pages like /challenge or the new HeroNewSection
 
@@ -25,7 +26,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 <Link href="/about" className="hover:text-primary">About Us</Link>
                 <Link href="/contact" className="hover:text-primary">Contact</Link>
             </nav>
-            {/* Placeholder for social media icons & newsletter signup */}
+            <div className="flex items-center justify-center gap-1.5 mt-4 text-xs text-muted-foreground/60">
+                <span>Powered by</span>
+                <BnbChainLogo className="h-3.5 w-3.5" />
+                <span className="font-medium">BNB Chain</span>
+            </div>
         </div>
       </footer>
     </>

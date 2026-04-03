@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import confetti from 'canvas-confetti';
-import { UsdtLogo } from '@/components/common/BrandLogos';
+import { UsdtLogo, BnbChainLogo } from '@/components/common/BrandLogos';
 
 interface BetSuccessScreenProps {
   betAmount: number;
@@ -186,6 +186,10 @@ export default function BetSuccessScreen({
                 <UsdtLogo className="h-4 w-4 opacity-70" />
                 <span className="text-xs ml-1 text-muted-foreground">({multiplier}x)</span>
               </span>
+            </div>
+            <div className="flex items-center justify-center gap-1.5 pt-2 border-t border-border/50 text-[11px] text-muted-foreground/60">
+              <BnbChainLogo className="h-3 w-3" />
+              <span>Settled on BNB Chain</span>
             </div>
           </motion.div>
 
