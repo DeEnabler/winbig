@@ -1,4 +1,8 @@
 // src/app/api/copy-trader/route.ts
+//
+// Subscription-only copy trading. Records who is copying whom.
+// Does NOT insert into the bets table or trigger any real orders.
+
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -18,15 +22,11 @@ export interface CopySubscription {
   leader_user_id: string | null;
   leader_identifier: string;
   leader_source: 'winbig' | 'polymarket';
-  scale_mode: 'fixed' | 'proportional';
   fixed_amount: number;
-  proportional_pct: number;
   max_per_trade: number;
   max_daily_usd: number;
-  daily_used_usd: number;
   active: boolean;
   paused_reason: string | null;
-  last_sampled_at: string | null;
 }
 
 /**
@@ -89,14 +89,14 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/copy-trader
  * 
- * Create or re-activate a copy subscription.
+ * Create or re-activate a copy subscription. Saves the user's intent to copy
+ * a leader — no real orders are placed.
  * Body:
  *   - follower_user_id (required): wallet of the copier
  *   - leader_identifier (required): wallet, @username, or polymarket:address
  *   - leader_source: 'winbig' | 'polymarket' (default: 'winbig')
  *   - leader_user_id: resolved wallet if known
- *   - scale_mode: 'fixed' | 'proportional' (default: 'fixed')
- *   - fixed_amount: USD per trade (default: 10)
+ *   - fixed_amount: preferred USD per trade (default: 10)
  *   - max_per_trade: hard cap (default: 100)
  *   - max_daily_usd: daily cap (default: 500)
  */
@@ -113,9 +113,7 @@ export async function POST(request: NextRequest) {
       leader_identifier,
       leader_source = 'winbig',
       leader_user_id = null,
-      scale_mode = 'fixed',
       fixed_amount = 10,
-      proportional_pct = 1.0,
       max_per_trade = 100,
       max_daily_usd = 500,
     } = body;
@@ -154,9 +152,7 @@ export async function POST(request: NextRequest) {
           paused_reason: null,
           leader_user_id: normalizedLeaderWallet,
           leader_source,
-          scale_mode,
           fixed_amount,
-          proportional_pct,
           max_per_trade,
           max_daily_usd,
         })
@@ -179,9 +175,7 @@ export async function POST(request: NextRequest) {
         leader_identifier,
         leader_source,
         leader_user_id: normalizedLeaderWallet,
-        scale_mode,
         fixed_amount,
-        proportional_pct,
         max_per_trade,
         max_daily_usd,
       })

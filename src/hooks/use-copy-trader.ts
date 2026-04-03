@@ -8,7 +8,6 @@ interface CopySubscriptionData {
   active: boolean;
   leader_identifier: string;
   leader_source: string;
-  scale_mode: string;
   fixed_amount: number;
   max_per_trade: number;
   max_daily_usd: number;
