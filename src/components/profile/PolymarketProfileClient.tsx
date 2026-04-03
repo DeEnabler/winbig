@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import type { MirroredProfile, PolymarketPosition, PolymarketActivity } from '@/lib/polymarket-service';
+import CopyTraderButton from './CopyTraderButton';
 
 interface PolymarketProfileClientProps {
   identifier: string;
@@ -180,6 +181,13 @@ function ProfileHeader({ profile, onSync, isSyncing }: {
 
           {/* Actions */}
           <div className="flex items-start gap-2">
+            <CopyTraderButton
+              leaderIdentifier={`polymarket:${profile.polymarket_address}`}
+              leaderSource="polymarket"
+              leaderUserId={null}
+              leaderDisplayName={profile.display_name || profile.pseudonym || profile.polymarket_username || undefined}
+              variant="header"
+            />
             <Button
               variant="outline"
               size="sm"

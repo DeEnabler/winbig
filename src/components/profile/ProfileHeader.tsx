@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Copy, Check, ExternalLink, Twitter, Wallet } from 'lucide-react';
 import { useState } from 'react';
 import type { UserProfile } from '@/lib/supabase-server';
+import CopyTraderButton from './CopyTraderButton';
 
 interface ProfileHeaderProps {
   profile: UserProfile | null;
@@ -133,6 +134,19 @@ export default function ProfileHeader({ profile, walletAddress, isVerified, isOw
                 </Badge>
               )}
             </div>
+
+            {/* Copy Trader */}
+            {!isOwnProfile && walletAddress && (
+              <div className="mt-4 flex justify-center md:justify-start">
+                <CopyTraderButton
+                  leaderIdentifier={walletAddress.toLowerCase()}
+                  leaderSource="winbig"
+                  leaderUserId={walletAddress.toLowerCase()}
+                  leaderDisplayName={profile?.x_name || profile?.x_username || undefined}
+                  variant="header"
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
