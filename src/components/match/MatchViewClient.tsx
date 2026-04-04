@@ -36,8 +36,9 @@ import ShareDialog from '@/components/sharing/ShareDialog';
 import { ExecutionPreviewDisplay } from '@/components/match/ExecutionPreviewDisplay';
 import BetSuccessScreen from '@/components/match/BetSuccessScreen';
 
-import { Loader2, Share2, Zap, Gift, Sparkles } from 'lucide-react';
+import { Loader2, Share2, Zap, Gift, Sparkles, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { UsdtLogo, BnbChainLogo } from '@/components/common/BrandLogos';
 
 const USDT_CONTRACT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955';
@@ -53,6 +54,18 @@ function formatTimeLeft(ends: number) {
   const minutes = Math.floor((diff / 1000 / 60) % 60).toString().padStart(2, '0');
   const seconds = Math.floor((diff / 1000) % 60).toString().padStart(2, '0');
   return `${hours}:${minutes}:${seconds}`;
+}
+
+function initializeBettorsFromPrice(yesPrice?: number, baseTotalBettors = 50) {
+  if (typeof yesPrice === 'number' && yesPrice >= 0 && yesPrice <= 1) {
+    const initialYes = Math.round(yesPrice * baseTotalBettors);
+    const initialNo = baseTotalBettors - initialYes;
+    return { yesBettors: Math.max(1, initialYes), noBettors: Math.max(1, initialNo) };
+  }
+  return {
+    yesBettors: Math.floor(Math.random() * 15) + 8,
+    noBettors: Math.floor(Math.random() * 15) + 7,
+  };
 }
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -191,6 +204,15 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
 
   const [timeLeft, setTimeLeft] = useState(formatTimeLeft(match.countdownEnds));
   const [countdownProgress, setCountdownProgress] = useState(100);
+
+  // Live activity state
+  const initialBettors = useMemo(() => initializeBettorsFromPrice(match.yesPrice), [match.yesPrice]);
+  const [yesBettors, setYesBettors] = useState(initialBettors.yesBettors);
+  const [noBettors, setNoBettors] = useState(initialBettors.noBettors);
+  const [showPlusOneYes, setShowPlusOneYes] = useState(false);
+  const [showPlusOneNo, setShowPlusOneNo] = useState(false);
+  const [oddsPulse, setOddsPulse] = useState(false);
+
   const [shareMessage, setShareMessage] = useState<string>('');
   const [isLoadingShareMessage, setIsLoadingShareMessage] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
@@ -262,6 +284,30 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
     }, 1000);
     return () => clearInterval(timer);
   }, [match.countdownEnds]);
+
+  // Live activity simulation — bettor counts tick up, odds pulse
+  useEffect(() => {
+    const activityInterval = setInterval(() => {
+      let madeChange = false;
+      if (Math.random() < 0.3) {
+        setYesBettors(prev => prev + 1);
+        setShowPlusOneYes(true);
+        setTimeout(() => setShowPlusOneYes(false), 800);
+        madeChange = true;
+      }
+      if (Math.random() < 0.25) {
+        setNoBettors(prev => prev + 1);
+        setShowPlusOneNo(true);
+        setTimeout(() => setShowPlusOneNo(false), 800);
+        madeChange = true;
+      }
+      if (madeChange) {
+        setOddsPulse(true);
+        setTimeout(() => setOddsPulse(false), 700);
+      }
+    }, 3500 + Math.random() * 2500);
+    return () => clearInterval(activityInterval);
+  }, []);
 
   const handleGenerateShareMessage = async () => {
     if (shareMessage && !isLoadingShareMessage) return;
@@ -625,9 +671,55 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
                 </div>
               </div>
               <p className="text-lg font-semibold text-center my-3">{match.predictionText}</p>
+
+              {/* Countdown timer */}
+              <div className="flex items-center justify-center gap-2 text-sm">
+                <Clock className="w-4 h-4 text-muted-foreground" />
+                <span className={`font-mono font-semibold ${timeLeft === 'Match Ended' ? 'text-destructive' : timeLeft < '01:00:00' ? 'text-amber-500' : 'text-muted-foreground'}`}>
+                  {timeLeft}
+                </span>
+              </div>
+              <Progress value={countdownProgress} className="h-1.5" />
             </CardHeader>
             
             <CardContent className="p-4 space-y-4">
+              {/* Live Activity */}
+              <div className="space-y-2 py-2 border-b border-border/30">
+                <div className="text-center">
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">Live Activity</p>
+                  <div className="flex justify-around items-start">
+                    <div className="text-center relative px-1">
+                      <div className="relative inline-block">
+                        <span className="text-2xl md:text-3xl font-bold text-green-500">{yesBettors}</span>
+                        {showPlusOneYes && (
+                          <span className="absolute -top-1.5 -right-3 text-xs md:text-sm text-green-500 animate-fade-in-out-briefly font-semibold">+1</span>
+                        )}
+                      </div>
+                      <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Betting YES</p>
+                    </div>
+                    <div className="text-center relative px-1">
+                      <div className="relative inline-block">
+                        <span className="text-2xl md:text-3xl font-bold text-red-500">{noBettors}</span>
+                        {showPlusOneNo && (
+                          <span className="absolute -top-1.5 -right-3 text-xs md:text-sm text-red-500 animate-fade-in-out-briefly font-semibold">+1</span>
+                        )}
+                      </div>
+                      <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5">Betting NO</p>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  className={`text-center p-1.5 rounded-md transition-all duration-300 ${oddsPulse ? 'animate-pulse-once bg-primary/10' : 'bg-muted/30'}`}
+                >
+                  <p className="text-xs text-muted-foreground">Current Odds:</p>
+                  <p className="text-base md:text-lg font-semibold">
+                    <span className="text-green-500">YES {choiceData.YES.price.toFixed(0)}%</span>
+                    {' / '}
+                    <span className="text-red-500">NO {choiceData.NO.price.toFixed(0)}%</span>
+                  </p>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 {Object.entries(choiceData).map(([key, data]) => (
                   <button
