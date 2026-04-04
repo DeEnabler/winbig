@@ -91,7 +91,9 @@ export async function getMatchDisplayData(
     isConfirmingChallenge: isConfirmingChallenge,
     originalReferrer: originalReferrerFromQuery,
 
-    marketVolumeUsd: market.volumeUsd ?? null,
+    marketVolume: market.volume ?? null,
+    marketVolume24hr: market.volume24hr ?? null,
+    marketLiquidity: market.liquidity ?? null,
   };
 
   return match;

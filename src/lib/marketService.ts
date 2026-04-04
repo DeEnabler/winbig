@@ -323,35 +323,34 @@ function parseOrderbook(data: any): OrderBook | null {
 }
 
 /**
- * Total traded notional (USD) for the market, if your ingest service stores it.
- * Checked on `market:{id}` first, then `market_meta:{id}`. Prefer `volume_usd` for clarity.
+ * Parse a single numeric field from market_meta (or market) hash.
+ * Returns null when field is absent, empty, or not a valid number.
  */
-function parseVolumeFromRedis(
-  marketData: Record<string, any>,
-  metaData: Record<string, any>
-): number | null {
-  const keys = [
-    'volume_usd',
-    'volumeUsd',
-    'total_volume_usd',
-    'polymarket_volume',
-    'volume',
-    'total_volume',
-    'liquidity_usd',
-  ];
+function parseNumericField(metaData: Record<string, any>, key: string): number | null {
+  const raw = metaData?.[key];
+  if (raw == null || raw === '') return null;
+  const n = parseFloat(String(raw).replace(/,/g, ''));
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
 
-  for (const row of [marketData, metaData]) {
-    if (!row) continue;
-    for (const k of keys) {
-      const raw = row[k];
-      if (raw == null || raw === '') continue;
-      const n = parseFloat(String(raw).replace(/,/g, ''));
-      if (Number.isFinite(n) && n >= 0) {
-        return n;
-      }
-    }
-  }
-  return null;
+/**
+ * Volume & liquidity fields written by the Gamma enrichment step of the ingest service
+ * onto `market_meta:{condition_id}`. All values are USD strings parsed as numbers.
+ *
+ *   volume      — all-time CLOB volume (volumeNum from Gamma)
+ *   volume_24hr — 24-hour volume
+ *   volume_1wk  — 1-week volume
+ *   volume_1mo  — 1-month volume
+ *   liquidity   — liquidityNum
+ */
+function parseMarketMetrics(metaData: Record<string, any>) {
+  return {
+    volume:     parseNumericField(metaData, 'volume'),
+    volume24hr: parseNumericField(metaData, 'volume_24hr'),
+    volume1wk:  parseNumericField(metaData, 'volume_1wk'),
+    volume1mo:  parseNumericField(metaData, 'volume_1mo'),
+    liquidity:  parseNumericField(metaData, 'liquidity'),
+  };
 }
 
 /**
@@ -387,7 +386,7 @@ function parseAndMergeMarketData(marketData: Record<string, any>, metaData: Reco
     const orderbookYes: OrderBook | null = parseOrderbook(marketData.orderbook_yes);
     const orderbookNo: OrderBook | null = parseOrderbook(marketData.orderbook_no);
 
-    const volumeUsd = parseVolumeFromRedis(marketData, metaData);
+    const metrics = parseMarketMetrics(metaData);
 
     return {
       id: conditionId,
@@ -397,7 +396,11 @@ function parseAndMergeMarketData(marketData: Record<string, any>, metaData: Reco
       imageUrl: `https://placehold.co/600x400.png`,
       aiHint: metaData.category?.toLowerCase() || question.split(' ').slice(0, 2).join(' ') || 'general',
 
-      volumeUsd,
+      volume: metrics.volume,
+      volume24hr: metrics.volume24hr,
+      volume1wk: metrics.volume1wk,
+      volume1mo: metrics.volume1mo,
+      liquidity: metrics.liquidity,
       
       // 💰 Execution prices (what users actually pay)
       yesBuyPrice: yesBuyPrice,

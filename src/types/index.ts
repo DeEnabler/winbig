@@ -33,11 +33,16 @@ export interface LiveMarket {
     timestamp?: number;
   };
 
-  /**
-   * Polymarket / ingest: total traded notional for this market (USD), if the writer
-   * stores it on Redis (see parseVolumeFromRedis in marketService).
-   */
-  volumeUsd?: number | null;
+  /** All-time CLOB volume in USD (from market_meta `volume` field, via Gamma) */
+  volume?: number | null;
+  /** 24-hour volume in USD */
+  volume24hr?: number | null;
+  /** 1-week volume in USD */
+  volume1wk?: number | null;
+  /** 1-month volume in USD */
+  volume1mo?: number | null;
+  /** Current liquidity in USD */
+  liquidity?: number | null;
 }
 
 export interface Prediction {
@@ -113,8 +118,12 @@ export interface Match {
   isConfirmingChallenge?: boolean;
   originalReferrer?: string; // To pass along who initiated the challenge
 
-  /** Same as LiveMarket.volumeUsd — from Redis when ingest writes it */
-  marketVolumeUsd?: number | null;
+  /** All-time market volume in USD (from market_meta via Gamma) */
+  marketVolume?: number | null;
+  /** 24-hour volume in USD */
+  marketVolume24hr?: number | null;
+  /** Current liquidity in USD */
+  marketLiquidity?: number | null;
 }
 
 // Props for PredictionCard

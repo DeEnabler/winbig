@@ -56,6 +56,12 @@ function formatTimeLeft(ends: number) {
   return `${hours}:${minutes}:${seconds}`;
 }
 
+function formatVolume(v: number): string {
+  if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `$${(v / 1_000).toFixed(1)}K`;
+  return `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+}
+
 function initializeBettorsFromPrice(yesPrice?: number, baseTotalBettors = 50) {
   if (typeof yesPrice === 'number' && yesPrice >= 0 && yesPrice <= 1) {
     const initialYes = Math.round(yesPrice * baseTotalBettors);
@@ -656,15 +662,21 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
                     <p className="text-xs text-muted-foreground">Predictor</p>
                   </div>
                 </div>
-                <div className="text-right max-w-[55%]">
-                  <p className="text-xs text-muted-foreground">Market volume</p>
-                  <p className="font-bold text-lg tabular-nums">
-                    {match.marketVolumeUsd != null && match.marketVolumeUsd > 0 ? (
-                      <>${match.marketVolumeUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}</>
-                    ) : (
-                      <span className="text-base font-medium text-muted-foreground">—</span>
-                    )}
-                  </p>
+                <div className="text-right">
+                  {match.marketVolume != null && match.marketVolume > 0 ? (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Volume</p>
+                      <p className="font-bold text-lg tabular-nums">{formatVolume(match.marketVolume)}</p>
+                      {match.marketVolume24hr != null && match.marketVolume24hr > 0 && (
+                        <p className="text-[10px] text-muted-foreground tabular-nums">{formatVolume(match.marketVolume24hr)} 24h</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Volume</p>
+                      <p className="text-base font-medium text-muted-foreground">—</p>
+                    </div>
+                  )}
                 </div>
               </div>
               <p className="text-lg font-semibold text-center my-3">{match.predictionText}</p>
