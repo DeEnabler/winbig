@@ -15,6 +15,7 @@ import { cookieToInitialState } from 'wagmi';
 import { headers } from 'next/headers';
 import { wagmiConfig } from '@/components/providers/wagmi-config';
 import { InitialPopups } from '@/components/popups/InitialPopups';
+import { Analytics } from '@vercel/analytics/next';
 
 export const dynamic = 'force-dynamic';
 
@@ -108,6 +109,7 @@ export default function RootLayout({
             </WalletKitProvider>
           </EntryContextProvider>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
