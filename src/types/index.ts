@@ -31,7 +31,13 @@ export interface LiveMarket {
     yes: { bids: OrderLevel[], asks: OrderLevel[] };
     no: { bids: OrderLevel[], asks: OrderLevel[] };
     timestamp?: number;
-  }
+  };
+
+  /**
+   * Polymarket / ingest: total traded notional for this market (USD), if the writer
+   * stores it on Redis (see parseVolumeFromRedis in marketService).
+   */
+  volumeUsd?: number | null;
 }
 
 export interface Prediction {
@@ -106,6 +112,9 @@ export interface Match {
   // Flags for challenge confirmation flow
   isConfirmingChallenge?: boolean;
   originalReferrer?: string; // To pass along who initiated the challenge
+
+  /** Same as LiveMarket.volumeUsd — from Redis when ingest writes it */
+  marketVolumeUsd?: number | null;
 }
 
 // Props for PredictionCard

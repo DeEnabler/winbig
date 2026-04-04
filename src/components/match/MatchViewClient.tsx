@@ -610,12 +610,6 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
     }
   }, [isConfirmed, txHash, receipt, pendingBets, proceedWithBetPlacement, toast, bonusToUse]);
 
-  const totalPot = useMemo(() => {
-    const yesBets = 1000;
-    const noBets = 500;
-    return yesBets + noBets;
-  }, []);
-
   const choiceData = useMemo(() => {
     // Default to market odds from the match
     let yesPrice = (match.yesImpliedProbability * 100) || (match.yesPrice * 100) || 50;
@@ -662,11 +656,14 @@ export default function MatchViewClient({ match: initialMatch, initialChoice, in
                     <p className="text-xs text-muted-foreground">Predictor</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs text-muted-foreground">Total Pot</p>
-                  <p className="font-bold text-lg inline-flex items-center gap-1">
-                    ${totalPot.toLocaleString()}
-                    <UsdtLogo className="h-4 w-4 opacity-70" />
+                <div className="text-right max-w-[55%]">
+                  <p className="text-xs text-muted-foreground">Market volume</p>
+                  <p className="font-bold text-lg tabular-nums">
+                    {match.marketVolumeUsd != null && match.marketVolumeUsd > 0 ? (
+                      <>${match.marketVolumeUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}</>
+                    ) : (
+                      <span className="text-base font-medium text-muted-foreground">—</span>
+                    )}
                   </p>
                 </div>
               </div>

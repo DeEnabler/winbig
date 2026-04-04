@@ -323,6 +323,38 @@ function parseOrderbook(data: any): OrderBook | null {
 }
 
 /**
+ * Total traded notional (USD) for the market, if your ingest service stores it.
+ * Checked on `market:{id}` first, then `market_meta:{id}`. Prefer `volume_usd` for clarity.
+ */
+function parseVolumeFromRedis(
+  marketData: Record<string, any>,
+  metaData: Record<string, any>
+): number | null {
+  const keys = [
+    'volume_usd',
+    'volumeUsd',
+    'total_volume_usd',
+    'polymarket_volume',
+    'volume',
+    'total_volume',
+    'liquidity_usd',
+  ];
+
+  for (const row of [marketData, metaData]) {
+    if (!row) continue;
+    for (const k of keys) {
+      const raw = row[k];
+      if (raw == null || raw === '') continue;
+      const n = parseFloat(String(raw).replace(/,/g, ''));
+      if (Number.isFinite(n) && n >= 0) {
+        return n;
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * 📊 **COMPLETE MARKET DATA EXTRACTION**
  * 
  * Parses and merges raw data from Redis hashes (`market:*` and `market_meta:*`)
@@ -355,6 +387,8 @@ function parseAndMergeMarketData(marketData: Record<string, any>, metaData: Reco
     const orderbookYes: OrderBook | null = parseOrderbook(marketData.orderbook_yes);
     const orderbookNo: OrderBook | null = parseOrderbook(marketData.orderbook_no);
 
+    const volumeUsd = parseVolumeFromRedis(marketData, metaData);
+
     return {
       id: conditionId,
       question: question,
@@ -362,6 +396,8 @@ function parseAndMergeMarketData(marketData: Record<string, any>, metaData: Reco
       endsAt: metaData.end_date ? new Date(metaData.end_date) : undefined,
       imageUrl: `https://placehold.co/600x400.png`,
       aiHint: metaData.category?.toLowerCase() || question.split(' ').slice(0, 2).join(' ') || 'general',
+
+      volumeUsd,
       
       // 💰 Execution prices (what users actually pay)
       yesBuyPrice: yesBuyPrice,
