@@ -190,6 +190,9 @@ export interface EntryContextType {
   referrerUserId?: string;
   shareCode?: string;
   affiliateCode?: string; // User's persistent affiliate code (from /ref/[code] links)
+  // PropellerAds campaign tracking
+  campaignSubIds?: { sub1?: string; sub2?: string; sub3?: string; sub4?: string; sub5?: string };
+  variant?: string;
   appendEntryParams: (url: string) => string;
 }
 

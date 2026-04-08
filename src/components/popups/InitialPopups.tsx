@@ -68,7 +68,7 @@ export function InitialPopups() {
             </DialogHeader>
             <div className="py-4">
               <p className="mb-4">
-                LiquidLaunch is currently in Early Access. This application is
+                WinBig is currently in Early Access. This application is
                 actively being developed and may contain bugs or undergo
                 significant changes.
               </p>

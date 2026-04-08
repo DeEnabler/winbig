@@ -4,10 +4,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { insertBet, BetRecord } from '@/lib/supabase-server'
 import { deductBonusForBet, checkAndUnlockProfits } from '@/lib/bonus-service'
 
-// Extended bet data interface to include bonus fields
+// Extended bet data interface to include bonus + campaign fields
 interface BetDataWithBonus extends Omit<BetRecord, 'id' | 'created_at'> {
   bonus_amount_used?: number;
   cash_amount_used?: number;
+  campaign_sub1?: string;
+  campaign_sub2?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -65,6 +67,17 @@ export async function POST(request: NextRequest) {
     console.log('📤 API: Bet insertion result:', result);
     
     if (result.success && result.data) {
+      // Fire S2S PropellerAds postback if campaign sub1 present (non-blocking)
+      const campaignSub1 = betData.campaign_sub1 as string | undefined;
+      const campaignSub2 = betData.campaign_sub2 as string | undefined;
+      if (campaignSub1) {
+        const pbUrl = new URL('/api/postback', request.nextUrl.origin);
+        pbUrl.searchParams.set('sub1', campaignSub1);
+        if (campaignSub2) pbUrl.searchParams.set('sub2', campaignSub2);
+        pbUrl.searchParams.set('amount', String(betData.amount));
+        fetch(pbUrl.toString()).catch(() => {});
+      }
+
       // Handle bonus deduction if bonus was used
       if (betData.bonus_amount_used && betData.bonus_amount_used > 0) {
         console.log('🎁 API: Processing bonus deduction for bet:', result.data.id);
