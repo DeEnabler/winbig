@@ -1,9 +1,15 @@
-
 {
-  "builds": [
+  "rewrites": [],
+  "redirects": [
     {
-      "src": "package.json",
-      "use": "@vercel/next"
+      "source": "/book",
+      "destination": "https://cal.eu/שלומי-ג-יבלי-twf0mb/15min",
+      "permanent": false
+    },
+    {
+      "source": "/book/:path*",
+      "destination": "https://cal.eu/שלומי-ג-יבלי-twf0mb/15min",
+      "permanent": false
     }
   ]
 }
